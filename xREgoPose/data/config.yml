@@ -1,0 +1,17 @@
+# Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
+# config file
+
+dataset:
+  train: data/Dataset/TrainSet
+  val: data/Dataset/ValSet
+  test: data/Dataset/TestSet
+
+transforms:
+  norm: Neck
+
+data_loader:
+  batch_size: 2
+  shuffle: True
+
+eval:
+  output_file: data/eval_res.json
