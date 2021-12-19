@@ -53,7 +53,6 @@ if __name__ == '__main__':
         trsf.Joints3DTrsf(),
         trsf.ToTensor()])
 
-    # let's load data from validation set as example
     data = Mocap(
         args.dataset,
         SetType.TRAIN,
@@ -101,14 +100,7 @@ if __name__ == '__main__':
     decay_step = args.decay_step
     learning_rate = learning_rate * (lr_decay ** (start_iter // decay_step))
     opt = torch.optim.SGD(model.parameters(), lr=learning_rate, momentum=0.9, weight_decay=0.0005)
-    # opt_front = torch.optim.SGD(list(model.resnet101.parameters()) + list(model.heatmap_deconv.parameters()),
-    #                             lr=learning_rate, momentum=0.9, weight_decay=0.0005)
-    # opt_back = torch.optim.SGD(list(model.encoder.parameters())+list(model.pose_decoder.parameters())+list(model.heatmap_decoder.parameters()),
-    #                            lr=learning_rate, momentum=0.9, weight_decay=0.0005)
-    # opt_front = torch.optim.Adam(model.parameters(),
-    #                              lr=learning_rate)
-    # opt_back = torch.optim.Adam(list(model.encoder.parameters()) + list(model.pose_decoder.parameters()) + list(
-    #     model.heatmap_decoder.parameters()), lr=learning_rate)
+
 
     # Logger Setup
     os.makedirs(os.path.join('log', now.strftime('%m%d%H%M')), exist_ok=True)
@@ -127,47 +119,7 @@ if __name__ == '__main__':
             img = img.cuda()
             p2d = p2d.cuda()
             p3d = p3d.cuda()
-            # Freeze everything but resnet, and deconv
-            # for param in model.resnet101.parameters():
-            #     param.requires_grad = True
-            #
-            # for param in model.heatmap_deconv.parameters():
-            #     param.requires_grad = True
-            #
-            # for param in model.heatmap_decoder.parameters():
-            #     param.requires_grad = False
-            #
-            # for param in model.pose_decoder.parameters():
-            #     param.requires_grad = False
-            #
-            # for param in model.encoder.parameters():
-            #     param.requires_grad = False
-            # opt.zero_grad()
-            # heatmap = model(img)
-            # heatmap = torch.sigmoid(heatmap)
-            # loss_2d_hm = mse(heatmap, p2d)
-            # loss_2d_hm.backward()
-            # opt_front.step()
-            #
-            #
-            # writer.add_scalar('Total HM loss', loss_2d_hm.item(), global_step=iterate)
-            #
-            # # Freeze resnet, deconv
-            # for param in model.resnet101.parameters():
-            #     param.requires_grad = False
-            #
-            # for param in model.heatmap_deconv.parameters():
-            #     param.requires_grad = False
-            #
-            # for param in model.heatmap_decoder.parameters():
-            #     param.requires_grad = True
-            #
-            # for param in model.pose_decoder.parameters():
-            #     param.requires_grad = True
-            #
-            # for param in model.encoder.parameters():
-            #     param.requires_grad = True
-            #
+
             opt.zero_grad()
             heatmap, pose, generated_heatmaps = model(img)
             heatmap = torch.sigmoid(heatmap)
@@ -257,12 +209,7 @@ if __name__ == '__main__':
             if iterate % (args.batch_size * (decay_step // args.batch_size)) == 0 and i != 0:
                 learning_rate *= lr_decay
                 opt = torch.optim.SGD(model.parameters(), lr=learning_rate, momentum=0.9, weight_decay=0.0005)
-                # opt_front = torch.optim.Adam(
-                #     list(model.resnet101.parameters()) + list(model.heatmap_deconv.parameters()), lr=learning_rate)
-                # opt_back = torch.optim.Adam(
-                #     list(model.encoder.parameters()) + list(model.pose_decoder.parameters()) + list(
-                #         model.heatmap_decoder.parameters()),
-                #     lr=learning_rate)
+
             iterate += args.batch_size
 
         start_iter = 0
