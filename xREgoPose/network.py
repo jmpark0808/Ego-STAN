@@ -9,9 +9,9 @@ import time
 import math
 from torchsummary import summary
 
-class xREgoPose(nn.Module):
+class HeatMap(nn.Module):
     def __init__(self):
-        super(xREgoPose, self).__init__()
+        super(HeatMap, self).__init__()
         # Resnet 101 without last average pooling and fully connected layers
         self.resnet101 = nn.Sequential(*[l for ind, l in enumerate(torchvision.models.resnet101(pretrained=False).children()) if ind < 8])
         # First Deconvolution to obtain 2D heatmap
@@ -19,12 +19,6 @@ class xREgoPose(nn.Module):
                                                                  stride=2, dilation=1, padding=1),
                                               nn.ConvTranspose2d(1024, 15, kernel_size=3,
                                                                  stride=2, dilation=1, padding=0)])
-        # Encoder that takes 2D heatmap and transforms to latent vector Z
-        self.encoder = Encoder()
-        # Pose decoder that takes latent vector Z and transforms to 3D pose coordinates
-        self.pose_decoder = PoseDecoder()
-        # Heatmap decoder that takes latent vector Z and generates the original 2D heatmap
-        self.heatmap_decoder = HeatmapDecoder()
 
 
     def forward(self, x):
@@ -36,7 +30,22 @@ class xREgoPose(nn.Module):
         heatmap = self.heatmap_deconv(x)
         # heatmap = 15 x 47 x 47
 
-        z = self.encoder(heatmap)
+        return heatmap
+
+
+class PoseEstimator(nn.Module):
+    def __init__(self):
+        super(PoseEstimator, self).__init__()
+        # Encoder that takes 2D heatmap and transforms to latent vector Z
+        self.encoder = Encoder()
+        # Pose decoder that takes latent vector Z and transforms to 3D pose coordinates
+        self.pose_decoder = PoseDecoder()
+        # Heatmap decoder that takes latent vector Z and generates the original 2D heatmap
+        self.heatmap_decoder = HeatmapDecoder()
+
+
+    def forward(self, x):
+        z = self.encoder(x)
         # z = 20
 
         pose = self.pose_decoder(z)
@@ -45,6 +54,4 @@ class xREgoPose(nn.Module):
         generated_heatmaps = self.heatmap_decoder(z)
         # generated_heatmaps = 15 x 47 x 47
 
-        return heatmap, pose, generated_heatmaps
-
-
+        return generated_heatmaps, pose

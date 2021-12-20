@@ -10,7 +10,7 @@ from torchvision import transforms
 from tensorboardX import SummaryWriter
 from tqdm import tqdm
 from loss import mse, auto_encoder_loss
-from network import xREgoPose
+from network import *
 from dataset.mocap import Mocap
 from utils import config
 from base import SetType
@@ -19,12 +19,12 @@ from matplotlib.pyplot import MultipleLocator
 import matplotlib.pyplot as plt
 
 if __name__ == '__main__':
-    torch.cuda.manual_seed_all(1234)
-    torch.manual_seed(1234)
-
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
-    parser.add_argument("--load",
-                        help="Directory of pre-trained model,  \n"
+    parser.add_argument("--load_hm",
+                        help="Directory of pre-trained model for heatmap,  \n"
+                             "None --> Do not use pre-trained model. Training will start from random initialized model")
+    parser.add_argument("--load_pose",
+                        help="Directory of pre-trained model for pose estimator,  \n"
                              "None --> Do not use pre-trained model. Training will start from random initialized model")
     parser.add_argument('--dataset', help='Directory of your Dataset', required=True, default=None)
     parser.add_argument('--cuda', help="'cuda' for cuda, 'cpu' for cpu, default = cuda",
@@ -32,21 +32,19 @@ if __name__ == '__main__':
     parser.add_argument('--batch_size', help="batchsize, default = 1", default=1, type=int)
     parser.add_argument('--epoch', help='# of epochs. default = 20', default=20, type=int)
     parser.add_argument('--logdir', help='logdir for models and losses. default = .', default='./', type=str)
-    parser.add_argument('--lr', '--learning_rate', help='learning_rate. default = 0.001', default=0.001, type=float)
+    parser.add_argument('--lr_pose', help='learning_rate for pose. default = 0.001', default=0.001, type=float)
+    parser.add_argument('--lr_hm', help='learning_rate for heat maps. default = 0.001', default=0.001, type=float)
     parser.add_argument('--lr_decay', help='Learning rate decrease by lr_decay time per decay_step, default = 0.1',
                         default=0.1, type=float)
     parser.add_argument('--decay_step', help='Learning rate decrease by lr_decay time per decay_step,  default = 7000',
                         default=1E100, type=int)
     parser.add_argument('--display_freq', help='display_freq to display result image on Tensorboard',
                         default=1000, type=int)
-    parser.add_argument('--e_batch_size', help="effective batchsize, default = 8", default=8, type=int)
-
 
 
     args = parser.parse_args()
     device = torch.device(args.cuda)
     batch_size = args.batch_size
-    e_batch_size = args.e_batch_size
     epoch = args.epoch
     data_transform = transforms.Compose([
         trsf.ImageTrsf(),
@@ -62,9 +60,12 @@ if __name__ == '__main__':
         batch_size=args.batch_size,
         shuffle=True)
 
-    load = args.load
+    load_hm = args.load_hm
+    load_pose = args.load_pose
     start_iter = 0
-    model = xREgoPose().to(device=args.cuda)
+    model_hm = HeatMap().to(device=args.cuda)
+    model_hm.train()
+    model_pose = PoseEstimator().to(device=args.cuda)
 
     # Xavier Initialization
     def weight_init(m):
@@ -73,40 +74,61 @@ if __name__ == '__main__':
             if m.bias is not None:
                 torch.nn.init.zeros_(m.bias)
 
-    model.encoder.apply(weight_init)
-    model.heatmap_deconv.apply(weight_init)
-    model.pose_decoder.apply(weight_init)
-    model.heatmap_decoder.apply(weight_init)
+    model_hm.resnet101.apply(weight_init)
+    model_hm.heatmap_deconv.apply(weight_init)
+
+    model_pose.encoder.apply(weight_init)
+    model_pose.pose_decoder.apply(weight_init)
+    model_pose.heatmap_decoder.apply(weight_init)
+
     now = datetime.datetime.now()
     start_epo = 0
 
 
-    if load is not None:
-        state_dict = torch.load(load, map_location=args.cuda)
+    if load_hm is not None:
+        state_dict_hm = torch.load(load_hm, map_location=args.cuda)
 
-        start_iter = int(load.split('epo_')[1].strip('step.ckpt'))
-        start_epo = int(load.split('/')[-1].split('epo')[0])
-        now = datetime.datetime.strptime(load.split('/')[-2], '%m%d%H%M')
 
-        print("Loading Model from {}".format(load))
+        start_iter = int(load_hm.split('epo_')[1].strip('step.ckpt'))
+        start_epo = int(load_hm.split('/')[-1].split('epo')[0])
+        now = datetime.datetime.strptime(load_hm.split('/')[-2], '%m%d%H%M')
+
+        print("Loading Model from {}".format(load_hm))
         print("Start_iter : {}".format(start_iter))
         print("now : {}".format(now.strftime('%m%d%H%M')))
-        model.load_state_dict(state_dict)
+        model_hm.load_state_dict(state_dict_hm)
+        print('Loading_Complete')
+
+    if load_pose is not None:
+        state_dict_pose = torch.load(load_pose, map_location=args.cuda)
+
+        start_iter = int(load_pose.split('epo_')[1].strip('step.ckpt'))
+        start_epo = int(load_pose.split('/')[-1].split('epo')[0])
+        now = datetime.datetime.strptime(load_pose.split('/')[-2], '%m%d%H%M')
+
+        print("Loading Model from {}".format(load_pose))
+        print("Start_iter : {}".format(start_iter))
+        print("now : {}".format(now.strftime('%m%d%H%M')))
+        model_pose.load_state_dict(state_dict_pose)
         print('Loading_Complete')
 
     # Optimizer Setup
-    learning_rate = args.lr
+    learning_rate_hm = args.lr_hm
+    learning_rate_pose = args.lr_pose
     lr_decay = args.lr_decay
     decay_step = args.decay_step
-    learning_rate = learning_rate * (lr_decay ** (start_iter // decay_step))
-    opt = torch.optim.SGD(model.parameters(), lr=learning_rate, momentum=0.9, weight_decay=0.0005)
-
+    learning_rate_hm = learning_rate_hm * (lr_decay ** (start_iter // decay_step))
+    learning_rate_pose = learning_rate_pose * (lr_decay ** (start_iter // decay_step))
+    opt_hm = torch.optim.Adam(model_hm.parameters(), lr=learning_rate_hm)
+    opt_pose = torch.optim.SGD(model_pose.parameters(), lr=learning_rate_pose, momentum=0.9, weight_decay=0.0005)
 
     # Logger Setup
     os.makedirs(os.path.join('log', now.strftime('%m%d%H%M')), exist_ok=True)
-    weight_save_dir = os.path.join(args.logdir, os.path.join('models', 'state_dict', now.strftime('%m%d%H%M')))
+    weight_save_dir_hm = os.path.join(args.logdir, os.path.join('models/hm', 'state_dict', now.strftime('%m%d%H%M')))
+    weight_save_dir_pose = os.path.join(args.logdir, os.path.join('models/pose', 'state_dict', now.strftime('%m%d%H%M')))
     plot_3d_dir = os.path.join(args.logdir, os.path.join('3d_plot', now.strftime('%m%d%H%M')))
-    os.makedirs(os.path.join(weight_save_dir), exist_ok=True)
+    os.makedirs(os.path.join(weight_save_dir_hm), exist_ok=True)
+    os.makedirs(os.path.join(weight_save_dir_pose), exist_ok=True)
     os.makedirs(os.path.join(plot_3d_dir), exist_ok=True)
     writer = SummaryWriter(os.path.join(args.logdir, os.path.join('log', now.strftime('%m%d%H%M'))))
     iterate = start_iter
@@ -120,28 +142,43 @@ if __name__ == '__main__':
             p2d = p2d.cuda()
             p3d = p3d.cuda()
 
-            opt.zero_grad()
-            heatmap, pose, generated_heatmaps = model(img)
+            opt_hm.zero_grad()
+            heatmap = model_hm(img)
             heatmap = torch.sigmoid(heatmap)
-            generated_heatmaps = torch.sigmoid(generated_heatmaps)
-            loss_2d_hm = mse(heatmap, p2d)
-            loss_3d_pose, loss_2d_ghm = auto_encoder_loss(pose, p3d, generated_heatmaps, heatmap)
-            loss = loss_3d_pose+loss_2d_ghm+loss_2d_hm
+            loss = mse(heatmap, p2d)
             loss.backward()
-            opt.step()
+            opt_hm.step()
+            writer.add_scalar('Total HM loss', loss.item(), global_step=iterate)
+
+            if loss.item() < 0.05:
+                model_pose.train()
+                opt_pose.zero_grad()
+                heatmap = heatmap.detach()
+                generated_heatmap, pose = model_pose(heatmap)
+                generated_heatmap = torch.sigmoid(generated_heatmap)
+                loss_3d_pose, loss_2d_ghm = auto_encoder_loss(pose, p3d, generated_heatmap, heatmap)
+                loss = loss_2d_ghm+loss_3d_pose
+                loss.backward()
+                opt_pose.step()
+            else:
+                model_pose.eval()
+                with torch.no_grad():
+                    heatmap = heatmap.detach()
+                    generated_heatmap, pose = model_pose(heatmap)
+                    generated_heatmap = torch.sigmoid(generated_heatmap)
+
+            writer.add_scalar('Total 3D loss', loss_3d_pose.item(), global_step=iterate)
+            writer.add_scalar('Total GHM loss', loss_2d_ghm.item(), global_step=iterate)
 
 
-            writer.add_scalar('3D loss', loss_3d_pose.item(), global_step=iterate)
-            writer.add_scalar('Generated Heat Map loss', loss_2d_ghm.item(), global_step=iterate)
-            writer.add_scalar('Total HM loss', loss_2d_hm.item(), global_step=iterate)
-
-            writer.add_scalar('LR', learning_rate, global_step=iterate)
+            writer.add_scalar('LR_hm', learning_rate_hm, global_step=iterate)
+            writer.add_scalar('LR_pose', learning_rate_pose, global_step=iterate)
             with torch.no_grad():
                 MPJPE = torch.mean(torch.pow(p3d-pose, 2))
             writer.add_scalar('Mean Per-Joint Position Error', MPJPE, global_step=iterate)
             if iterate % args.display_freq == 0:
                 writer.add_image('Pred_heatmap', torch.clip(torch.sum(heatmap, dim=1, keepdim=True), 0, 1), global_step=iterate)
-                writer.add_image('Generated_heatmap', torch.clip(torch.sum(generated_heatmaps, dim=1, keepdim=True), 0, 1), global_step=iterate)
+                writer.add_image('Generated_heatmap', torch.clip(torch.sum(generated_heatmap, dim=1, keepdim=True), 0, 1), global_step=iterate)
                 writer.add_image('GT_Heatmap', torch.clip(torch.sum(p2d, dim=1, keepdim=True), 0, 1), iterate)
                 writer.add_image('GT_Image', img, iterate)
                 #PLOT GT 3D pose, PRED 3D pose
@@ -199,17 +236,22 @@ if __name__ == '__main__':
                     fig.clf()
             if iterate % (args.batch_size * (1000 // args.batch_size)) == 0:
                 if i != 0:
-                    torch.save(model.state_dict(),
-                               os.path.join(weight_save_dir, '{}epo_{}step.ckpt'.format(epo, iterate)))
+                    torch.save(model_hm.state_dict(),
+                               os.path.join(weight_save_dir_hm, '{}epo_{}step.ckpt'.format(epo, iterate)))
+                    torch.save(model_pose.state_dict(),
+                               os.path.join(weight_save_dir_pose, '{}epo_{}step.ckpt'.format(epo, iterate)))
             if iterate % 1000 == 0 and i != 0:
-                for file in weight_save_dir:
+                for file in weight_save_dir_hm:
                     if '00' in file and '000' not in file:
-                        os.remove(os.path.join(weight_save_dir, file))
-
+                        os.remove(os.path.join(weight_save_dir_hm, file))
+                for file in weight_save_dir_pose:
+                    if '00' in file and '000' not in file:
+                        os.remove(os.path.join(weight_save_dir_pose, file))
             if iterate % (args.batch_size * (decay_step // args.batch_size)) == 0 and i != 0:
-                learning_rate *= lr_decay
-                opt = torch.optim.SGD(model.parameters(), lr=learning_rate, momentum=0.9, weight_decay=0.0005)
-
+                learning_rate_hm *= lr_decay
+                learning_rate_pose *= lr_decay
+                opt_hm = torch.optim.Adam(model_hm.parameters(), lr=learning_rate_hm)
+                opt_pose = torch.optim.Adam(model_pose.parameters(), lr=learning_rate_pose)
             iterate += args.batch_size
 
         start_iter = 0
