@@ -150,7 +150,7 @@ if __name__ == '__main__':
             opt_hm.step()
             writer.add_scalar('Total HM loss', loss.item(), global_step=iterate)
 
-            if loss.item() < 0.05:
+            if loss.item() < 0.1:
                 model_pose.train()
                 opt_pose.zero_grad()
                 heatmap = heatmap.detach()
@@ -160,6 +160,8 @@ if __name__ == '__main__':
                 loss = loss_2d_ghm+loss_3d_pose
                 loss.backward()
                 opt_pose.step()
+                writer.add_scalar('Total 3D loss', loss_3d_pose.item(), global_step=iterate)
+                writer.add_scalar('Total GHM loss', loss_2d_ghm.item(), global_step=iterate)
             else:
                 model_pose.eval()
                 with torch.no_grad():
@@ -167,8 +169,7 @@ if __name__ == '__main__':
                     generated_heatmap, pose = model_pose(heatmap)
                     generated_heatmap = torch.sigmoid(generated_heatmap)
 
-            writer.add_scalar('Total 3D loss', loss_3d_pose.item(), global_step=iterate)
-            writer.add_scalar('Total GHM loss', loss_2d_ghm.item(), global_step=iterate)
+
 
 
             writer.add_scalar('LR_hm', learning_rate_hm, global_step=iterate)
@@ -186,7 +187,7 @@ if __name__ == '__main__':
                     gt_pose = p3d.cpu().numpy()
                     pred_pose = pose.detach().cpu().numpy()
                     batch_dim = gt_pose.shape[0]
-                    fig = plt.figure(figsize=(20, 10))
+                    fig = plt.figure(figsize=(20*(batch_dim//8), 10))
                     for batch_ind in range(batch_dim):
                         ax = fig.add_subplot(2, batch_dim, batch_ind+1, projection='3d')
 
@@ -240,6 +241,33 @@ if __name__ == '__main__':
                                os.path.join(weight_save_dir_hm, '{}epo_{}step.ckpt'.format(epo, iterate)))
                     torch.save(model_pose.state_dict(),
                                os.path.join(weight_save_dir_pose, '{}epo_{}step.ckpt'.format(epo, iterate)))
+                    if len(os.listdir(os.path.join(weight_save_dir_hm))) > 5:
+                        model_dict = {}
+                        for model_path in os.listdir(os.path.join(weight_save_dir_hm)):
+                            iter = model_path.split('epo_')[1].split('step')[0]
+                            model_dict[model_path] = int(iter)
+                        total_files = len(model_dict)
+                        for k, v in sorted(model_dict.items(), key=lambda item: item[1]):
+                            os.remove(os.path.join(weight_save_dir_hm, k))
+                            total_files -= 1
+                            if total_files == 5:
+                                break
+
+                    if len(os.listdir(os.path.join(weight_save_dir_pose))) > 5:
+                        model_dict = {}
+                        for model_path in os.listdir(os.path.join(weight_save_dir_pose)):
+                            iter = model_path.split('epo_')[1].split('step')[0]
+                            model_dict[model_path] = int(iter)
+                        total_files = len(model_dict)
+                        for k, v in sorted(model_dict.items(), key=lambda item: item[1]):
+                            os.remove(os.path.join(weight_save_dir_pose, k))
+                            total_files -= 1
+                            if total_files == 5:
+                                break
+
+
+
+
             if iterate % 1000 == 0 and i != 0:
                 for file in weight_save_dir_hm:
                     if '00' in file and '000' not in file:
