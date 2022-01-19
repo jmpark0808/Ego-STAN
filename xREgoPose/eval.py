@@ -67,8 +67,6 @@ def main():
     eval_upper = evaluate.EvalUpperBody()
     eval_lower = evaluate.EvalUpperBody()
 
-    now = datetime.datetime.now()
-
     # Load heatmap model
     assert args.load_hm is not None
     load_hm = args.load_hm
