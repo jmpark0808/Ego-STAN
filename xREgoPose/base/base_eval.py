@@ -9,7 +9,7 @@ Base eval class
 import re
 from abc import ABC, abstractmethod
 import numpy as np
-from utils import console_logger, config
+from utils import ConsoleLogger, config
 
 
 class BaseEval(ABC):
@@ -63,7 +63,7 @@ class BaseEval(ABC):
 
         results = {}
         for k, v in self.error.items():
-            results.update({k: float(np.mean(v))})
+            results.update({k:{"mpjpe":float(np.mean(v)), "num_samples":len(v)}})
 
         return results
 
