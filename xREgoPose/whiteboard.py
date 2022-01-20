@@ -19,9 +19,9 @@ from matplotlib.pyplot import MultipleLocator
 import matplotlib.pyplot as plt
 
 if __name__ == "__main__":
-    batch_size = 16
+    batch_size = 1024
     epochs = 1
-    data_path = "/home/s42hossa/projects/def-pfieguth/xREgoPose/xR-EgoPose/data/Dataset"
+    data_path = "/home/s42hossa/projects/def-pfieguth/xREgoPose/xR-EgoPose/data/Dataset/ValSet"
 
     data_transform = transforms.Compose([
         trsf.ImageTrsf(),
@@ -34,10 +34,10 @@ if __name__ == "__main__":
         transform=data_transform)
     dataloader = DataLoader(
         data,
-        batch_size=args.batch_size,
+        batch_size=batch_size,
         shuffle=True)
 	
 	for i, batch in enumerate(tqdm(dataloader)):
-		if(i%1000 == 0):
+		if(i%100 == 0):
 			print("Batch Number: {}".format(i)) 
 		
