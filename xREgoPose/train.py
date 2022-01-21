@@ -119,8 +119,8 @@ if __name__ == '__main__':
     decay_step = args.decay_step
     learning_rate_hm = learning_rate_hm * (lr_decay ** (start_iter // decay_step))
     learning_rate_pose = learning_rate_pose * (lr_decay ** (start_iter // decay_step))
-    opt_hm = torch.optim.Adam(model_hm.parameters(), lr=learning_rate_hm)
-    opt_pose = torch.optim.SGD(model_pose.parameters(), lr=learning_rate_pose, momentum=0.9, weight_decay=0.0005)
+    opt_hm = torch.optim.AdamW(model_hm.parameters(), lr=learning_rate_hm, weight_decay=0.0005)
+    opt_pose = torch.optim.AdamW(model_pose.parameters(), lr=learning_rate_pose, weight_decay=0.0005)
 
     # Logger Setup
     os.makedirs(os.path.join('log', now.strftime('%m%d%H%M')), exist_ok=True)
@@ -169,9 +169,16 @@ if __name__ == '__main__':
                     generated_heatmap, pose = model_pose(heatmap)
                     generated_heatmap = torch.sigmoid(generated_heatmap)
 
+            with torch.no_grad(): 
+                l2_reg_hm = torch.tensor(0.)
+                l2_reg_pose = torch.tensor(0.)
+                for param in model_hm.parameters():
+                    l2_reg_hm += torch.norm(param)
+                for param in model_pose.parameters():
+                    l2_reg_pose += torch.norm(param)
 
-
-
+            writer.add_scaler('Regularization_HM', l2_reg_hm, global_step=iterate)
+            writer.add_scaler('Regularization_Pose', l2_reg_pose, global_step=iterate)
             writer.add_scalar('LR_hm', learning_rate_hm, global_step=iterate)
             writer.add_scalar('LR_pose', learning_rate_pose, global_step=iterate)
             with torch.no_grad():
