@@ -170,8 +170,8 @@ if __name__ == '__main__':
                     generated_heatmap = torch.sigmoid(generated_heatmap)
 
             with torch.no_grad(): 
-                l2_reg_hm = torch.tensor(0.)
-                l2_reg_pose = torch.tensor(0.)
+                l2_reg_hm = torch.tensor(0., device=device)
+                l2_reg_pose = torch.tensor(0., device=device)
                 for param in model_hm.parameters():
                     l2_reg_hm += torch.norm(param)
                 for param in model_pose.parameters():
