@@ -177,8 +177,8 @@ if __name__ == '__main__':
                 for param in model_pose.parameters():
                     l2_reg_pose += torch.norm(param)
 
-            writer.add_scaler('Regularization_HM', l2_reg_hm, global_step=iterate)
-            writer.add_scaler('Regularization_Pose', l2_reg_pose, global_step=iterate)
+            writer.add_scalar('Regularization_HM', l2_reg_hm, global_step=iterate)
+            writer.add_scalar('Regularization_Pose', l2_reg_pose, global_step=iterate)
             writer.add_scalar('LR_hm', learning_rate_hm, global_step=iterate)
             writer.add_scalar('LR_pose', learning_rate_pose, global_step=iterate)
             with torch.no_grad():
