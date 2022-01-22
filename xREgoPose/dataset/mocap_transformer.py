@@ -6,6 +6,7 @@ joint positions are loaded.
 @author: Denis Tome'
 """
 import os
+import torch
 from skimage import io as sio
 from skimage.transform import resize
 import numpy as np
@@ -67,11 +68,21 @@ def generate_heatmap(joints, heatmap_sigma):
     return target
 
 
-class MocapSd(BaseDataset):
+class MocapTransformer(BaseDataset):
     """Mocap Dataset loader"""
 
     ROOT_DIRS = ['rgba', 'json']
     CM_TO_M = 100
+    SEQUENCE_LENGTH = 5
+
+    def __init__(self, *args, sequence_length=5, **kwargs):
+        """Init class, to allow variable sequence length, inherits from Base
+        Keyword Arguments:
+            sequence_length -- length of image sequence (default: {5})
+        """
+
+        super().__init__(*args, **kwargs)
+        self.SEQUENCE_LENGTH = sequence_length
 
     def index_db(self):
 
@@ -107,18 +118,17 @@ class MocapSd(BaseDataset):
 
                 encoded = [p.encode('utf8') for p in paths]
                 
-                #Experimental changes start here
-                
-                len_seq = 5 
+                # get the data in sequences -> assuming no missing frames
+
+                len_seq = self.SEQUENCE_LENGTH
                 if sub_dir == 'rgba':
                     encoded_sequences = [encoded[n:n+len_seq] for n in range(len(encoded)-len_seq)]
                 elif sub_dir == 'json':
-                    encoded_sequences = [encoded[n+len_seq] for n in range(len(encoded)-len_seq)]
+                    encoded_sequences = [encoded[n+len_seq-1] for n in range(len(encoded)-len_seq)]
+                else: #if other data is used
+                    encoded_sequences = [encoded[n+len_seq-1] for n in range(len(encoded)-len_seq)]
                     
-                #indexed_paths.update({sub_dir: encoded}) #<-Legacy
                 indexed_paths.update({sub_dir: encoded_sequences})
-                
-                #Experimental changes end here, rest untouched unless stated otherwise
 
             return indexed_paths
 
@@ -132,7 +142,6 @@ class MocapSd(BaseDataset):
 
             for r_dir in self.ROOT_DIRS:
                 indexed_paths[r_dir].extend(indexed[r_dir])
-
         return indexed_paths
 
     def _process_points(self, data):
@@ -165,26 +174,33 @@ class MocapSd(BaseDataset):
 
     def __getitem__(self, index):
 
-        # load image
-        
-        #Edit starts here, we comment these lines
-        
-        #img_path = self.index['rgba'][index].decode('utf8')
-        #img = sio.imread(img_path).astype(np.float32)
-        #img /= 255.0
-        #img = img[:, 180:1120, :] #crop
-        #img = resize(img, (368, 368))
-        
-        img_paths = [path.decode('utf8') for paths in self.index['rgba'][index]]
+        # load image sequence
+
+        img_paths = [path.decode('utf8') for path in self.index['rgba'][index]]
+
+        # checking for correct sequence
+        for i in range(len(img_paths)-1):
+            if int(img_paths[i][-10:-4]) != int(img_paths[i+1][-10:-4]) -1:
+                self.logger.error(
+                    '{} \n is not the correct frame after \n {}'.format(
+                                                    img_paths[i+1], img_paths[i])
+                                                                                )
+
         imgs = [sio.imread(img_path).astype(np.float32) for img_path in img_paths]
-        imgs = [img /= 255.0 for img in imgs]
+        imgs = [img / 255.0 for img in imgs]
         imgs = [img[:, 180:1120, :] for img in imgs]
         imgs = np.array([resize(img, (368, 368)) for img in imgs])
-        
-        #Edit ends here, rest is untouched unless stated
 
         # read joint positions
         json_path = self.index['json'][index].decode('utf8')
+        
+        # checking if json path corresponds to sequence path
+
+        if int(json_path[-11:-5]) != int(img_paths[-1][-10:-4]):
+            self.logger.error(
+                '{} \n json path does not match last frame: \n {}'.format(
+                                                        json_path, img_paths[-1])
+                                                                                )
 
         data = io.read_json(json_path)
 
@@ -198,11 +214,12 @@ class MocapSd(BaseDataset):
         action = data['action']
 
         if self.transform:
-            img = self.transform({'image': img})['image']
+            imgs = np.array(
+                [self.transform({'image': img})['image'].numpy() for img in imgs])
             p3d = self.transform({'joints3D': p3d})['joints3D']
             p2d = self.transform({'joints2D': p2d})['joints2D']
 
-        return imgs, p2d_heatmap, p3d, action
+        return torch.tensor(imgs), p2d_heatmap, p3d, action
 
     def __len__(self):
 
