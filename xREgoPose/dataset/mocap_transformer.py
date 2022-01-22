@@ -115,20 +115,44 @@ class MocapTransformer(BaseDataset):
                     if len(paths) != n_frames:
                         self.logger.error(
                             'Frames info in {} not matching other passes'.format(d_path))
-
-                encoded = [p.encode('utf8') for p in paths]
                 
                 # get the data in sequences -> assuming no missing frames
 
+                encoded = []
+
                 len_seq = self.SEQUENCE_LENGTH
+
                 if sub_dir == 'rgba':
-                    encoded_sequences = [encoded[n:n+len_seq] for n in range(len(encoded)-len_seq)]
+                    for p in paths:
+                        encoded_sequence = []
+                        frame_idx = int(p[-10:-4])
+
+                        for i in range(len_seq):
+                            if os.path.exists(p[0:-10] + "{0:06}.png".format(frame_idx+i)):
+                                frame_path = p[0:-10] + "{0:06}.png".format(frame_idx+i)
+                                encoded_sequence.append(frame_path.encode('utf8'))
+                        
+                        if(len(encoded_sequence) == len_seq):
+                            encoded.append(encoded_sequence)
+
                 elif sub_dir == 'json':
-                    encoded_sequences = [encoded[n+len_seq-1] for n in range(len(encoded)-len_seq)]
-                else: #if other data is used
-                    encoded_sequences = [encoded[n+len_seq-1] for n in range(len(encoded)-len_seq)]
+                    for p in paths:
+                        isSequence = True
+                        frame_idx = int(p[-11:-5])
+
+                        for i in range(len_seq):
+                            if not os.path.exists(p[0:-11] + "{0:06}.json".format(frame_idx+i)):
+                                isSequence = False
+
+                        if(isSequence):
+                            head_path = p[0:-11] + "{0:06}.json".format(frame_idx+len_seq-1)
+                            encoded.append(head_path.encode('utf8'))
+
+                else: 
+                    self.logger.error(
+                        "No case for handling {} sub-directory".format(sub_dir))
                     
-                indexed_paths.update({sub_dir: encoded_sequences})
+                indexed_paths.update({sub_dir: encoded})
 
             return indexed_paths
 
