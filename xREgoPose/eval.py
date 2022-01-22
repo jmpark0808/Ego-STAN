@@ -59,7 +59,7 @@ def main():
     data_transform = transforms.Compose(
         [trsf.ImageTrsf(), trsf.Joints3DTrsf(), trsf.ToTensor()]
     )
-    data = Mocap(args.dataset, SetType.VAL, transform=data_transform)
+    data = Mocap(args.dataset, SetType.TEST, transform=data_transform)
     data_loader = DataLoader(data, batch_size=args.batch_size)
 
     # Initialize evaluation pipline
