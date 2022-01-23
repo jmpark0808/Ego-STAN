@@ -62,7 +62,7 @@ class MocapTransformer(BaseDataset):
                         self.logger.error(
                             'Frames info in {} not matching other passes'.format(d_path))
                 
-                # get the data in sequences -> assuming no missing frames
+                # get the data in sequences -> checks for missing frames
 
                 encoded = []
 
@@ -148,7 +148,7 @@ class MocapTransformer(BaseDataset):
 
         img_paths = [path.decode('utf8') for path in self.index['rgba'][index]]
 
-        # checking for correct sequence
+        # checking for correct sequence of rgba/image files
         for i in range(len(img_paths)-1):
             if int(img_paths[i][-10:-4]) != int(img_paths[i+1][-10:-4]) -1:
                 self.logger.error(
@@ -166,7 +166,7 @@ class MocapTransformer(BaseDataset):
         
         # checking if json path corresponds to the path of the last rgba frame in the sequence
 
-        if int(json_path[-11:-5]) != int(img_paths[-1][-10:-4]): #checks if index on path matches
+        if int(json_path[-11:-5]) != int(img_paths[-1][-10:-4]): #checks if frame number on paths match
             self.logger.error(
                 '{} \n json path does not match last frame: \n {}'.format(
                                                         json_path, img_paths[-1])
