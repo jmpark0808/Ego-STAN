@@ -20,7 +20,6 @@ class MocapTransformer(BaseDataset):
 
     ROOT_DIRS = ['rgba', 'json']
     CM_TO_M = 100
-    SEQUENCE_LENGTH = 5
 
     def __init__(self, *args, sequence_length=5, **kwargs):
         """Init class, to allow variable sequence length, inherits from Base
@@ -28,8 +27,8 @@ class MocapTransformer(BaseDataset):
             sequence_length -- length of image sequence (default: {5})
         """
 
+        self.sequence_length = sequence_length
         super().__init__(*args, **kwargs)
-        self.SEQUENCE_LENGTH = sequence_length
 
     def index_db(self):
 
@@ -67,7 +66,7 @@ class MocapTransformer(BaseDataset):
 
                 encoded = []
 
-                len_seq = self.SEQUENCE_LENGTH
+                len_seq = self.sequence_length
 
                 if sub_dir == 'rgba':
                     for p in paths:
@@ -167,7 +166,7 @@ class MocapTransformer(BaseDataset):
         
         # checking if json path corresponds to the path of the last rgba frame in the sequence
 
-        if int(json_path[-11:-5]) != int(img_paths[-1][-10:-4]):
+        if int(json_path[-11:-5]) != int(img_paths[-1][-10:-4]): #checks if index on path matches
             self.logger.error(
                 '{} \n json path does not match last frame: \n {}'.format(
                                                         json_path, img_paths[-1])
