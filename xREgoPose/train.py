@@ -119,8 +119,8 @@ if __name__ == '__main__':
     decay_step = args.decay_step
     learning_rate_hm = learning_rate_hm * (lr_decay ** (start_iter // decay_step))
     learning_rate_pose = learning_rate_pose * (lr_decay ** (start_iter // decay_step))
-    opt_hm = torch.optim.AdamW(model_hm.parameters(), lr=learning_rate_hm, weight_decay=0.0005)
-    opt_pose = torch.optim.AdamW(model_pose.parameters(), lr=learning_rate_pose, weight_decay=0.0005)
+    opt_hm = torch.optim.AdamW(model_hm.parameters(), lr=learning_rate_hm, weight_decay=0.01)
+    opt_pose = torch.optim.AdamW(model_pose.parameters(), lr=learning_rate_pose, weight_decay=0.01)
 
     # Logger Setup
     os.makedirs(os.path.join('log', now.strftime('%m%d%H%M')), exist_ok=True)
