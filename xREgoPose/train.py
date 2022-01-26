@@ -227,7 +227,7 @@ if __name__ == '__main__':
                         eval_upper.eval(y_output, y_target, action_val)
                         eval_lower.eval(y_output, y_target, action_val)
 
-                    val_mpjpe = eval_body.get_results()
+                    val_mpjpe = eval_body.get_results()['All']['mpjpe']
                     writer.add_scalars("Validation MPJPE",
                         {"full_body": val_mpjpe,
                         "upper_body": eval_upper.get_results(),
@@ -245,9 +245,11 @@ if __name__ == '__main__':
 
                         # remove the previous ckpt
                         if len(model_hm_paths) > 0:
-                            os.remove(os.path.join(val_weight_save_dir_hm, model_hm_paths[0]))
+                            for model_path in model_hm_paths:
+                                os.remove(os.path.join(val_weight_save_dir_hm, model_path))
                         if len(model_pose_paths) > 0:
-                            os.remove(os.path.join(val_weight_save_dir_pose, model_pose_paths[0]))
+                            for model_path in model_pose_paths:
+                                os.remove(os.path.join(val_weight_save_dir_pose, model_path))
 
                         # save model checkpoints
                         torch.save(model_hm.state_dict(),
