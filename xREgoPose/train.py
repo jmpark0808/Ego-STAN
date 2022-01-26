@@ -227,7 +227,7 @@ if __name__ == '__main__':
                         eval_upper.eval(y_output, y_target, action_val)
                         eval_lower.eval(y_output, y_target, action_val)
 
-                    val_mpjpe = eval_body.get_results()['All']['mpjpe']
+                    val_mpjpe = eval_body.get_results()
                     writer.add_scalars("Validation MPJPE",
                         {"full_body": val_mpjpe,
                         "upper_body": eval_upper.get_results(),
@@ -235,9 +235,9 @@ if __name__ == '__main__':
                         global_step=iterate)
 
 
-                    if best_val_mpjpe['mpjpe'] is None or best_val_mpjpe['mpjpe'] > val_mpjpe:
+                    if best_val_mpjpe['mpjpe'] is None or best_val_mpjpe['mpjpe'] > val_mpjpe['All']['mpjpe']:
                         best_val_mpjpe['step'] = iterate
-                        best_val_mpjpe['mpjpe'] = val_mpjpe
+                        best_val_mpjpe['mpjpe'] = val_mpjpe['All']['mpjpe']
 
                         # list previously stored checkpoint
                         model_hm_paths = os.listdir(val_weight_save_dir_hm)
