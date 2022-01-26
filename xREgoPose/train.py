@@ -102,7 +102,6 @@ if __name__ == '__main__':
     now = datetime.datetime.now()
     start_epo = 0
 
-
     if load_hm is not None:
         state_dict_hm = torch.load(load_hm, map_location=args.cuda)
 
@@ -144,6 +143,8 @@ if __name__ == '__main__':
     os.makedirs(os.path.join('log', now.strftime('%m%d%H%M')), exist_ok=True)
     weight_save_dir_hm = os.path.join(args.logdir, os.path.join('models/hm', 'state_dict', now.strftime('%m%d%H%M')))
     weight_save_dir_pose = os.path.join(args.logdir, os.path.join('models/pose', 'state_dict', now.strftime('%m%d%H%M')))
+    val_weight_save_dir_hm = os.path.join(weight_save_dir_hm,'validation')
+    val_weight_save_dir_pose = os.path.join(weight_save_dir_pose,'validation')
     plot_3d_dir = os.path.join(args.logdir, os.path.join('3d_plot', now.strftime('%m%d%H%M')))
     os.makedirs(os.path.join(weight_save_dir_hm), exist_ok=True)
     os.makedirs(os.path.join(weight_save_dir_pose), exist_ok=True)
@@ -151,6 +152,7 @@ if __name__ == '__main__':
     writer = SummaryWriter(os.path.join(args.logdir, os.path.join('log', now.strftime('%m%d%H%M'))))
     iterate = start_iter
 
+    best_val_mpjpe = {'step':None, 'mpjpe':None}
 
     for epo in range(start_epo, epoch):
         print("\nEpoch : {}".format(epo))
@@ -225,11 +227,35 @@ if __name__ == '__main__':
                         eval_upper.eval(y_output, y_target, action_val)
                         eval_lower.eval(y_output, y_target, action_val)
 
+                    val_mpjpe = eval_body.get_results()
                     writer.add_scalars("Validation MPJPE",
-                        {"full_body": eval_body.get_results(),
+                        {"full_body": val_mpjpe,
                         "upper_body": eval_upper.get_results(),
                         "lower_body": eval_lower.get_results()},
                         global_step=iterate)
+
+
+                    if best_val_mpjpe['mpjpe'] is None or best_val_mpjpe['mpjpe'] > val_mpjpe:
+                        best_val_mpjpe['step'] = iterate
+                        best_val_mpjpe['mpjpe'] = val_mpjpe
+
+                        # list previously stored checkpoint
+                        model_hm_paths = os.listdir(val_weight_save_dir_hm)
+                        model_pose_paths = os.listdir(val_weight_save_dir_pose)
+
+                        # remove the previous ckpt
+                        if len(model_hm_paths) > 0:
+                            os.remove(os.path.join(val_weight_save_dir_hm, model_hm_paths[0]))
+                        if len(model_pose_paths) > 0:
+                            os.remove(os.path.join(val_weight_save_dir_pose, model_pose_paths[0]))
+
+                        # save model checkpoints
+                        torch.save(model_hm.state_dict(),
+                                   os.path.join(val_weight_save_dir_hm, '{}epo_{}step.ckpt'.format(epo, iterate)))
+                        torch.save(model_pose.state_dict(),
+                                   os.path.join(val_weight_save_dir_pose, '{}epo_{}step.ckpt'.format(epo, iterate)))
+
+
 
             if iterate % args.display_freq == 0:
                 writer.add_image('Pred_heatmap', torch.clip(torch.sum(heatmap, dim=1, keepdim=True), 0, 1), global_step=iterate)
@@ -289,6 +315,8 @@ if __name__ == '__main__':
                         ax.title.set_text(f'Pred {batch_ind}')
                     fig.savefig(os.path.join(plot_3d_dir, '3D_plot'))
                     fig.clf()
+
+            # store 5 most recent model_hm and model_pose checkpoints
             if iterate % (args.batch_size * (1000 // args.batch_size)) == 0:
                 if batch_count != 0:
                     torch.save(model_hm.state_dict(),
