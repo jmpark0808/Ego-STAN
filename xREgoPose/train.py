@@ -32,6 +32,7 @@ if __name__ == '__main__':
     parser.add_argument('--batch_size', help="batchsize, default = 1", default=1, type=int)
     parser.add_argument('--epoch', help='# of epochs. default = 20', default=20, type=int)
     parser.add_argument('--val_freq', help='Batch freq for validation evaluation. default = 64', default=64, type=int)
+    parser.add_argument('--es_patience', help='# of batches allowed w/o improvement. default = 64', default=64, type=int)
     parser.add_argument('--logdir', help='logdir for models and losses. default = .', default='./', type=str)
     parser.add_argument('--lr_pose', help='learning_rate for pose. default = 0.001', default=0.001, type=float)
     parser.add_argument('--lr_hm', help='learning_rate for heat maps. default = 0.001', default=0.001, type=float)
@@ -152,7 +153,11 @@ if __name__ == '__main__':
     writer = SummaryWriter(os.path.join(args.logdir, os.path.join('log', now.strftime('%m%d%H%M'))))
     iterate = start_iter
 
-    best_val_mpjpe = {'step':None, 'mpjpe':None}
+    validation_metrics = {
+            "best_mpjpe": None,
+            "best_step": None,
+            "current_patience": args.es_patience,
+            }
 
     for epo in range(start_epo, epoch):
         print("\nEpoch : {}".format(epo))
@@ -208,8 +213,9 @@ if __name__ == '__main__':
             # evaluate the validation set
             model_hm.eval()
             model_pose.eval()
-            # TODO iterate is update in increments of batch_size so it might skip val_freq
-            if batch_count % args.val_freq == 0:
+            # TODO iterate is updated in increments of batch_size so it will skip
+            # `iterate % ... == 0` checks
+            if batch_count % args.val_freq == 0 or batch_count % args.es_patience == 0:
                 with torch.no_grad():
                     for img_val, p2d_val, p3d_val, action_val in dataloader_val:
                         img_val = img_val.cuda()
@@ -218,7 +224,7 @@ if __name__ == '__main__':
                         heatmap_val = torch.sigmoid(heatmap_val)
                         heatmap_val = heatmap_val.detach()
                         _, pose_val = model_pose(heatmap_val)
-                        # valuate mpjpe for upper, lower and full body
+                        # evaluate mpjpe for upper, lower and full body
                         # converting to numpy might cost time
                         y_output = pose_val.data.cpu().numpy()
                         y_target = p3d_val.data.cpu().numpy()
@@ -235,9 +241,11 @@ if __name__ == '__main__':
                         global_step=iterate)
 
 
-                    if best_val_mpjpe['mpjpe'] is None or best_val_mpjpe['mpjpe'] > val_mpjpe['All']['mpjpe']:
-                        best_val_mpjpe['step'] = iterate
-                        best_val_mpjpe['mpjpe'] = val_mpjpe['All']['mpjpe']
+                    if validation_metrics['best_mpjpe'] is None or validation_metrics['best_mpjpe'] > val_mpjpe['All']['mpjpe']:
+                        validation_metrics['best_step'] = iterate
+                        validation_metrics['best_mpjpe'] = val_mpjpe['All']['mpjpe']
+                        # reset patience
+                        validation_metrics['current_patience'] = args.es_patience
 
                         # list previously stored checkpoint
                         model_hm_paths = os.listdir(val_weight_save_dir_hm)
@@ -256,7 +264,12 @@ if __name__ == '__main__':
                                    os.path.join(val_weight_save_dir_hm, '{}epo_{}step.ckpt'.format(epo, iterate)))
                         torch.save(model_pose.state_dict(),
                                    os.path.join(val_weight_save_dir_pose, '{}epo_{}step.ckpt'.format(epo, iterate)))
+                    else:
+                        validation_metrics['current_patience'] -= 1
 
+                    # trigger early stopping if patience is up
+                    if validation_metrics['current_patience'] < 0:
+                        break
 
 
             if iterate % args.display_freq == 0:
