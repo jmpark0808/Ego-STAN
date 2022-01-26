@@ -61,6 +61,7 @@ if __name__ == '__main__':
     start_iter = 0
     model_hm = HeatMap().to(device=args.cuda)
     model_pose = PoseEstimator().to(device=args.cuda)
+    sequence_embedder = SequenceEmbedder().to(device=args.cuda)
 
     # Xavier Initialization
     def weight_init(m):
@@ -70,9 +71,12 @@ if __name__ == '__main__':
                 torch.nn.init.zeros_(m.bias)
 
     model_hm.resnet101.apply(weight_init)
+    sequence_embedder.heatmap.resnet101.apply(weight_init)
     model_hm.heatmap_deconv.apply(weight_init)
+    sequence_embedder.heatmap.heatmap_deconv.apply(weight_init)
 
     model_pose.encoder.apply(weight_init)
+    sequence_embedder.encoder.apply(weight_init)
     model_pose.pose_decoder.apply(weight_init)
     model_pose.heatmap_decoder.apply(weight_init)
 
@@ -92,6 +96,7 @@ if __name__ == '__main__':
         print("Start_iter : {}".format(start_iter))
         print("now : {}".format(now.strftime('%m%d%H%M')))
         model_hm.load_state_dict(state_dict_hm)
+        sequence_embedder.heatmap.load_state_dict(model_hm.state_dict())
         print('Loading_Complete')
 
     if load_pose is not None:
@@ -105,12 +110,10 @@ if __name__ == '__main__':
         print("Start_iter : {}".format(start_iter))
         print("now : {}".format(now.strftime('%m%d%H%M')))
         model_pose.load_state_dict(state_dict_pose)
+        sequence_embedder.encoder.load_state_dict(model_pose.encoder.state_dict())
         print('Loading_Complete')
 
     # Freezing the embedder
-    sequence_embedder = SequenceEmbedder()
-    sequence_embedder.heatmap = model_hm
-    sequence_embedder.encoder = model_pose.encoder
     sequence_embedder.eval()
     for embedder_param in sequence_embedder.parameters():
         embedder_param.requires_grad = False
@@ -123,7 +126,3 @@ if __name__ == '__main__':
             p2d = p2d.cuda()
             p3d = p3d.cuda()
             embeddings = sequence_embedder(sequence_imgs)
-
-
-
-
