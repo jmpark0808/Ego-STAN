@@ -55,3 +55,32 @@ class PoseEstimator(nn.Module):
         # generated_heatmaps = 15 x 47 x 47
 
         return generated_heatmaps, pose
+
+class SequenceEmbedder(nn.Module):
+    def __init__(self):
+        super(SequenceEmbedder, self).__init__()
+        # Generator that produces the HeatMap
+        self.heatmap = HeatMap()
+        # Encoder that takes 2D heatmap and transforms to latent vector Z
+        self.encoder = Encoder()
+
+
+    def forward(self, x):
+        # Flattening first two dimensions
+
+        dim = x.shape 
+        #shape -> batch_size x len_seq x 3 x 368 x 368
+
+        imgs = torch.reshape(x, (dim[0]*dim[1], dim[2], dim[3], dim[4]))
+        # imgs = # (batch_size*len_seq) x 3 x 368 x 368
+
+        hms = self.heatmap(imgs)
+        # hms = (batch_size*len_seq) x 15 x 47 x 47
+
+        z_all = self.encoder(hms)
+        # z_all = (batch_size*len_seq) x 20
+
+        zs = torch.reshape(z_all, (dim[0], dim[1], z_all.shape[-1]))
+        # zs = batch_size x len_seq x 20
+
+        return zs
