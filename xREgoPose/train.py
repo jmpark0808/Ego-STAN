@@ -31,8 +31,9 @@ if __name__ == '__main__':
                         default='cuda', choices=['cuda', 'cpu'])
     parser.add_argument('--batch_size', help="batchsize, default = 1", default=1, type=int)
     parser.add_argument('--epoch', help='# of epochs. default = 20', default=20, type=int)
-    parser.add_argument('--val_freq', help='Batch freq for validation evaluation. default = 64', default=64, type=int)
-    parser.add_argument('--es_patience', help='# of batches allowed w/o improvement. default = 64', default=64, type=int)
+    parser.add_argument('--model_save_freq', help='How often to save model weights, in batch units', default=64, type=int)
+    parser.add_argument('--val_freq', help='How often to run validation set, in batch units', default=64, type=int)
+    parser.add_argument('--es_patience', help='Max # of consecutive validation runs w/o improvment', default=64, type=int)
     parser.add_argument('--logdir', help='logdir for models and losses. default = .', default='./', type=str)
     parser.add_argument('--lr_pose', help='learning_rate for pose. default = 0.001', default=0.001, type=float)
     parser.add_argument('--lr_hm', help='learning_rate for heat maps. default = 0.001', default=0.001, type=float)
@@ -40,7 +41,7 @@ if __name__ == '__main__':
                         default=0.1, type=float)
     parser.add_argument('--decay_step', help='Learning rate decrease by lr_decay time per decay_step,  default = 7000',
                         default=1E100, type=int)
-    parser.add_argument('--display_freq', help='display_freq to display result image on Tensorboard',
+    parser.add_argument('--display_freq', help='Frequency to display result image on Tensorboard, in batch units',
                         default=1000, type=int)
 
 
@@ -158,6 +159,7 @@ if __name__ == '__main__':
             "best_step": None,
             "current_patience": args.es_patience,
             }
+    decay_max = iterate // (args.batch_size * (decay_step // args.batch_size))
 
     for epo in range(start_epo, epoch):
         print("\nEpoch : {}".format(epo))
@@ -272,7 +274,7 @@ if __name__ == '__main__':
                         break
 
 
-            if iterate % args.display_freq == 0:
+            if batch_count % args.display_freq == 0:
                 writer.add_image('Pred_heatmap', torch.clip(torch.sum(heatmap, dim=1, keepdim=True), 0, 1), global_step=iterate)
                 writer.add_image('Generated_heatmap', torch.clip(torch.sum(generated_heatmap, dim=1, keepdim=True), 0, 1), global_step=iterate)
                 writer.add_image('GT_Heatmap', torch.clip(torch.sum(p2d, dim=1, keepdim=True), 0, 1), iterate)
@@ -332,7 +334,7 @@ if __name__ == '__main__':
                     fig.clf()
 
             # store 5 most recent model_hm and model_pose checkpoints
-            if iterate % (args.batch_size * (1000 // args.batch_size)) == 0:
+            if batch_count % args.model_save_freq == 0:
                 if batch_count != 0:
                     torch.save(model_hm.state_dict(),
                                os.path.join(weight_save_dir_hm, '{}epo_{}step.ckpt'.format(epo, iterate)))
@@ -363,16 +365,7 @@ if __name__ == '__main__':
                                 break
 
 
-
-
-            if iterate % 1000 == 0 and batch_count != 0:
-                for file in weight_save_dir_hm:
-                    if '00' in file and '000' not in file:
-                        os.remove(os.path.join(weight_save_dir_hm, file))
-                for file in weight_save_dir_pose:
-                    if '00' in file and '000' not in file:
-                        os.remove(os.path.join(weight_save_dir_pose, file))
-            if iterate % (args.batch_size * (decay_step // args.batch_size)) == 0 and batch_count != 0:
+            if iterate // (args.batch_size * (decay_step // args.batch_size)) > decay_max and batch_count != 0:
                 learning_rate_hm *= lr_decay
                 learning_rate_pose *= lr_decay
                 opt_hm = torch.optim.Adam(model_hm.parameters(), lr=learning_rate_hm)
