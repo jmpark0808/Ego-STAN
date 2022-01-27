@@ -215,7 +215,7 @@ if __name__ == '__main__':
             model_pose.eval()
             # TODO iterate is updated in increments of batch_size so it will skip
             # `iterate % ... == 0` checks
-            if batch_count % args.val_freq == 0 or batch_count % args.es_patience == 0:
+            if batch_count % args.val_freq == 0:
                 with torch.no_grad():
                     for img_val, p2d_val, p3d_val, action_val in dataloader_val:
                         img_val = img_val.cuda()
