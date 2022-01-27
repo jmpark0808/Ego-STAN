@@ -75,7 +75,7 @@ class Transformer(nn.Module):
         return x
 
 class PoseTransformer(nn.Module):
-    def __init__(self, *, seq_len, dim, depth, heads, mlp_dim, pool = 'cls', dim_head = 64, dropout = 0., emb_dropout = 0.):
+    def __init__(self, *, seq_len, dim, depth, heads, mlp_dim, dim_head = 64, dropout = 0., emb_dropout = 0.):
         super().__init__()
   
         self.to_embedding = nn.Linear(20, dim)
@@ -86,9 +86,10 @@ class PoseTransformer(nn.Module):
 
         self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim, dropout)
 
-        self.mlp_head = nn.Sequential(
-            nn.LayerNorm(dim),
-            nn.Linear(dim, 20)
+        self.reg_3d = nn.Sequential(
+            nn.Linear(dim, 128),
+            nn.Linear(128, 64),
+            nn.Linear(64, 48),
         )
 
     def forward(self, x): # x = (batch, seq_len, 20)
@@ -101,5 +102,6 @@ class PoseTransformer(nn.Module):
 
         x = x[:, -1] # retrieving the last sequence token (present) # (batch, 1, dim)
 
-        x = self.mlp_head(x)
+        x = self.reg_3d(x) # x = (batch, 1, 48)
+        x = x.reshape(x.size(0), 16, 3)
         return x
