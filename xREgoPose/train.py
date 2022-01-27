@@ -26,7 +26,8 @@ if __name__ == '__main__':
     parser.add_argument("--load_pose",
                         help="Directory of pre-trained model for pose estimator,  \n"
                              "None --> Do not use pre-trained model. Training will start from random initialized model")
-    parser.add_argument('--dataset', help='Directory of your Dataset', required=True, default=None)
+    parser.add_argument('--dataset_tr', help='Directory of your train Dataset', required=True, default=None)
+    parser.add_argument('--dataset_val', help='Directory of your validation Dataset', required=True, default=None)
     parser.add_argument('--cuda', help="'cuda' for cuda, 'cpu' for cpu, default = cuda",
                         default='cuda', choices=['cuda', 'cpu'])
     parser.add_argument('--batch_size', help="batchsize, default = 1", default=1, type=int)
@@ -58,7 +59,7 @@ if __name__ == '__main__':
 
     # create train dataloader
     data_train = Mocap(
-        args.dataset,
+        args.dataset_tr,
         SetType.TRAIN,
         transform=data_transform)
     dataloader_train = DataLoader(
@@ -68,7 +69,7 @@ if __name__ == '__main__':
 
     # create validation dataloader
     data_val = Mocap(
-        args.dataset,
+        args.dataset_val,
         SetType.VAL,
         transform=data_transform)
     dataloader_val = DataLoader(
