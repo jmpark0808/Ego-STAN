@@ -366,6 +366,7 @@ if __name__ == '__main__':
 
 
             if iterate // (args.batch_size * (decay_step // args.batch_size)) > decay_max and batch_count != 0:
+                decay_max = iterate // (args.batch_size * (decay_step // args.batch_size))
                 learning_rate_hm *= lr_decay
                 learning_rate_pose *= lr_decay
                 opt_hm = torch.optim.Adam(model_hm.parameters(), lr=learning_rate_hm)
