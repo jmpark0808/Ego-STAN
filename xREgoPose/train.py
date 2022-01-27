@@ -12,7 +12,7 @@ from tqdm import tqdm
 from loss import mse, auto_encoder_loss
 from network import *
 from dataset.mocap import Mocap
-from utils import config
+from utils import config, evaluate
 from base import SetType
 import dataset.transform as trsf
 from matplotlib.pyplot import MultipleLocator
@@ -31,6 +31,9 @@ if __name__ == '__main__':
                         default='cuda', choices=['cuda', 'cpu'])
     parser.add_argument('--batch_size', help="batchsize, default = 1", default=1, type=int)
     parser.add_argument('--epoch', help='# of epochs. default = 20', default=20, type=int)
+    parser.add_argument('--model_save_freq', help='How often to save model weights, in batch units', default=64, type=int)
+    parser.add_argument('--val_freq', help='How often to run validation set, in batch units', default=64, type=int)
+    parser.add_argument('--es_patience', help='Max # of consecutive validation runs w/o improvment', default=64, type=int)
     parser.add_argument('--logdir', help='logdir for models and losses. default = .', default='./', type=str)
     parser.add_argument('--lr_pose', help='learning_rate for pose. default = 0.001', default=0.001, type=float)
     parser.add_argument('--lr_hm', help='learning_rate for heat maps. default = 0.001', default=0.001, type=float)
@@ -38,7 +41,7 @@ if __name__ == '__main__':
                         default=0.1, type=float)
     parser.add_argument('--decay_step', help='Learning rate decrease by lr_decay time per decay_step,  default = 7000',
                         default=1E100, type=int)
-    parser.add_argument('--display_freq', help='display_freq to display result image on Tensorboard',
+    parser.add_argument('--display_freq', help='Frequency to display result image on Tensorboard, in batch units',
                         default=1000, type=int)
 
 
@@ -46,19 +49,36 @@ if __name__ == '__main__':
     device = torch.device(args.cuda)
     batch_size = args.batch_size
     epoch = args.epoch
+
+    # initialize data transformation strategy
     data_transform = transforms.Compose([
         trsf.ImageTrsf(),
         trsf.Joints3DTrsf(),
         trsf.ToTensor()])
 
-    data = Mocap(
+    # create train dataloader
+    data_train = Mocap(
         args.dataset,
         SetType.TRAIN,
         transform=data_transform)
-    dataloader = DataLoader(
-        data,
+    dataloader_train = DataLoader(
+        data_train,
         batch_size=args.batch_size,
         shuffle=True)
+
+    # create validation dataloader
+    data_val = Mocap(
+        args.dataset,
+        SetType.VAL,
+        transform=data_transform)
+    dataloader_val = DataLoader(
+        data_val,
+        batch_size=args.batch_size)
+
+    # Initialize evaluation pipline
+    eval_body = evaluate.EvalBody()
+    eval_upper = evaluate.EvalUpperBody()
+    eval_lower = evaluate.EvalUpperBody()
 
     load_hm = args.load_hm
     load_pose = args.load_pose
@@ -83,7 +103,6 @@ if __name__ == '__main__':
 
     now = datetime.datetime.now()
     start_epo = 0
-
 
     if load_hm is not None:
         state_dict_hm = torch.load(load_hm, map_location=args.cuda)
@@ -126,6 +145,8 @@ if __name__ == '__main__':
     os.makedirs(os.path.join('log', now.strftime('%m%d%H%M')), exist_ok=True)
     weight_save_dir_hm = os.path.join(args.logdir, os.path.join('models/hm', 'state_dict', now.strftime('%m%d%H%M')))
     weight_save_dir_pose = os.path.join(args.logdir, os.path.join('models/pose', 'state_dict', now.strftime('%m%d%H%M')))
+    val_weight_save_dir_hm = os.path.join(weight_save_dir_hm,'validation')
+    val_weight_save_dir_pose = os.path.join(weight_save_dir_pose,'validation')
     plot_3d_dir = os.path.join(args.logdir, os.path.join('3d_plot', now.strftime('%m%d%H%M')))
     os.makedirs(os.path.join(weight_save_dir_hm), exist_ok=True)
     os.makedirs(os.path.join(weight_save_dir_pose), exist_ok=True)
@@ -133,10 +154,16 @@ if __name__ == '__main__':
     writer = SummaryWriter(os.path.join(args.logdir, os.path.join('log', now.strftime('%m%d%H%M'))))
     iterate = start_iter
 
+    validation_metrics = {
+            "best_mpjpe": None,
+            "best_step": None,
+            "current_patience": args.es_patience,
+            }
+    decay_max = iterate // (args.batch_size * (decay_step // args.batch_size))
 
     for epo in range(start_epo, epoch):
         print("\nEpoch : {}".format(epo))
-        for i, batch in enumerate(tqdm(dataloader)):
+        for batch_count, batch in enumerate(tqdm(dataloader_train)):
             img, p2d, p3d, action = batch
             img = img.cuda()
             p2d = p2d.cuda()
@@ -184,7 +211,70 @@ if __name__ == '__main__':
             with torch.no_grad():
                 MPJPE = torch.mean(torch.pow(p3d-pose, 2))
             writer.add_scalar('Mean Per-Joint Position Error', MPJPE, global_step=iterate)
-            if iterate % args.display_freq == 0:
+            
+            # evaluate the validation set
+            model_hm.eval()
+            model_pose.eval()
+            # TODO iterate is updated in increments of batch_size so it will skip
+            # `iterate % ... == 0` checks
+            if batch_count % args.val_freq == 0:
+                with torch.no_grad():
+                    for img_val, p2d_val, p3d_val, action_val in dataloader_val:
+                        img_val = img_val.cuda()
+                        p3d_val = p3d_val.cuda()
+                        heatmap_val = model_hm(img_val)
+                        heatmap_val = torch.sigmoid(heatmap_val)
+                        heatmap_val = heatmap_val.detach()
+                        _, pose_val = model_pose(heatmap_val)
+                        # evaluate mpjpe for upper, lower and full body
+                        # converting to numpy might cost time
+                        y_output = pose_val.data.cpu().numpy()
+                        y_target = p3d_val.data.cpu().numpy()
+
+                        eval_body.eval(y_output, y_target, action_val)
+                        eval_upper.eval(y_output, y_target, action_val)
+                        eval_lower.eval(y_output, y_target, action_val)
+
+                    val_mpjpe = eval_body.get_results()
+                    writer.add_scalars("Validation MPJPE",
+                        {"full_body": val_mpjpe,
+                        "upper_body": eval_upper.get_results(),
+                        "lower_body": eval_lower.get_results()},
+                        global_step=iterate)
+
+
+                    if validation_metrics['best_mpjpe'] is None or validation_metrics['best_mpjpe'] > val_mpjpe['All']['mpjpe']:
+                        validation_metrics['best_step'] = iterate
+                        validation_metrics['best_mpjpe'] = val_mpjpe['All']['mpjpe']
+                        # reset patience
+                        validation_metrics['current_patience'] = args.es_patience
+
+                        # list previously stored checkpoint
+                        model_hm_paths = os.listdir(val_weight_save_dir_hm)
+                        model_pose_paths = os.listdir(val_weight_save_dir_pose)
+
+                        # remove the previous ckpt
+                        if len(model_hm_paths) > 0:
+                            for model_path in model_hm_paths:
+                                os.remove(os.path.join(val_weight_save_dir_hm, model_path))
+                        if len(model_pose_paths) > 0:
+                            for model_path in model_pose_paths:
+                                os.remove(os.path.join(val_weight_save_dir_pose, model_path))
+
+                        # save model checkpoints
+                        torch.save(model_hm.state_dict(),
+                                   os.path.join(val_weight_save_dir_hm, '{}epo_{}step.ckpt'.format(epo, iterate)))
+                        torch.save(model_pose.state_dict(),
+                                   os.path.join(val_weight_save_dir_pose, '{}epo_{}step.ckpt'.format(epo, iterate)))
+                    else:
+                        validation_metrics['current_patience'] -= 1
+
+                    # trigger early stopping if patience is up
+                    if validation_metrics['current_patience'] < 0:
+                        break
+
+
+            if batch_count % args.display_freq == 0:
                 writer.add_image('Pred_heatmap', torch.clip(torch.sum(heatmap, dim=1, keepdim=True), 0, 1), global_step=iterate)
                 writer.add_image('Generated_heatmap', torch.clip(torch.sum(generated_heatmap, dim=1, keepdim=True), 0, 1), global_step=iterate)
                 writer.add_image('GT_Heatmap', torch.clip(torch.sum(p2d, dim=1, keepdim=True), 0, 1), iterate)
@@ -242,8 +332,10 @@ if __name__ == '__main__':
                         ax.title.set_text(f'Pred {batch_ind}')
                     fig.savefig(os.path.join(plot_3d_dir, '3D_plot'))
                     fig.clf()
-            if iterate % (args.batch_size * (1000 // args.batch_size)) == 0:
-                if i != 0:
+
+            # store 5 most recent model_hm and model_pose checkpoints
+            if batch_count % args.model_save_freq == 0:
+                if batch_count != 0:
                     torch.save(model_hm.state_dict(),
                                os.path.join(weight_save_dir_hm, '{}epo_{}step.ckpt'.format(epo, iterate)))
                     torch.save(model_pose.state_dict(),
@@ -273,16 +365,8 @@ if __name__ == '__main__':
                                 break
 
 
-
-
-            if iterate % 1000 == 0 and i != 0:
-                for file in weight_save_dir_hm:
-                    if '00' in file and '000' not in file:
-                        os.remove(os.path.join(weight_save_dir_hm, file))
-                for file in weight_save_dir_pose:
-                    if '00' in file and '000' not in file:
-                        os.remove(os.path.join(weight_save_dir_pose, file))
-            if iterate % (args.batch_size * (decay_step // args.batch_size)) == 0 and i != 0:
+            if iterate // (args.batch_size * (decay_step // args.batch_size)) > decay_max and batch_count != 0:
+                decay_max = iterate // (args.batch_size * (decay_step // args.batch_size))
                 learning_rate_hm *= lr_decay
                 learning_rate_pose *= lr_decay
                 opt_hm = torch.optim.Adam(model_hm.parameters(), lr=learning_rate_hm)
