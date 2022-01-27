@@ -33,7 +33,7 @@ if __name__ == '__main__':
     parser.add_argument('--epoch', help='# of epochs. default = 20', default=20, type=int)
     parser.add_argument('--model_save_freq', help='How often to save model weights, in batch units', default=64, type=int)
     parser.add_argument('--val_freq', help='How often to run validation set, in batch units', default=64, type=int)
-    parser.add_argument('--es_patience', help='Max # of consecutive validation runs w/o improvment', default=64, type=int)
+    parser.add_argument('--es_patience', help='Max # of consecutive validation runs w/o improvment', default=5, type=int)
     parser.add_argument('--logdir', help='logdir for models and losses. default = .', default='./', type=str)
     parser.add_argument('--lr_pose', help='learning_rate for pose. default = 0.001', default=0.001, type=float)
     parser.add_argument('--lr_hm', help='learning_rate for heat maps. default = 0.001', default=0.001, type=float)
@@ -42,7 +42,7 @@ if __name__ == '__main__':
     parser.add_argument('--decay_step', help='Learning rate decrease by lr_decay time per decay_step,  default = 7000',
                         default=1E100, type=int)
     parser.add_argument('--display_freq', help='Frequency to display result image on Tensorboard, in batch units',
-                        default=1000, type=int)
+                        default=64, type=int)
 
 
     args = parser.parse_args()
@@ -75,11 +75,7 @@ if __name__ == '__main__':
         data_val,
         batch_size=args.batch_size)
 
-    # Initialize evaluation pipline
-    eval_body = evaluate.EvalBody()
-    eval_upper = evaluate.EvalUpperBody()
-    eval_lower = evaluate.EvalUpperBody()
-
+    
     load_hm = args.load_hm
     load_pose = args.load_pose
     start_iter = 0
@@ -169,6 +165,7 @@ if __name__ == '__main__':
             p2d = p2d.cuda()
             p3d = p3d.cuda()
 
+            model_hm.train()
             opt_hm.zero_grad()
             heatmap = model_hm(img)
             heatmap = torch.sigmoid(heatmap)
@@ -212,14 +209,19 @@ if __name__ == '__main__':
                 MPJPE = torch.mean(torch.pow(p3d-pose, 2))
             writer.add_scalar('Mean Per-Joint Position Error', MPJPE, global_step=iterate)
             
-            # evaluate the validation set
-            model_hm.eval()
-            model_pose.eval()
+            
             # TODO iterate is updated in increments of batch_size so it will skip
             # `iterate % ... == 0` checks
             if batch_count % args.val_freq == 0:
+                # evaluate the validation set
+                model_hm.eval()
+                model_pose.eval()
+                # Initialize evaluation pipline
+                eval_body = evaluate.EvalBody()
+                eval_upper = evaluate.EvalUpperBody()
+                eval_lower = evaluate.EvalUpperBody()
                 with torch.no_grad():
-                    for img_val, p2d_val, p3d_val, action_val in dataloader_val:
+                    for img_val, p2d_val, p3d_val, action_val in tqdm(dataloader_val):
                         img_val = img_val.cuda()
                         p3d_val = p3d_val.cuda()
                         heatmap_val = model_hm(img_val)
