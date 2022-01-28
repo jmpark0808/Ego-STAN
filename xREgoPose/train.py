@@ -142,11 +142,13 @@ if __name__ == '__main__':
     os.makedirs(os.path.join('log', now.strftime('%m%d%H%M')), exist_ok=True)
     weight_save_dir_hm = os.path.join(args.logdir, os.path.join('models/hm', 'state_dict', now.strftime('%m%d%H%M')))
     weight_save_dir_pose = os.path.join(args.logdir, os.path.join('models/pose', 'state_dict', now.strftime('%m%d%H%M')))
-    val_weight_save_dir_hm = os.path.join(weight_save_dir_hm,'validation')
-    val_weight_save_dir_pose = os.path.join(weight_save_dir_pose,'validation')
+    val_weight_save_dir_hm = os.path.join(args.logdir, os.path.join('validation/hm', 'state_dict', now.strftime('%m%d%H%M')))
+    val_weight_save_dir_pose = os.path.join(args.logdir, os.path.join('validation/pose', 'state_dict', now.strftime('%m%d%H%M')))
     plot_3d_dir = os.path.join(args.logdir, os.path.join('3d_plot', now.strftime('%m%d%H%M')))
     os.makedirs(os.path.join(weight_save_dir_hm), exist_ok=True)
     os.makedirs(os.path.join(weight_save_dir_pose), exist_ok=True)
+    os.makedirs(os.path.join(val_weight_save_dir_hm), exist_ok=True)
+    os.makedirs(os.path.join(val_weight_save_dir_pose), exist_ok=True)
     os.makedirs(os.path.join(plot_3d_dir), exist_ok=True)
     writer = SummaryWriter(os.path.join(args.logdir, os.path.join('log', now.strftime('%m%d%H%M'))))
     iterate = start_iter
@@ -207,20 +209,20 @@ if __name__ == '__main__':
             writer.add_scalar('LR_hm', learning_rate_hm, global_step=iterate)
             writer.add_scalar('LR_pose', learning_rate_pose, global_step=iterate)
             with torch.no_grad():
-                MPJPE = torch.mean(torch.pow(p3d-pose, 2))
+                MPJPE = torch.mean(torch.sqrt(torch.sum(torch.pow(p3d-pose, 2), dim=2)))
             writer.add_scalar('Mean Per-Joint Position Error', MPJPE, global_step=iterate)
             
             
             # TODO iterate is updated in increments of batch_size so it will skip
             # `iterate % ... == 0` checks
-            if batch_count % args.val_freq == 0:
+            if batch_count % args.val_freq == 0 and iterate != 0:
                 # evaluate the validation set
                 model_hm.eval()
                 model_pose.eval()
                 # Initialize evaluation pipline
                 eval_body = evaluate.EvalBody()
                 eval_upper = evaluate.EvalUpperBody()
-                eval_lower = evaluate.EvalUpperBody()
+                eval_lower = evaluate.EvalLowerBody()
                 with torch.no_grad():
                     for img_val, p2d_val, p3d_val, action_val in tqdm(dataloader_val):
                         img_val = img_val.cuda()
@@ -239,11 +241,12 @@ if __name__ == '__main__':
                         eval_lower.eval(y_output, y_target, action_val)
 
                     val_mpjpe = eval_body.get_results()
-                    writer.add_scalars("Validation MPJPE",
-                        {"full_body": val_mpjpe,
-                        "upper_body": eval_upper.get_results(),
-                        "lower_body": eval_lower.get_results()},
-                        global_step=iterate)
+                    val_mpjpe_upper = eval_upper.get_results()
+                    val_mpjpe_lower = eval_lower.get_results()
+
+                    writer.add_scalar("Validation MPJPE Fully Body", val_mpjpe['All']['mpjpe'], global_step=iterate)
+                    writer.add_scalar("Validation MPJPE Upper Body", val_mpjpe_upper['All']['mpjpe'], global_step=iterate)
+                    writer.add_scalar("Validation MPJPE Lower Body", val_mpjpe_lower['All']['mpjpe'], global_step=iterate)
 
 
                     if validation_metrics['best_mpjpe'] is None or validation_metrics['best_mpjpe'] > val_mpjpe['All']['mpjpe']:
@@ -338,7 +341,7 @@ if __name__ == '__main__':
 
             # store 5 most recent model_hm and model_pose checkpoints
             if batch_count % args.model_save_freq == 0:
-                if batch_count != 0:
+                if iterate != 0:
                     torch.save(model_hm.state_dict(),
                                os.path.join(weight_save_dir_hm, '{}epo_{}step.ckpt'.format(epo, iterate)))
                     torch.save(model_pose.state_dict(),
@@ -346,6 +349,8 @@ if __name__ == '__main__':
                     if len(os.listdir(os.path.join(weight_save_dir_hm))) > 5:
                         model_dict = {}
                         for model_path in os.listdir(os.path.join(weight_save_dir_hm)):
+                            print(model_path)
+                            print(model_path.split('epo_'))
                             iter = model_path.split('epo_')[1].split('step')[0]
                             model_dict[model_path] = int(iter)
                         total_files = len(model_dict)
@@ -376,4 +381,4 @@ if __name__ == '__main__':
                 opt_pose = torch.optim.AdamW(model_pose.parameters(), lr=learning_rate_pose, weight_decay=0.01)
             iterate += args.batch_size
 
-
+        

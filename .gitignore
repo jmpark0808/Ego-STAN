@@ -8,3 +8,4 @@ __pycache__/
 .idea
 .vscode
 /xREgoPose/read_hdf5.py
+/xREgoPose/validation/
