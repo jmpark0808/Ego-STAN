@@ -65,7 +65,9 @@ if __name__ == '__main__':
     dataloader_train = DataLoader(
         data_train,
         batch_size=args.batch_size,
-        shuffle=True)
+        shuffle=True,
+        num_workers=8,
+        pin_memory=True)
 
     # create validation dataloader
     data_val = Mocap(
@@ -74,7 +76,9 @@ if __name__ == '__main__':
         transform=data_transform)
     dataloader_val = DataLoader(
         data_val,
-        batch_size=args.batch_size)
+        batch_size=args.batch_size,
+        num_workers=8,
+        pin_memory=True)
 
     
     load_hm = args.load_hm
