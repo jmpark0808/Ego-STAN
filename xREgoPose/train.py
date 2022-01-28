@@ -142,8 +142,8 @@ if __name__ == '__main__':
     os.makedirs(os.path.join('log', now.strftime('%m%d%H%M')), exist_ok=True)
     weight_save_dir_hm = os.path.join(args.logdir, os.path.join('models/hm', 'state_dict', now.strftime('%m%d%H%M')))
     weight_save_dir_pose = os.path.join(args.logdir, os.path.join('models/pose', 'state_dict', now.strftime('%m%d%H%M')))
-    val_weight_save_dir_hm = os.path.join(weight_save_dir_hm,'validation')
-    val_weight_save_dir_pose = os.path.join(weight_save_dir_pose,'validation')
+    val_weight_save_dir_hm = os.path.join(args.logdir, os.path.join('validation/hm', 'state_dict', now.strftime('%m%d%H%M')))
+    val_weight_save_dir_pose = os.path.join(args.logdir, os.path.join('validation/pose', 'state_dict', now.strftime('%m%d%H%M')))
     plot_3d_dir = os.path.join(args.logdir, os.path.join('3d_plot', now.strftime('%m%d%H%M')))
     os.makedirs(os.path.join(weight_save_dir_hm), exist_ok=True)
     os.makedirs(os.path.join(weight_save_dir_pose), exist_ok=True)
@@ -215,7 +215,7 @@ if __name__ == '__main__':
             
             # TODO iterate is updated in increments of batch_size so it will skip
             # `iterate % ... == 0` checks
-            if batch_count % args.val_freq == 0:
+            if batch_count % args.val_freq == 0 and iterate != 0:
                 # evaluate the validation set
                 model_hm.eval()
                 model_pose.eval()
@@ -280,68 +280,68 @@ if __name__ == '__main__':
                         break
 
 
-            if batch_count % args.display_freq == 0:
-                writer.add_image('Pred_heatmap', torch.clip(torch.sum(heatmap, dim=1, keepdim=True), 0, 1), global_step=iterate)
-                writer.add_image('Generated_heatmap', torch.clip(torch.sum(generated_heatmap, dim=1, keepdim=True), 0, 1), global_step=iterate)
-                writer.add_image('GT_Heatmap', torch.clip(torch.sum(p2d, dim=1, keepdim=True), 0, 1), iterate)
-                writer.add_image('GT_Image', img, iterate)
-                #PLOT GT 3D pose, PRED 3D pose
-                with torch.no_grad():
-                    gt_pose = p3d.cpu().numpy()
-                    pred_pose = pose.detach().cpu().numpy()
-                    batch_dim = gt_pose.shape[0]
-                    fig = plt.figure(figsize=(20*(batch_dim//8), 10))
-                    for batch_ind in range(batch_dim):
-                        ax = fig.add_subplot(2, batch_dim, batch_ind+1, projection='3d')
+            # if batch_count % args.display_freq == 0:
+            #     writer.add_image('Pred_heatmap', torch.clip(torch.sum(heatmap, dim=1, keepdim=True), 0, 1), global_step=iterate)
+            #     writer.add_image('Generated_heatmap', torch.clip(torch.sum(generated_heatmap, dim=1, keepdim=True), 0, 1), global_step=iterate)
+            #     writer.add_image('GT_Heatmap', torch.clip(torch.sum(p2d, dim=1, keepdim=True), 0, 1), iterate)
+            #     writer.add_image('GT_Image', img, iterate)
+            #     #PLOT GT 3D pose, PRED 3D pose
+            #     with torch.no_grad():
+            #         gt_pose = p3d.cpu().numpy()
+            #         pred_pose = pose.detach().cpu().numpy()
+            #         batch_dim = gt_pose.shape[0]
+            #         fig = plt.figure(figsize=(20*(batch_dim//8), 10))
+            #         for batch_ind in range(batch_dim):
+            #             ax = fig.add_subplot(2, batch_dim, batch_ind+1, projection='3d')
 
-                        xs = gt_pose[batch_ind, :, 0]
-                        ys = gt_pose[batch_ind, :, 1]
-                        zs = -gt_pose[batch_ind, :, 2]
+            #             xs = gt_pose[batch_ind, :, 0]
+            #             ys = gt_pose[batch_ind, :, 1]
+            #             zs = -gt_pose[batch_ind, :, 2]
 
-                        def renderBones():
-                            link = [[0, 1], [1, 2], [1, 5], [2, 3], [3, 4], [2, 8]
-                                , [8, 9], [9, 10], [10, 11], [8, 12]
-                                , [5, 12], [5, 6], [6, 7], [12, 13], [13, 14], [14, 15]]
-                            for l in link:
-                                index1, index2 = l[0], l[1]
-                                ax.plot([xs[index1], xs[index2]], [ys[index1], ys[index2]], [zs[index1], zs[index2]],
-                                        linewidth=1)
-                        renderBones()
-                        ax.scatter(xs, ys, zs)
+            #             def renderBones():
+            #                 link = [[0, 1], [1, 2], [1, 5], [2, 3], [3, 4], [2, 8]
+            #                     , [8, 9], [9, 10], [10, 11], [8, 12]
+            #                     , [5, 12], [5, 6], [6, 7], [12, 13], [13, 14], [14, 15]]
+            #                 for l in link:
+            #                     index1, index2 = l[0], l[1]
+            #                     ax.plot([xs[index1], xs[index2]], [ys[index1], ys[index2]], [zs[index1], zs[index2]],
+            #                             linewidth=1)
+            #             renderBones()
+            #             ax.scatter(xs, ys, zs)
 
-                        ax.set_xlim(-1, 1)
-                        ax.set_ylim(-1, 1)
-                        ax.set_zlim(-1, 1)
-                        ax.title.set_text(f'Ground Truth {batch_ind}')
-                    for batch_ind in range(batch_dim):
-                        ax = fig.add_subplot(2, batch_dim, batch_dim+batch_ind+1, projection='3d')
+            #             ax.set_xlim(-1, 1)
+            #             ax.set_ylim(-1, 1)
+            #             ax.set_zlim(-1, 1)
+            #             ax.title.set_text(f'Ground Truth {batch_ind}')
+            #         for batch_ind in range(batch_dim):
+            #             ax = fig.add_subplot(2, batch_dim, batch_dim+batch_ind+1, projection='3d')
 
 
-                        xs = pred_pose[batch_ind, :, 0]
-                        ys = pred_pose[batch_ind, :, 1]
-                        zs = -pred_pose[batch_ind, :, 2]
+            #             xs = pred_pose[batch_ind, :, 0]
+            #             ys = pred_pose[batch_ind, :, 1]
+            #             zs = -pred_pose[batch_ind, :, 2]
 
-                        def renderBones():
-                            link = [[0, 1], [1, 2], [1, 5], [2, 3], [3, 4], [2, 8]
-                                , [8, 9], [9, 10], [10, 11], [8, 12]
-                                , [5, 12], [5, 6], [6, 7], [12, 13], [13, 14], [14, 15]]
-                            for l in link:
-                                index1, index2 = l[0], l[1]
-                                ax.plot([xs[index1], xs[index2]], [ys[index1], ys[index2]], [zs[index1], zs[index2]],
-                                        linewidth=1, label=r'$z=y=x$')
-                        renderBones()
-                        ax.scatter(xs, ys, zs)
+            #             def renderBones():
+            #                 link = [[0, 1], [1, 2], [1, 5], [2, 3], [3, 4], [2, 8]
+            #                     , [8, 9], [9, 10], [10, 11], [8, 12]
+            #                     , [5, 12], [5, 6], [6, 7], [12, 13], [13, 14], [14, 15]]
+            #                 for l in link:
+            #                     index1, index2 = l[0], l[1]
+            #                     ax.plot([xs[index1], xs[index2]], [ys[index1], ys[index2]], [zs[index1], zs[index2]],
+            #                             linewidth=1, label=r'$z=y=x$')
+            #             renderBones()
+            #             ax.scatter(xs, ys, zs)
 
-                        ax.set_xlim(-1, 1)
-                        ax.set_ylim(-1, 1)
-                        ax.set_zlim(-1, 1)
-                        ax.title.set_text(f'Pred {batch_ind}')
-                    fig.savefig(os.path.join(plot_3d_dir, '3D_plot'))
-                    fig.clf()
+            #             ax.set_xlim(-1, 1)
+            #             ax.set_ylim(-1, 1)
+            #             ax.set_zlim(-1, 1)
+            #             ax.title.set_text(f'Pred {batch_ind}')
+            #         fig.savefig(os.path.join(plot_3d_dir, '3D_plot'))
+            #         fig.clf()
 
             # store 5 most recent model_hm and model_pose checkpoints
             if batch_count % args.model_save_freq == 0:
-                if batch_count != 0:
+                if iterate != 0:
                     torch.save(model_hm.state_dict(),
                                os.path.join(weight_save_dir_hm, '{}epo_{}step.ckpt'.format(epo, iterate)))
                     torch.save(model_pose.state_dict(),
@@ -349,6 +349,8 @@ if __name__ == '__main__':
                     if len(os.listdir(os.path.join(weight_save_dir_hm))) > 5:
                         model_dict = {}
                         for model_path in os.listdir(os.path.join(weight_save_dir_hm)):
+                            print(model_path)
+                            print(model_path.split('epo_'))
                             iter = model_path.split('epo_')[1].split('step')[0]
                             model_dict[model_path] = int(iter)
                         total_files = len(model_dict)
