@@ -147,6 +147,8 @@ if __name__ == '__main__':
     plot_3d_dir = os.path.join(args.logdir, os.path.join('3d_plot', now.strftime('%m%d%H%M')))
     os.makedirs(os.path.join(weight_save_dir_hm), exist_ok=True)
     os.makedirs(os.path.join(weight_save_dir_pose), exist_ok=True)
+    os.makedirs(os.path.join(val_weight_save_dir_hm), exist_ok=True)
+    os.makedirs(os.path.join(val_weight_save_dir_pose), exist_ok=True)
     os.makedirs(os.path.join(plot_3d_dir), exist_ok=True)
     writer = SummaryWriter(os.path.join(args.logdir, os.path.join('log', now.strftime('%m%d%H%M'))))
     iterate = start_iter
@@ -241,9 +243,10 @@ if __name__ == '__main__':
                     val_mpjpe = eval_body.get_results()
                     val_mpjpe_upper = eval_upper.get_results()
                     val_mpjpe_lower = eval_lower.get_results()
-                    writer.add_scalars("Validation MPJPE Fully Body", val_mpjpe['All']['mpjpe'], global_step=iterate)
-                    writer.add_scalars("Validation MPJPE Upper Body", val_mpjpe_upper['All']['mpjpe'], global_step=iterate)
-                    writer.add_scalars("Validation MPJPE Lower Body", val_mpjpe_lower['All']['mpjpe'], global_step=iterate)
+
+                    writer.add_scalar("Validation MPJPE Fully Body", val_mpjpe['All']['mpjpe'], global_step=iterate)
+                    writer.add_scalar("Validation MPJPE Upper Body", val_mpjpe_upper['All']['mpjpe'], global_step=iterate)
+                    writer.add_scalar("Validation MPJPE Lower Body", val_mpjpe_lower['All']['mpjpe'], global_step=iterate)
 
 
                     if validation_metrics['best_mpjpe'] is None or validation_metrics['best_mpjpe'] > val_mpjpe['All']['mpjpe']:
