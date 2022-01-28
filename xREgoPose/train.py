@@ -209,7 +209,7 @@ if __name__ == '__main__':
             writer.add_scalar('LR_hm', learning_rate_hm, global_step=iterate)
             writer.add_scalar('LR_pose', learning_rate_pose, global_step=iterate)
             with torch.no_grad():
-                MPJPE = torch.mean(torch.pow(p3d-pose, 2))
+                MPJPE = torch.mean(torch.sqrt(torch.sum(torch.pow(p3d-pose, 2), dim=2)))
             writer.add_scalar('Mean Per-Joint Position Error', MPJPE, global_step=iterate)
             
             
