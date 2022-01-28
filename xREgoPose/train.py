@@ -239,11 +239,11 @@ if __name__ == '__main__':
                         eval_lower.eval(y_output, y_target, action_val)
 
                     val_mpjpe = eval_body.get_results()
-                    writer.add_scalars("Validation MPJPE",
-                        {"full_body": val_mpjpe,
-                        "upper_body": eval_upper.get_results(),
-                        "lower_body": eval_lower.get_results()},
-                        global_step=iterate)
+                    val_mpjpe_upper = eval_upper.get_results()
+                    val_mpjpe_lower = eval_lower.get_results()
+                    writer.add_scalars("Validation MPJPE Fully Body", val_mpjpe['All']['mpjpe'], global_step=iterate)
+                    writer.add_scalars("Validation MPJPE Upper Body", val_mpjpe_upper['All']['mpjpe'], global_step=iterate)
+                    writer.add_scalars("Validation MPJPE Lower Body", val_mpjpe_lower['All']['mpjpe'], global_step=iterate)
 
 
                     if validation_metrics['best_mpjpe'] is None or validation_metrics['best_mpjpe'] > val_mpjpe['All']['mpjpe']:
@@ -372,8 +372,8 @@ if __name__ == '__main__':
                 decay_max = iterate // (args.batch_size * (decay_step // args.batch_size))
                 learning_rate_hm *= lr_decay
                 learning_rate_pose *= lr_decay
-                opt_hm = torch.optim.Adam(model_hm.parameters(), lr=learning_rate_hm)
-                opt_pose = torch.optim.Adam(model_pose.parameters(), lr=learning_rate_pose)
+                opt_hm = torch.optim.AdamW(model_hm.parameters(), lr=learning_rate_hm, weight_decay=0.01)
+                opt_pose = torch.optim.AdamW(model_pose.parameters(), lr=learning_rate_pose, weight_decay=0.01)
             iterate += args.batch_size
 
-        start_iter = 0
+        
