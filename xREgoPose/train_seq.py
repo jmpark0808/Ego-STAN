@@ -28,24 +28,24 @@ if __name__ == '__main__':
     parser.add_argument("--load_pose",
                         help="Directory of pre-trained model for pose estimator,  \n"
                              "None --> Do not use pre-trained model. Training will start from random initialized model")
-    parser.add_argument('--dataset', help='Directory of your Dataset', required=True, default=None)
+    parser.add_argument('--dataset_tr', help='Directory of your train Dataset', required=True, default=None)
+    parser.add_argument('--dataset_val', help='Directory of your validation Dataset', required=True, default=None)
     parser.add_argument('--cuda', help="'cuda' for cuda, 'cpu' for cpu, default = cuda",
                         default='cuda', choices=['cuda', 'cpu'])
     parser.add_argument('--batch_size', help="batchsize, default = 1", default=1, type=int)
     parser.add_argument('--epoch', help='# of epochs. default = 20', default=20, type=int)
-    parser.add_argument('--sequence_length', help="# of images/frames input into sequential model, default = 5",
-                        default='5', type=int)
+    parser.add_argument('--model_save_freq', help='How often to save model weights, in batch units', default=64, type=int)
+    parser.add_argument('--val_freq', help='How often to run validation set, in batch units', default=64, type=int)
+    parser.add_argument('--es_patience', help='Max # of consecutive validation runs w/o improvment', default=5, type=int)
     parser.add_argument('--logdir', help='logdir for models and losses. default = .', default='./', type=str)
-    parser.add_argument('--lr', help='learning_rate. default = 0.0001', default=0.0001, type=float)
+    parser.add_argument('--lr_pose', help='learning_rate for pose. default = 0.001', default=0.001, type=float)
+    parser.add_argument('--lr_hm', help='learning_rate for heat maps. default = 0.001', default=0.001, type=float)
     parser.add_argument('--lr_decay', help='Learning rate decrease by lr_decay time per decay_step, default = 0.1',
                         default=0.1, type=float)
     parser.add_argument('--decay_step', help='Learning rate decrease by lr_decay time per decay_step,  default = 7000',
                         default=1E100, type=int)
-    parser.add_argument('--display_freq', help='display_freq to display result image on Tensorboard',
+    parser.add_argument('--display_freq', help='Frequency to display result image on Tensorboard, in batch units',
                         default=64, type=int)
-    parser.add_argument('--model_save_freq', help='How often to save model weights, in batch units', default=64, type=int)
-    parser.add_argument('--val_freq', help='How often to run validation set, in batch units', default=64, type=int)
-    parser.add_argument('--es_patience', help='Max # of consecutive validation runs w/o improvment', default=64, type=int)
     
 
 
@@ -63,7 +63,7 @@ if __name__ == '__main__':
 
     # create train dataloader
     data_train = MocapTransformer(
-        args.dataset,
+        args.dataset_tr,
         SetType.TRAIN,
         transform=data_transform,
         sequence_length = seq_len)
@@ -74,7 +74,7 @@ if __name__ == '__main__':
 
     # create validation dataloader
     data_val = MocapTransformer(
-        args.dataset,
+        args.dataset_val,
         SetType.VAL,
         transform=data_transform,
         sequence_length = seq_len)
@@ -148,21 +148,28 @@ if __name__ == '__main__':
 
     os.makedirs(os.path.join('log', now.strftime('%m%d%H%M')), exist_ok=True)
     weight_save_dir = os.path.join(args.logdir, os.path.join('models', 'state_dict', now.strftime('%m%d%H%M')))
+    val_weight_save_dir = os.path.join(weight_save_dir,'validation')
     plot_3d_dir = os.path.join(args.logdir, os.path.join('3d_plot', now.strftime('%m%d%H%M')))
     os.makedirs(os.path.join(weight_save_dir), exist_ok=True)
     os.makedirs(os.path.join(plot_3d_dir), exist_ok=True)
     writer = SummaryWriter(os.path.join(args.logdir, os.path.join('log', now.strftime('%m%d%H%M'))))
     iterate = start_iter
     
-
+    validation_metrics = {
+            "best_mpjpe": None,
+            "best_step": None,
+            "current_patience": args.es_patience,
+            }
+    decay_max = iterate // (args.batch_size * (decay_step // args.batch_size))
     # Freezing the embedder
-    # sequence_embedder.eval()
-    # for embedder_param in sequence_embedder.parameters():
-    #     embedder_param.requires_grad = False
+    sequence_embedder.eval()
+    for embedder_param in sequence_embedder.parameters():
+        embedder_param.requires_grad = False
 
     for epo in range(start_epo, epoch):
         print("\nEpoch : {}".format(epo))
         for batch_count, batch in enumerate(tqdm(dataloader_train)):
+            pose_transformer.train()
             opt.zero_grad()
             sequence_imgs, p2d, p3d, action = batch
             sequence_imgs = sequence_imgs.cuda()
@@ -184,7 +191,63 @@ if __name__ == '__main__':
             writer.add_scalar('Regularization', l2_reg, global_step=iterate)
             writer.add_scalar('LR', learning_rate, global_step=iterate)
 
-            # TODO: @kkaai MPJPE for training 
+            # TODO:  MPJPE for training 
+            if batch_count % args.val_freq == 0:
+                # evaluate the validation set
+                pose_transformer.eval()
+                # Initialize evaluation pipline
+                eval_body = evaluate.EvalBody()
+                eval_upper = evaluate.EvalUpperBody()
+                eval_lower = evaluate.EvalUpperBody()
+                with torch.no_grad():
+                    for sequence_imgs_val, p2d_val, p3d_val, action_val in tqdm(dataloader_val):
+    
+                        sequence_imgs_val = sequence_imgs_val.cuda()
+                        p3d_val = p3d_val.cuda()
+
+                        y_output = pose_transformer(sequence_imgs_val)
+                        # evaluate mpjpe for upper, lower and full body
+                        # converting to numpy might cost time
+                        y_output = y_output.data.cpu().numpy()
+                        y_target = p3d_val.data.cpu().numpy()
+
+                        eval_body.eval(y_output, y_target, action_val)
+                        eval_upper.eval(y_output, y_target, action_val)
+                        eval_lower.eval(y_output, y_target, action_val)
+
+                    val_mpjpe = eval_body.get_results()
+                    writer.add_scalars("Validation MPJPE",
+                        {"full_body": val_mpjpe,
+                        "upper_body": eval_upper.get_results(),
+                        "lower_body": eval_lower.get_results()},
+                        global_step=iterate)
+
+
+                    if validation_metrics['best_mpjpe'] is None or validation_metrics['best_mpjpe'] > val_mpjpe['All']['mpjpe']:
+                        validation_metrics['best_step'] = iterate
+                        validation_metrics['best_mpjpe'] = val_mpjpe['All']['mpjpe']
+                        # reset patience
+                        validation_metrics['current_patience'] = args.es_patience
+
+                        # list previously stored checkpoint
+                        model_paths = os.listdir(val_weight_save_dir)
+
+                        # remove the previous ckpt
+                        if len(model_paths) > 0:
+                            for model_path in model_paths:
+                                os.remove(os.path.join(val_weight_save_dir, model_path))
+  
+                        # save model checkpoints
+                        torch.save(pose_transformer.state_dict(),
+                                   os.path.join(val_weight_save_dir, '{}epo_{}step.ckpt'.format(epo, iterate)))
+
+                    else:
+                        validation_metrics['current_patience'] -= 1
+
+                    # trigger early stopping if patience is up
+                    if validation_metrics['current_patience'] < 0:
+                        break
+
 
             if batch_count % args.display_freq == 0:
                 #PLOT GT 3D pose, PRED 3D pose
@@ -257,7 +320,14 @@ if __name__ == '__main__':
                             total_files -= 1
                             if total_files == 5:
                                 break
+            if iterate // (args.batch_size * (decay_step // args.batch_size)) > decay_max and batch_count != 0:
+                decay_max = iterate // (args.batch_size * (decay_step // args.batch_size))
+                learning_rate *= lr_decay
+                opt = torch.optim.AdamW(pose_transformer.parameters(), lr=learning_rate, weight_decay=0.01)
 
+            iterate += args.batch_size
+
+     
            
 
             
