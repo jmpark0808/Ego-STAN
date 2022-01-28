@@ -222,7 +222,7 @@ if __name__ == '__main__':
                 # Initialize evaluation pipline
                 eval_body = evaluate.EvalBody()
                 eval_upper = evaluate.EvalUpperBody()
-                eval_lower = evaluate.EvalUpperBody()
+                eval_lower = evaluate.EvalLowerBody()
                 with torch.no_grad():
                     for img_val, p2d_val, p3d_val, action_val in tqdm(dataloader_val):
                         img_val = img_val.cuda()
