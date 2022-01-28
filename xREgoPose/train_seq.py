@@ -46,6 +46,8 @@ if __name__ == '__main__':
                         default=1E100, type=int)
     parser.add_argument('--display_freq', help='Frequency to display result image on Tensorboard, in batch units',
                         default=64, type=int)
+    parser.add_argument('--sequence_length', help="# of images/frames input into sequential model, default = 5",
+                        default='5', type=int)
     
 
 
