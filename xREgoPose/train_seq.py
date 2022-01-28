@@ -148,7 +148,7 @@ if __name__ == '__main__':
 
     os.makedirs(os.path.join('log', now.strftime('%m%d%H%M')), exist_ok=True)
     weight_save_dir = os.path.join(args.logdir, os.path.join('models', 'state_dict', now.strftime('%m%d%H%M')))
-    val_weight_save_dir = os.path.join(weight_save_dir,'validation')
+    val_weight_save_dir = os.path.join(args.logdir, os.path.join('validation', 'state_dict', now.strftime('%m%d%H%M')))
     plot_3d_dir = os.path.join(args.logdir, os.path.join('3d_plot', now.strftime('%m%d%H%M')))
     os.makedirs(os.path.join(weight_save_dir), exist_ok=True)
     os.makedirs(os.path.join(plot_3d_dir), exist_ok=True)
@@ -192,13 +192,13 @@ if __name__ == '__main__':
             writer.add_scalar('LR', learning_rate, global_step=iterate)
 
             # TODO:  MPJPE for training 
-            if batch_count % args.val_freq == 0:
+            if batch_count % args.val_freq == 0 and iterate != 0:
                 # evaluate the validation set
                 pose_transformer.eval()
                 # Initialize evaluation pipline
                 eval_body = evaluate.EvalBody()
                 eval_upper = evaluate.EvalUpperBody()
-                eval_lower = evaluate.EvalUpperBody()
+                eval_lower = evaluate.EvalLowerBody()
                 with torch.no_grad():
                     for sequence_imgs_val, p2d_val, p3d_val, action_val in tqdm(dataloader_val):
     
@@ -216,11 +216,13 @@ if __name__ == '__main__':
                         eval_lower.eval(y_output, y_target, action_val)
 
                     val_mpjpe = eval_body.get_results()
-                    writer.add_scalars("Validation MPJPE",
-                        {"full_body": val_mpjpe,
-                        "upper_body": eval_upper.get_results(),
-                        "lower_body": eval_lower.get_results()},
-                        global_step=iterate)
+                    val_mpjpe_upper = eval_upper.get_results()
+                    val_mpjpe_lower = eval_lower.get_results()
+
+                    writer.add_scalar("Validation MPJPE Fully Body", val_mpjpe['All']['mpjpe'], global_step=iterate)
+                    writer.add_scalar("Validation MPJPE Upper Body", val_mpjpe_upper['All']['mpjpe'], global_step=iterate)
+                    writer.add_scalar("Validation MPJPE Lower Body", val_mpjpe_lower['All']['mpjpe'], global_step=iterate)
+
 
 
                     if validation_metrics['best_mpjpe'] is None or validation_metrics['best_mpjpe'] > val_mpjpe['All']['mpjpe']:
@@ -255,7 +257,7 @@ if __name__ == '__main__':
                     gt_pose = p3d.cpu().numpy()
                     pred_pose = pose.detach().cpu().numpy()
                     batch_dim = gt_pose.shape[0]
-                    fig = plt.figure(figsize=(20*(batch_dim//8), 10))
+                    fig = plt.figure(figsize=(10*(batch_dim//4), 10))
                     for batch_ind in range(batch_dim):
                         ax = fig.add_subplot(2, batch_dim, batch_ind+1, projection='3d')
 
