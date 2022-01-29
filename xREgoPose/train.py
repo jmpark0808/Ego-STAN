@@ -66,7 +66,6 @@ if __name__ == '__main__':
         data_train,
         batch_size=args.batch_size,
         shuffle=True,
-        num_workers=8,
         pin_memory=True)
 
     # create validation dataloader
@@ -77,7 +76,6 @@ if __name__ == '__main__':
     dataloader_val = DataLoader(
         data_val,
         batch_size=args.batch_size,
-        num_workers=8,
         pin_memory=True)
 
     
