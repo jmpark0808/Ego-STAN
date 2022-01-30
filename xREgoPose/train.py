@@ -137,10 +137,10 @@ if __name__ == '__main__':
     decay_step = args.decay_step
     learning_rate_hm = learning_rate_hm * (lr_decay ** (start_iter // decay_step))
     learning_rate_pose = learning_rate_pose * (lr_decay ** (start_iter // decay_step))
-    #opt_hm = torch.optim.AdamW(model_hm.parameters(), lr=learning_rate_hm, weight_decay=0.01)
-    #opt_pose = torch.optim.AdamW(model_pose.parameters(), lr=learning_rate_pose, weight_decay=0.01)
-    opt_hm = torch.optim.SGD(model_hm.parameters(), lr=learning_rate_hm, momentum=0.9, weight_decay=0.0005)
-    opt_pose = torch.optim.SGD(model_pose.parameters(), lr=learning_rate_pose, momentum=0.9, weight_decay=0.0005)
+    # opt_hm = torch.optim.AdamW(model_hm.parameters(), lr=learning_rate_hm, weight_decay=0.01)
+    # opt_pose = torch.optim.AdamW(model_pose.parameters(), lr=learning_rate_pose, weight_decay=0.01)
+    opt_hm = torch.optim.SGD(model_hm.parameters(), lr=learning_rate_hm, momentum=0.5, weight_decay=0.0005)
+    opt_pose = torch.optim.SGD(model_pose.parameters(), lr=learning_rate_pose, momentum=0.5, weight_decay=0.0005)
 
     # Logger Setup
     os.makedirs(os.path.join('log', now.strftime('%m%d%H%M')), exist_ok=True)
@@ -181,24 +181,24 @@ if __name__ == '__main__':
             opt_hm.step()
             writer.add_scalar('Total HM loss', loss.item(), global_step=iterate)
 
-            if loss.item() < 0.1:
-                model_pose.train()
-                opt_pose.zero_grad()
-                heatmap = heatmap.detach()
-                generated_heatmap, pose = model_pose(heatmap)
-                generated_heatmap = torch.sigmoid(generated_heatmap)
-                loss_3d_pose, loss_2d_ghm = auto_encoder_loss(pose, p3d, generated_heatmap, heatmap)
-                loss = loss_2d_ghm+loss_3d_pose
-                loss.backward()
-                opt_pose.step()
-                writer.add_scalar('Total 3D loss', loss_3d_pose.item(), global_step=iterate)
-                writer.add_scalar('Total GHM loss', loss_2d_ghm.item(), global_step=iterate)
-            else:
-                model_pose.eval()
-                with torch.no_grad():
-                    heatmap = heatmap.detach()
-                    generated_heatmap, pose = model_pose(heatmap)
-                    generated_heatmap = torch.sigmoid(generated_heatmap)
+            # if loss.item() < 0.1:
+            model_pose.train()
+            opt_pose.zero_grad()
+            heatmap = heatmap.detach()
+            generated_heatmap, pose = model_pose(heatmap)
+            generated_heatmap = torch.sigmoid(generated_heatmap)
+            loss_3d_pose, loss_2d_ghm = auto_encoder_loss(pose, p3d, generated_heatmap, heatmap)
+            loss = loss_2d_ghm+loss_3d_pose
+            loss.backward()
+            opt_pose.step()
+            writer.add_scalar('Total 3D loss', loss_3d_pose.item(), global_step=iterate)
+            writer.add_scalar('Total GHM loss', loss_2d_ghm.item(), global_step=iterate)
+            # else:
+            #     model_pose.eval()
+            #     with torch.no_grad():
+            #         heatmap = heatmap.detach()
+            #         generated_heatmap, pose = model_pose(heatmap)
+            #         generated_heatmap = torch.sigmoid(generated_heatmap)
 
             with torch.no_grad(): 
                 l2_reg_hm = torch.tensor(0., device=device)
