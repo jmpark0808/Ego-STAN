@@ -137,10 +137,10 @@ if __name__ == '__main__':
     decay_step = args.decay_step
     learning_rate_hm = learning_rate_hm * (lr_decay ** (start_iter // decay_step))
     learning_rate_pose = learning_rate_pose * (lr_decay ** (start_iter // decay_step))
-    # opt_hm = torch.optim.AdamW(model_hm.parameters(), lr=learning_rate_hm, weight_decay=0.01)
-    # opt_pose = torch.optim.AdamW(model_pose.parameters(), lr=learning_rate_pose, weight_decay=0.01)
-    opt_hm = torch.optim.SGD(model_hm.parameters(), lr=learning_rate_hm, momentum=0.5, weight_decay=0.0005)
-    opt_pose = torch.optim.SGD(model_pose.parameters(), lr=learning_rate_pose, momentum=0.5, weight_decay=0.0005)
+    opt_hm = torch.optim.AdamW(model_hm.parameters(), lr=learning_rate_hm, weight_decay=0.01)
+    opt_pose = torch.optim.AdamW(model_pose.parameters(), lr=learning_rate_pose, weight_decay=0.01)
+    # opt_hm = torch.optim.SGD(model_hm.parameters(), lr=learning_rate_hm, momentum=0.5, weight_decay=0.0005)
+    # opt_pose = torch.optim.SGD(model_pose.parameters(), lr=learning_rate_pose, momentum=0.5, weight_decay=0.0005)
 
     # Logger Setup
     os.makedirs(os.path.join('log', now.strftime('%m%d%H%M')), exist_ok=True)
@@ -244,6 +244,10 @@ if __name__ == '__main__':
                         eval_upper.eval(y_output, y_target, action_val)
                         eval_lower.eval(y_output, y_target, action_val)
 
+
+                    writer.add_image('Val_Pred_heatmap', torch.clip(torch.sum(heatmap_val, dim=1, keepdim=True), 0, 1), global_step=iterate)
+                    writer.add_image('Val_GT_Heatmap', torch.clip(torch.sum(p2d_val, dim=1, keepdim=True), 0, 1), iterate)
+                    writer.add_image('Val_GT_Image', img_val, iterate)
                     val_mpjpe = eval_body.get_results()
                     val_mpjpe_upper = eval_upper.get_results()
                     val_mpjpe_lower = eval_lower.get_results()
