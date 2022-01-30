@@ -44,6 +44,7 @@ if __name__ == '__main__':
                         default=1E100, type=int)
     parser.add_argument('--display_freq', help='Frequency to display result image on Tensorboard, in batch units',
                         default=64, type=int)
+    parser.add_argument('--load_resnet', help='Directory of ResNet 101 weights', default=None)
 
 
     args = parser.parse_args()
@@ -93,7 +94,10 @@ if __name__ == '__main__':
             if m.bias is not None:
                 torch.nn.init.zeros_(m.bias)
 
-    model_hm.resnet101.apply(weight_init)
+    # model_hm.resnet101.apply(weight_init)
+    if args.load_resnet:
+        model_hm.resnet101.load_state_dict(torch.load(args.load_resnet))
+    model_hm.update_resnet101()
     model_hm.heatmap_deconv.apply(weight_init)
 
     model_pose.encoder.apply(weight_init)
