@@ -140,7 +140,7 @@ if __name__ == '__main__':
     #opt_hm = torch.optim.AdamW(model_hm.parameters(), lr=learning_rate_hm, weight_decay=0.01)
     #opt_pose = torch.optim.AdamW(model_pose.parameters(), lr=learning_rate_pose, weight_decay=0.01)
     opt_hm = torch.optim.SGD(model_hm.parameters(), lr=learning_rate_hm, momentum=0.9, weight_decay=0.0005)
-    opt_pose = torch.optim.AdamW(model_pose.parameters(), lr=learning_rate_pose, momentum=0.9, weight_decay=0.0005)
+    opt_pose = torch.optim.SGD(model_pose.parameters(), lr=learning_rate_pose, momentum=0.9, weight_decay=0.0005)
 
     # Logger Setup
     os.makedirs(os.path.join('log', now.strftime('%m%d%H%M')), exist_ok=True)
