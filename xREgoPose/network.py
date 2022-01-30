@@ -13,7 +13,7 @@ class HeatMap(nn.Module):
     def __init__(self):
         super(HeatMap, self).__init__()
         # Resnet 101 without last average pooling and fully connected layers
-        self.resnet101 = nn.Sequential(*[l for ind, l in enumerate(torchvision.models.resnet101(pretrained=False).children()) if ind < 8])
+        self.resnet101 = nn.Sequential(*[l for ind, l in enumerate(torchvision.models.resnet101(pretrained=True).children()) if ind < 8])
         # First Deconvolution to obtain 2D heatmap
         self.heatmap_deconv = nn.Sequential(*[nn.ConvTranspose2d(2048, 1024, kernel_size=3,
                                                                  stride=2, dilation=1, padding=1),
