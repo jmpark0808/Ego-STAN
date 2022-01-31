@@ -34,7 +34,8 @@ if __name__ == '__main__':
     parser.add_argument('--epoch', help='# of epochs. default = 20', default=20, type=int)
     parser.add_argument('--sequence_length', help="# of images/frames input into sequential model, default = 5",
                         default='5', type=int)
-
+        
+                        
     args = parser.parse_args()
     device = torch.device(args.cuda)
     batch_size = args.batch_size
