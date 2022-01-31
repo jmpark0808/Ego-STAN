@@ -145,7 +145,6 @@ class MocapTransformer(BaseDataset):
     def __getitem__(self, index):
 
         # load image sequence
-
         img_paths = [path.decode('utf8') for path in self.index['rgba'][index]]
 
         # checking for correct sequence of rgba/image files

@@ -9,10 +9,8 @@ import torchvision
 from torchvision import transforms
 from tensorboardX import SummaryWriter
 from tqdm import tqdm
-from loss import transformer_loss
+from loss import mse, auto_encoder_loss
 from net.xRNet import *
-from net.transformer import PoseTransformer
-from dataset.mocap import Mocap
 from dataset.mocap_transformer import MocapTransformer
 from utils import config, evaluate
 from base import SetType
@@ -38,8 +36,7 @@ if __name__ == '__main__':
     parser.add_argument('--val_freq', help='How often to run validation set, in batch units', default=64, type=int)
     parser.add_argument('--es_patience', help='Max # of consecutive validation runs w/o improvment', default=5, type=int)
     parser.add_argument('--logdir', help='logdir for models and losses. default = .', default='./', type=str)
-    parser.add_argument('--lr_pose', help='learning_rate for pose. default = 0.001', default=0.001, type=float)
-    parser.add_argument('--lr_hm', help='learning_rate for heat maps. default = 0.001', default=0.001, type=float)
+    parser.add_argument('--lr', help='learning_rate default = 0.001', default=0.001, type=float)
     parser.add_argument('--lr_decay', help='Learning rate decrease by lr_decay time per decay_step, default = 0.1',
                         default=0.1, type=float)
     parser.add_argument('--decay_step', help='Learning rate decrease by lr_decay time per decay_step,  default = 7000',
@@ -91,9 +88,8 @@ if __name__ == '__main__':
     start_iter = 0
     model_hm = HeatMap().to(device=args.cuda)
     model_pose = PoseEstimator().to(device=args.cuda)
-    sequence_embedder = SequenceEmbedder().to(device=args.cuda)
-    pose_transformer = PoseTransformer(seq_len=seq_len, dim=256, depth=3, heads=8, mlp_dim=512).to(device=args.cuda)
-
+    sequence_embedder = SequenceEmbedder(seq_len).to(device=args.cuda)
+  
     # Xavier Initialization
     def weight_init(m):
         if isinstance(m, torch.nn.Conv2d) or isinstance(m, torch.nn.Linear):
@@ -101,19 +97,15 @@ if __name__ == '__main__':
             if m.bias is not None:
                 torch.nn.init.zeros_(m.bias)
 
-    if args.load_resnet:
-        model_hm.resnet101.load_state_dict(torch.load(args.load_resnet))
+    if args.load_resnet: 
+        sequence_embedder.heatmap.resnet101.load_state_dict(torch.load(args.load_resnet))
     else:
-        model_hm.resnet101.apply(weight_init)
-    model_hm.update
-    sequence_embedder.heatmap.resnet101.apply(weight_init)
-    model_hm.heatmap_deconv.apply(weight_init)
+        sequence_embedder.heatmap.resnet101.apply(weight_init)
+    sequence_embedder.heatmap.update_resnet101()
     sequence_embedder.heatmap.heatmap_deconv.apply(weight_init)
-
-    model_pose.encoder.apply(weight_init)
     sequence_embedder.encoder.apply(weight_init)
-    model_pose.pose_decoder.apply(weight_init)
-    model_pose.heatmap_decoder.apply(weight_init)
+    sequence_embedder.pose_decoder.apply(weight_init)
+    sequence_embedder.heatmap_decoder.apply(weight_init)
 
     now = datetime.datetime.now()
     start_epo = 0
@@ -151,7 +143,7 @@ if __name__ == '__main__':
     lr_decay = args.lr_decay
     decay_step = args.decay_step
     learning_rate = learning_rate * (lr_decay ** (start_iter // decay_step))
-    opt = torch.optim.AdamW(pose_transformer.parameters(), lr=learning_rate, weight_decay=0.01)
+    opt = torch.optim.AdamW(sequence_embedder.parameters(), lr=learning_rate, weight_decay=0.01)
 
     os.makedirs(os.path.join('log', now.strftime('%m%d%H%M')), exist_ok=True)
     weight_save_dir = os.path.join(args.logdir, os.path.join('models', 'state_dict', now.strftime('%m%d%H%M')))
@@ -169,30 +161,35 @@ if __name__ == '__main__':
             }
     decay_max = iterate // (args.batch_size * (decay_step // args.batch_size))
     # Freezing the embedder
-    sequence_embedder.eval()
-    for embedder_param in sequence_embedder.parameters():
-        embedder_param.requires_grad = False
 
     for epo in range(start_epo, epoch):
         print("\nEpoch : {}".format(epo))
         for batch_count, batch in enumerate(tqdm(dataloader_train)):
-            pose_transformer.train()
+            sequence_embedder.train()
             opt.zero_grad()
             sequence_imgs, p2d, p3d, action = batch
             sequence_imgs = sequence_imgs.cuda()
             p2d = p2d.cuda()
             p3d = p3d.cuda()
+            batch_dim = p2d.size(0)
             
-            embeddings = sequence_embedder(sequence_imgs)
-            
-            pose = pose_transformer(embeddings)
-            loss = transformer_loss(pose, p3d)
+            pred_hm, pred_3d, gen_hm = sequence_embedder(sequence_imgs)
+            pred_hm = pred_hm.reshape(batch_dim, -1, 15, 47, 47)
+            pred_hm = pred_hm[:, -1, :, :, :]
+            pred_hm = pred_hm.reshape(batch_dim, 15, 47, 47)
+            pred_hm = torch.sigmoid(pred_hm)
+            gen_hm = torch.sigmoid(gen_hm)
+            mse_loss = mse(pred_hm, p2d)
+            loss_3d_pose, loss_2d_ghm = auto_encoder_loss(pred_3d, p3d, gen_hm, pred_hm)
+            loss = mse_loss + loss_2d_ghm + loss_3d_pose
             loss.backward()
             opt.step()
-            writer.add_scalar('3D loss', loss.item(), global_step=iterate)
+            writer.add_scalar('HM loss', mse_loss.item(), global_step=iterate)
+            writer.add_scalar('3D loss', loss_3d_pose.item(), global_step=iterate)
+            writer.add_scalar('Gen HM loss', loss_2d_ghm.item(), global_step=iterate)
             with torch.no_grad(): 
                 l2_reg = torch.tensor(0., device=device)
-                for param in pose_transformer.parameters():
+                for param in sequence_embedder.parameters():
                     l2_reg += torch.norm(param)
 
             writer.add_scalar('Regularization', l2_reg, global_step=iterate)
@@ -201,7 +198,7 @@ if __name__ == '__main__':
             # TODO:  MPJPE for training 
             if batch_count % args.val_freq == 0 and iterate != 0:
                 # evaluate the validation set
-                pose_transformer.eval()
+                sequence_embedder.eval()
                 # Initialize evaluation pipline
                 eval_body = evaluate.EvalBody()
                 eval_upper = evaluate.EvalUpperBody()
@@ -212,7 +209,7 @@ if __name__ == '__main__':
                         sequence_imgs_val = sequence_imgs_val.cuda()
                         p3d_val = p3d_val.cuda()
 
-                        y_output = pose_transformer(sequence_imgs_val)
+                        a, y_output, b = sequence_embedder(sequence_imgs_val)
                         # evaluate mpjpe for upper, lower and full body
                         # converting to numpy might cost time
                         y_output = y_output.data.cpu().numpy()
@@ -247,7 +244,7 @@ if __name__ == '__main__':
                                 os.remove(os.path.join(val_weight_save_dir, model_path))
   
                         # save model checkpoints
-                        torch.save(pose_transformer.state_dict(),
+                        torch.save(sequence_embedder.state_dict(),
                                    os.path.join(val_weight_save_dir, '{}epo_{}step.ckpt'.format(epo, iterate)))
 
                     else:
@@ -262,7 +259,7 @@ if __name__ == '__main__':
                 #PLOT GT 3D pose, PRED 3D pose
                 with torch.no_grad():
                     gt_pose = p3d.cpu().numpy()
-                    pred_pose = pose.detach().cpu().numpy()
+                    pred_pose = pred_3d.detach().cpu().numpy()
                     batch_dim = gt_pose.shape[0]
                     fig = plt.figure(figsize=(10*(batch_dim//4), 10))
                     for batch_ind in range(batch_dim):
@@ -315,7 +312,7 @@ if __name__ == '__main__':
 
             if batch_count % args.model_save_freq == 0:
                 if batch_count != 0:
-                    torch.save(pose_transformer.state_dict(),
+                    torch.save(sequence_embedder.state_dict(),
                                os.path.join(weight_save_dir, '{}epo_{}step.ckpt'.format(epo, iterate)))
              
                     if len(os.listdir(os.path.join(weight_save_dir))) > 5:
@@ -332,7 +329,7 @@ if __name__ == '__main__':
             if iterate // (args.batch_size * (decay_step // args.batch_size)) > decay_max and batch_count != 0:
                 decay_max = iterate // (args.batch_size * (decay_step // args.batch_size))
                 learning_rate *= lr_decay
-                opt = torch.optim.AdamW(pose_transformer.parameters(), lr=learning_rate, weight_decay=0.01)
+                opt = torch.optim.AdamW(sequence_embedder.parameters(), lr=learning_rate, weight_decay=0.01)
 
             iterate += args.batch_size
 
