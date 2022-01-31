@@ -48,6 +48,7 @@ if __name__ == '__main__':
                         default=64, type=int)
     parser.add_argument('--sequence_length', help="# of images/frames input into sequential model, default = 5",
                         default='5', type=int)
+    parser.add_argument('--load_resnet', help='Directory of ResNet 101 weights', default=None)
     
 
 
@@ -100,7 +101,11 @@ if __name__ == '__main__':
             if m.bias is not None:
                 torch.nn.init.zeros_(m.bias)
 
-    model_hm.resnet101.apply(weight_init)
+    if args.load_resnet:
+        model_hm.resnet101.load_state_dict(torch.load(args.load_resnet))
+    else:
+        model_hm.resnet101.apply(weight_init)
+    model_hm.update
     sequence_embedder.heatmap.resnet101.apply(weight_init)
     model_hm.heatmap_deconv.apply(weight_init)
     sequence_embedder.heatmap.heatmap_deconv.apply(weight_init)
