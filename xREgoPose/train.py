@@ -199,11 +199,12 @@ if __name__ == '__main__':
                 eval_upper = evaluate.EvalUpperBody()
                 eval_lower = evaluate.EvalLowerBody()
                 with torch.no_grad():
-                    val_hm_loss = 0
-                    val_loss_3d_pose_total = 0
+                    val_hm_loss = torch.tensor(0., device=device)
+                    val_loss_3d_pose_total = torch.tensor(0., device=device)
                     for img_val, p2d_val, p3d_val, action_val in tqdm(dataloader_val):
                         img_val = img_val.cuda()
                         p3d_val = p3d_val.cuda()
+                        p2d_val = p2d_val.cuda()
                         heatmap_val, pose_val, GHM_val = model(img_val)
                         heatmap_val = torch.sigmoid(heatmap_val)
                         GHM_val = torch.sigmoid(GHM_val)
@@ -329,8 +330,6 @@ if __name__ == '__main__':
                     if len(os.listdir(os.path.join(weight_save_dir))) > 5:
                         model_dict = {}
                         for model_path in os.listdir(os.path.join(weight_save_dir)):
-                            print(model_path)
-                            print(model_path.split('epo_'))
                             iter = model_path.split('epo_')[1].split('step')[0]
                             model_dict[model_path] = int(iter)
                         total_files = len(model_dict)
