@@ -224,18 +224,22 @@ if __name__ == '__main__':
                 eval_upper = evaluate.EvalUpperBody()
                 eval_lower = evaluate.EvalLowerBody()
                 with torch.no_grad():
+                    val_hm_loss = 0
+                    val_loss_3d_pose_total = 0
                     for img_val, p2d_val, p3d_val, action_val in tqdm(dataloader_val):
                         img_val = img_val.cuda()
                         p3d_val = p3d_val.cuda()
                         heatmap_val = model_hm(img_val)
                         heatmap_val = torch.sigmoid(heatmap_val)
                         heatmap_val = heatmap_val.detach()
-                        _, pose_val = model_pose(heatmap_val)
+                        val_hm_loss += mse(heatmap_val, p2d_val)
+                        val_GHM, pose_val = model_pose(heatmap_val)
                         # evaluate mpjpe for upper, lower and full body
                         # converting to numpy might cost time
                         y_output = pose_val.data.cpu().numpy()
                         y_target = p3d_val.data.cpu().numpy()
-
+                        val_loss_3d_pose, val_loss_2d_ghm = auto_encoder_loss(pose_val, p3d_val, val_GHM, heatmap_val)
+                        val_loss_3d_pose_total += val_loss_3d_pose
                         eval_body.eval(y_output, y_target, action_val)
                         eval_upper.eval(y_output, y_target, action_val)
                         eval_lower.eval(y_output, y_target, action_val)
@@ -251,7 +255,8 @@ if __name__ == '__main__':
                     writer.add_scalar("Validation MPJPE Fully Body", val_mpjpe['All']['mpjpe'], global_step=iterate)
                     writer.add_scalar("Validation MPJPE Upper Body", val_mpjpe_upper['All']['mpjpe'], global_step=iterate)
                     writer.add_scalar("Validation MPJPE Lower Body", val_mpjpe_lower['All']['mpjpe'], global_step=iterate)
-
+                    writer.add_scalar("Validation HM loss", val_hm_loss, global_step=iterate)
+                    writer.add_scalar("Validation 3D loss", val_loss_3d_pose_total, global_step=iterate)
 
                     if validation_metrics['best_mpjpe'] is None or validation_metrics['best_mpjpe'] > val_mpjpe['All']['mpjpe']:
                         validation_metrics['best_step'] = iterate
