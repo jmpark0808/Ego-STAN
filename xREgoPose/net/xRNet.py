@@ -8,6 +8,7 @@ import torchvision
 import time
 import math
 from torchsummary import summary
+from net.transformer import PoseTransformer
 
 class HeatMap(nn.Module):
     def __init__(self):
@@ -59,12 +60,18 @@ class PoseEstimator(nn.Module):
         return generated_heatmaps, pose
 
 class SequenceEmbedder(nn.Module):
-    def __init__(self):
+    def __init__(self, seq_len):
         super(SequenceEmbedder, self).__init__()
         # Generator that produces the HeatMap
         self.heatmap = HeatMap()
         # Encoder that takes 2D heatmap and transforms to latent vector Z
         self.encoder = Encoder()
+        # Transformer that takes sequence of latent vector Z and outputs a single Z vector
+        self.seq_transformer = PoseTransformer(seq_len=seq_len, dim=256, depth=3, heads=8, mlp_dim=512)
+        # Pose decoder that takes latent vector Z and transforms to 3D pose coordinates
+        self.pose_decoder = PoseDecoder()
+        # Heatmap decoder that takes latent vector Z and generates the original 2D heatmap
+        self.heatmap_decoder = HeatmapDecoder()
 
 
     def forward(self, x):
@@ -85,7 +92,16 @@ class SequenceEmbedder(nn.Module):
         zs = torch.reshape(z_all, (dim[0], dim[1], z_all.shape[-1]))
         # zs = batch_size x len_seq x 20
 
-        return zs
+        z = self.seq_transformer(zs)
+        # z = batch_size x 20
+
+        p3d = self.pose_decoder(z)
+        # p3d = batch_size x 16 x 3
+
+        p2d = self.heatmap_decoder(z)
+        # p2d = batch_size x 15 x 47 x 47
+
+        return hms, p3d, p2d
 
 class xREgoPose(nn.Module):
     def __init__(self):
@@ -116,3 +132,4 @@ class xREgoPose(nn.Module):
         # generated_heatmaps = 15 x 47 x 47
 
         return heatmap, pose, generated_heatmaps
+        
