@@ -18,3 +18,5 @@ def auto_encoder_loss(pose_pred, pose_label, hm_decoder, hm_resnet):
     LAE_pose = lambda_p*(pose_l2norm + lambda_theta*cosine_similarity_error + lambda_L*limb_length_error)
     LAE_hm = lambda_hm*heatmap_error
     return torch.mean(LAE_pose), torch.mean(LAE_hm)
+
+

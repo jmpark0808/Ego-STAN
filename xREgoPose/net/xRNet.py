@@ -8,18 +8,21 @@ import torchvision
 import time
 import math
 from torchsummary import summary
+from net.transformer import PoseTransformer
 
 class HeatMap(nn.Module):
     def __init__(self):
         super(HeatMap, self).__init__()
         # Resnet 101 without last average pooling and fully connected layers
-        self.resnet101 = nn.Sequential(*[l for ind, l in enumerate(torchvision.models.resnet101(pretrained=False).children()) if ind < 8])
+        self.resnet101 = torchvision.models.resnet101(pretrained=False)
         # First Deconvolution to obtain 2D heatmap
         self.heatmap_deconv = nn.Sequential(*[nn.ConvTranspose2d(2048, 1024, kernel_size=3,
                                                                  stride=2, dilation=1, padding=1),
                                               nn.ConvTranspose2d(1024, 15, kernel_size=3,
                                                                  stride=2, dilation=1, padding=0)])
 
+    def update_resnet101(self):
+        self.resnet101 = nn.Sequential(*[l for ind, l in enumerate(self.resnet101.children()) if ind < 8])
 
     def forward(self, x):
         # x = 3 x 368 x 368
@@ -57,12 +60,18 @@ class PoseEstimator(nn.Module):
         return generated_heatmaps, pose
 
 class SequenceEmbedder(nn.Module):
-    def __init__(self):
+    def __init__(self, seq_len):
         super(SequenceEmbedder, self).__init__()
         # Generator that produces the HeatMap
         self.heatmap = HeatMap()
         # Encoder that takes 2D heatmap and transforms to latent vector Z
         self.encoder = Encoder()
+        # Transformer that takes sequence of latent vector Z and outputs a single Z vector
+        self.seq_transformer = PoseTransformer(seq_len=seq_len, dim=256, depth=3, heads=8, mlp_dim=512)
+        # Pose decoder that takes latent vector Z and transforms to 3D pose coordinates
+        self.pose_decoder = PoseDecoder()
+        # Heatmap decoder that takes latent vector Z and generates the original 2D heatmap
+        self.heatmap_decoder = HeatmapDecoder()
 
 
     def forward(self, x):
@@ -83,4 +92,13 @@ class SequenceEmbedder(nn.Module):
         zs = torch.reshape(z_all, (dim[0], dim[1], z_all.shape[-1]))
         # zs = batch_size x len_seq x 20
 
-        return zs
+        z = self.seq_transformer(zs)
+        # z = batch_size x 20
+        print(z.size())
+        p3d = self.pose_decoder(z)
+        # p3d = batch_size x 16 x 3
+
+        p2d = self.heatmap_decoder(z)
+        # p2d = batch_size x 15 x 47 x 47
+
+        return hms, p3d, p2d
