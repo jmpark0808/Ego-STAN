@@ -103,10 +103,7 @@ class xREgoPose(nn.Module):
     def forward(self, x):
         # x = 3 x 368 x 368
 
-        x = self.resnet101(x)
-        # x = 2048 x 12 x 12
-
-        heatmap = self.heatmap_deconv(x)
+        heatmap = self.heatmap(x)
         # heatmap = 15 x 47 x 47
         
         z = self.encoder(heatmap)
