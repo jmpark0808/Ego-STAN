@@ -19,12 +19,7 @@ def main():
 
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument(
-        "--load_hm", help="Directory of pre-trained model for heatmap", required=True
-    )
-    parser.add_argument(
-        "--load_pose",
-        help="Directory of pre-trained model for pose estimator",
-        required=True,
+        "--load", help="Directory of pre-trained model", required=True
     )
     parser.add_argument(
         "--dataset",
@@ -67,25 +62,17 @@ def main():
     eval_upper = evaluate.EvalUpperBody()
     eval_lower = evaluate.EvalUpperBody()
 
-    # Load heatmap model
-    assert args.load_hm is not None
-    load_hm = args.load_hm
-    model_hm = HeatMap().to(device=args.cuda)
-    model_hm.eval()
+    # Load model
+    assert args.load is not None
+    load = args.load
+    model = xREgoPose().to(device=args.cuda)
+    model.eval()
 
-    state_dict_hm = torch.load(load_hm, map_location=args.cuda)
-    model_hm.load_state_dict(state_dict_hm)
-    LOGGER.info("Loading_Complete for {}".format(load_hm))
+    state_dict_hm = torch.load(load, map_location=args.cuda)
+    model.load_state_dict(state_dict_hm)
+    LOGGER.info("Loading_Complete for {}".format(load))
 
-    # Load pose model
-    assert args.load_pose is not None
-    load_pose = args.load_pose
-    model_pose = PoseEstimator().to(device=args.cuda)
-    model_pose.eval()
 
-    state_dict_pose = torch.load(load_pose, map_location=args.cuda)
-    model_pose.load_state_dict(state_dict_pose)
-    LOGGER.info("Loading_Complete for {}".format(load_pose))
 
     # Run evaluations on dataset
     with torch.no_grad():
@@ -100,10 +87,10 @@ def main():
             # Forward pass on batch
             img = img.cuda()
             p3d = p3d.cuda()
-            heatmap = model_hm(img)
+            heatmap, p3d_hat, _ = model(img)
             heatmap = torch.sigmoid(heatmap)
             heatmap = heatmap.detach()
-            generated_heatmap, p3d_hat = model_pose(heatmap)
+
 
             # Evaluate results using different evaluation metrices
             y_output = p3d_hat.data.cpu().numpy()
