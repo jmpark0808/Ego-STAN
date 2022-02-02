@@ -69,8 +69,8 @@ def main():
     model.heatmap.update_resnet101()
     model.eval()
 
-    state_dict_hm = torch.load(load, map_location=args.cuda)
-    model.load_state_dict(state_dict_hm)
+    state_dict = torch.load(load, map_location=args.cuda)
+    model.load_state_dict(state_dict)
     LOGGER.info("Loading_Complete for {}".format(load))
 
 
