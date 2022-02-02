@@ -60,7 +60,7 @@ def main():
     # Initialize evaluation pipline
     eval_body = evaluate.EvalBody()
     eval_upper = evaluate.EvalUpperBody()
-    eval_lower = evaluate.EvalUpperBody()
+    eval_lower = evaluate.EvalLowerBody()
 
     # Load model
     assert args.load is not None
