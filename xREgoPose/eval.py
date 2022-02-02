@@ -66,6 +66,7 @@ def main():
     assert args.load is not None
     load = args.load
     model = xREgoPose().to(device=args.cuda)
+    model.heatmap.update_resnet101()
     model.eval()
 
     state_dict_hm = torch.load(load, map_location=args.cuda)
