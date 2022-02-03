@@ -71,7 +71,7 @@ class EvalBody(BaseEval):
 class EvalUpperBody(BaseEval):
     """Eval upper body"""
 
-    _SEL = [4, 5, 6, 7, 8, 9, 10, 11]
+    _SEL = [0, 1, 2, 3, 4, 5, 6, 7]
 
     def eval(self, pred, gt, actions=None):
         """Evaluate
@@ -106,7 +106,7 @@ class EvalUpperBody(BaseEval):
 class EvalLowerBody(BaseEval):
     """Eval lower body"""
 
-    _SEL = [0, 1, 2, 3, 12, 13, 14, 15]
+    _SEL = [8, 9, 10, 11, 12, 13, 14, 15]
 
     def eval(self, pred, gt, actions=None):
         """Evaluate
