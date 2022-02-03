@@ -84,15 +84,18 @@ class MocapTransformer(BaseDataset):
                 elif sub_dir == 'json':
                     for p in paths:
                         isSequence = True
+                        encoded_sequence = []
                         frame_idx = int(p[-11:-5])
 
                         for i in range(len_seq):
                             if not os.path.exists(p[0:-11] + "{0:06}.json".format(frame_idx+i)):
                                 isSequence = False
+                            else:
+                                json_path = p[0:-11] + "{0:06}.json".format(frame_idx+i)
+                                encoded_sequence.append(json_path.encode('utf8'))
 
-                        if(isSequence):
-                            head_path = p[0:-11] + "{0:06}.json".format(frame_idx+len_seq-1)
-                            encoded.append(head_path.encode('utf8'))
+                        if(isSequence) and (len(encoded_sequence) == len_seq):
+                            encoded.append(encoded_sequence)
 
                 else: 
                     self.logger.error(
@@ -161,34 +164,37 @@ class MocapTransformer(BaseDataset):
         imgs = np.array([resize(img, (368, 368)) for img in imgs])
 
         # read joint positions
-        json_path = self.index['json'][index].decode('utf8')
+        json_paths = [path.decode('utf8') for path in self.index['json'][index]]
         
         # checking if json path corresponds to the path of the last rgba frame in the sequence
-
-        if int(json_path[-11:-5]) != int(img_paths[-1][-10:-4]): #checks if frame number on paths match
-            self.logger.error(
-                '{} \n json path does not match last frame: \n {}'.format(
-                                                        json_path, img_paths[-1])
+        # checking for correct sequence of rgba/image files
+        for i in range(len(json_paths)-1):
+            if int(json_paths[i][-11:-5]) != int(json_paths[i+1][-11:-5]) -1:
+                self.logger.error(
+                    '{} \n is not the correct frame after \n {}'.format(
+                                                    json_paths[i+1], json_paths[i])
                                                                                 )
 
-        data = io.read_json(json_path)
+        all_p2d_heatmap = []
+        for json_path in json_paths:
+            data = io.read_json(json_path)
 
-        p2d, p3d = self._process_points(data)
-        p2d[:, 0] = p2d[:, 0]-180 # Translate p2d coordinates by 180 pixels to the left
+            p2d, p3d = self._process_points(data)
+            p2d[:, 0] = p2d[:, 0]-180 # Translate p2d coordinates by 180 pixels to the left
 
 
-        p2d_heatmap = generate_heatmap(p2d[1:, :], 3) # exclude head
-
-        # get action name
-        action = data['action']
+            p2d_heatmap = generate_heatmap(p2d[1:, :], 3) # exclude head
+            all_p2d_heatmap.append(p2d_heatmap)
+            # get action name
+            action = data['action']
 
         if self.transform:
             imgs = np.array(
                 [self.transform({'image': img})['image'].numpy() for img in imgs])
             p3d = self.transform({'joints3D': p3d})['joints3D']
-            p2d = self.transform({'joints2D': p2d})['joints2D']
+            p2d = np.array([self.transform({'joints2D': p2d})['joints2D'].numpy() for p2d in all_p2d_heatmap])
 
-        return torch.tensor(imgs), p2d_heatmap, p3d, action
+        return torch.tensor(imgs), torch.tensor(p2d), p3d, action
 
     def __len__(self):
 

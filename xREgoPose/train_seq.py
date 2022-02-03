@@ -20,11 +20,8 @@ import matplotlib.pyplot as plt
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
-    parser.add_argument("--load_hm",
-                        help="Directory of pre-trained model for heatmap,  \n"
-                             "None --> Do not use pre-trained model. Training will start from random initialized model")
-    parser.add_argument("--load_pose",
-                        help="Directory of pre-trained model for pose estimator,  \n"
+    parser.add_argument("--load",
+                        help="Directory of pre-trained model,  \n"
                              "None --> Do not use pre-trained model. Training will start from random initialized model")
     parser.add_argument('--dataset_tr', help='Directory of your train Dataset', required=True, default=None)
     parser.add_argument('--dataset_val', help='Directory of your validation Dataset', required=True, default=None)
@@ -46,13 +43,15 @@ if __name__ == '__main__':
     parser.add_argument('--sequence_length', help="# of images/frames input into sequential model, default = 5",
                         default='5', type=int)
     parser.add_argument('--load_resnet', help='Directory of ResNet 101 weights', default=None)
-    
+    parser.add_argument('--hm_train_steps', help='Number of steps to pre-train heatmap predictor', default=100000, type=int)
+
 
 
     args = parser.parse_args()
     device = torch.device(args.cuda)
     batch_size = args.batch_size
     epoch = args.epoch
+    hm_train_steps = args.hm_train_steps
     seq_len = args.sequence_length
     lr = args.lr
 
@@ -83,11 +82,9 @@ if __name__ == '__main__':
         batch_size=args.batch_size)
 
 
-    load_hm = args.load_hm
-    load_pose = args.load_pose
+    load = args.load
+
     start_iter = 0
-    model_hm = HeatMap().to(device=args.cuda)
-    model_pose = PoseEstimator().to(device=args.cuda)
     sequence_embedder = SequenceEmbedder(seq_len).to(device=args.cuda)
   
     # Xavier Initialization
@@ -110,40 +107,26 @@ if __name__ == '__main__':
     now = datetime.datetime.now()
     start_epo = 0
 
-    if load_hm is not None:
-        state_dict_hm = torch.load(load_hm, map_location=args.cuda)
+    if load is not None:
+        state_dict = torch.load(load, map_location=args.cuda)
 
 
-        start_iter = int(load_hm.split('epo_')[1].strip('step.ckpt'))
-        start_epo = int(load_hm.split('/')[-1].split('epo')[0])
-        now = datetime.datetime.strptime(load_hm.split('/')[-2], '%m%d%H%M')
+        start_iter = int(load.split('epo_')[1].strip('step.ckpt'))
+        start_epo = int(load.split('/')[-1].split('epo')[0])
+        now = datetime.datetime.strptime(load.split('/')[-2], '%m%d%H%M')
 
-        print("Loading Model from {}".format(load_hm))
+        print("Loading Model from {}".format(load))
         print("Start_iter : {}".format(start_iter))
         print("now : {}".format(now.strftime('%m%d%H%M')))
-        model_hm.load_state_dict(state_dict_hm)
-        sequence_embedder.heatmap.load_state_dict(model_hm.state_dict())
+        sequence_embedder.load_state_dict(state_dict)
         print('Loading_Complete')
 
-    if load_pose is not None:
-        state_dict_pose = torch.load(load_pose, map_location=args.cuda)
-
-        start_iter = int(load_pose.split('epo_')[1].strip('step.ckpt'))
-        start_epo = int(load_pose.split('/')[-1].split('epo')[0])
-        now = datetime.datetime.strptime(load_pose.split('/')[-2], '%m%d%H%M')
-
-        print("Loading Model from {}".format(load_pose))
-        print("Start_iter : {}".format(start_iter))
-        print("now : {}".format(now.strftime('%m%d%H%M')))
-        model_pose.load_state_dict(state_dict_pose)
-        sequence_embedder.encoder.load_state_dict(model_pose.encoder.state_dict())
-        print('Loading_Complete')
 
     learning_rate = args.lr
     lr_decay = args.lr_decay
     decay_step = args.decay_step
     learning_rate = learning_rate * (lr_decay ** (start_iter // decay_step))
-    opt = torch.optim.AdamW(sequence_embedder.parameters(), lr=learning_rate, weight_decay=0.01)
+    opt = torch.optim.SGD(sequence_embedder.heatmap.parameters(), lr=learning_rate, momentum=0.9, nesterov=True)
 
     os.makedirs(os.path.join('log', now.strftime('%m%d%H%M')), exist_ok=True)
     weight_save_dir = os.path.join(args.logdir, os.path.join('models', 'state_dict', now.strftime('%m%d%H%M')))
@@ -160,11 +143,14 @@ if __name__ == '__main__':
             "current_patience": args.es_patience,
             }
     decay_max = iterate // (args.batch_size * (decay_step // args.batch_size))
-    # Freezing the embedder
+    update_optim_flag = True
 
     for epo in range(start_epo, epoch):
         print("\nEpoch : {}".format(epo))
         for batch_count, batch in enumerate(tqdm(dataloader_train)):
+            if hm_train_steps <= 0 and update_optim_flag:
+                opt = torch.optim.SGD(sequence_embedder.parameters(), lr=learning_rate, momentum=0.9, nesterov=True)
+                update_optim_flag = False
             sequence_embedder.train()
             opt.zero_grad()
             sequence_imgs, p2d, p3d, action = batch
