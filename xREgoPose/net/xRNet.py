@@ -98,8 +98,8 @@ class SequenceEmbedder(nn.Module):
         p3d = self.pose_decoder(z)
         # p3d = batch_size x 16 x 3
 
-        p2d = self.heatmap_decoder(z)
-        # p2d = batch_size x 15 x 47 x 47
+        p2d = self.heatmap_decoder(z_all)
+        # p2d = (batch_size*len_seq) x 15 x 47 x 47
 
         return hms, p3d, p2d
 

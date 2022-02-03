@@ -151,28 +151,39 @@ if __name__ == '__main__':
             if hm_train_steps <= 0 and update_optim_flag:
                 opt = torch.optim.SGD(sequence_embedder.parameters(), lr=learning_rate, momentum=0.9, nesterov=True)
                 update_optim_flag = False
+            
             sequence_embedder.train()
             opt.zero_grad()
             sequence_imgs, p2d, p3d, action = batch
             sequence_imgs = sequence_imgs.cuda()
             p2d = p2d.cuda()
+            p2d = p2d.reshape(-1, 15, 47, 47)
             p3d = p3d.cuda()
             batch_dim = p2d.size(0)
-            
+            real_batch_size = sequence_imgs.size(0)
             pred_hm, pred_3d, gen_hm = sequence_embedder(sequence_imgs)
-            pred_hm = pred_hm.reshape(batch_dim, -1, 15, 47, 47)
-            pred_hm = pred_hm[:, -1, :, :, :]
-            pred_hm = pred_hm.reshape(batch_dim, 15, 47, 47)
-            pred_hm = torch.sigmoid(pred_hm)
-            gen_hm = torch.sigmoid(gen_hm)
-            mse_loss = mse(pred_hm, p2d)
-            loss_3d_pose, loss_2d_ghm = auto_encoder_loss(pred_3d, p3d, gen_hm, pred_hm)
-            loss = mse_loss + loss_2d_ghm + loss_3d_pose
+
+            if hm_train_steps > 0:
+                pred_hm = torch.sigmoid(pred_hm)
+                loss = mse(pred_hm, p2d)
+                writer.add_scalar('Total HM loss', loss.item(), global_step=iterate)
+            else:
+                pred_hm = torch.sigmoid(pred_hm)
+                gen_hm = torch.sigmoid(gen_hm)
+                hm_loss = mse(pred_hm, p2d)
+                loss_3d_pose, loss_2d_ghm = auto_encoder_loss(pred_3d, p3d, gen_hm, pred_hm)
+                ae_loss = loss_2d_ghm + loss_3d_pose
+                loss = hm_loss + ae_loss
+                writer.add_scalar('Total HM loss', hm_loss.item(), global_step=iterate)
+                writer.add_scalar('Total 3D loss', loss_3d_pose.item(), global_step=iterate)
+                writer.add_scalar('Total GHM loss', loss_2d_ghm.item(), global_step=iterate)
+                with torch.no_grad():
+                    MPJPE = torch.mean(torch.sqrt(torch.sum(torch.pow(p3d-pred_3d, 2), dim=2)))
+                    writer.add_scalar('Mean Per-Joint Position Error', MPJPE, global_step=iterate)
+            
             loss.backward()
             opt.step()
-            writer.add_scalar('HM loss', mse_loss.item(), global_step=iterate)
-            writer.add_scalar('3D loss', loss_3d_pose.item(), global_step=iterate)
-            writer.add_scalar('Gen HM loss', loss_2d_ghm.item(), global_step=iterate)
+
             with torch.no_grad(): 
                 l2_reg = torch.tensor(0., device=device)
                 for param in sequence_embedder.parameters():
@@ -194,8 +205,10 @@ if __name__ == '__main__':
     
                         sequence_imgs_val = sequence_imgs_val.cuda()
                         p3d_val = p3d_val.cuda()
+                        p2d_val = p2d_val.cuda()
+                        p2d_val = p2d_val.reshape(-1, 15, 47, 47)
 
-                        a, y_output, b = sequence_embedder(sequence_imgs_val)
+                        heatmap_val, y_output, GHM_val = sequence_embedder(sequence_imgs_val)
                         # evaluate mpjpe for upper, lower and full body
                         # converting to numpy might cost time
                         y_output = y_output.data.cpu().numpy()
@@ -315,9 +328,13 @@ if __name__ == '__main__':
             if iterate // (args.batch_size * (decay_step // args.batch_size)) > decay_max and batch_count != 0:
                 decay_max = iterate // (args.batch_size * (decay_step // args.batch_size))
                 learning_rate *= lr_decay
-                opt = torch.optim.AdamW(sequence_embedder.parameters(), lr=learning_rate, weight_decay=0.01)
+                if hm_train_steps > 0:
+                    opt = torch.optim.SGD(sequence_embedder.heatmap.parameters(), lr=learning_rate, momentum=0.9, nesterov=True)
+                else:
+                    opt = torch.optim.SGD(sequence_embedder.parameters(), lr=learning_rate, momentum=0.9, nesterov=True)
 
-            iterate += args.batch_size
+            iterate += real_batch_size
+            hm_train_steps -= real_batch_size
 
      
            
