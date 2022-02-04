@@ -133,6 +133,7 @@ if __name__ == '__main__':
     val_weight_save_dir = os.path.join(args.logdir, os.path.join('validation', 'state_dict', now.strftime('%m%d%H%M')))
     plot_3d_dir = os.path.join(args.logdir, os.path.join('3d_plot', now.strftime('%m%d%H%M')))
     os.makedirs(os.path.join(weight_save_dir), exist_ok=True)
+    os.makedirs(os.path.join(val_weight_save_dir), exist_ok=True)
     os.makedirs(os.path.join(plot_3d_dir), exist_ok=True)
     writer = SummaryWriter(os.path.join(args.logdir, os.path.join('log', now.strftime('%m%d%H%M'))))
     iterate = start_iter
@@ -254,60 +255,60 @@ if __name__ == '__main__':
                         break
 
 
-            if batch_count % args.display_freq == 0:
-                #PLOT GT 3D pose, PRED 3D pose
-                with torch.no_grad():
-                    gt_pose = p3d.cpu().numpy()
-                    pred_pose = pred_3d.detach().cpu().numpy()
-                    batch_dim = gt_pose.shape[0]
-                    fig = plt.figure(figsize=(10*(batch_dim//4), 10))
-                    for batch_ind in range(batch_dim):
-                        ax = fig.add_subplot(2, batch_dim, batch_ind+1, projection='3d')
+            # if batch_count % args.display_freq == 0:
+            #     #PLOT GT 3D pose, PRED 3D pose
+            #     with torch.no_grad():
+            #         gt_pose = p3d.cpu().numpy()
+            #         pred_pose = pred_3d.detach().cpu().numpy()
+            #         batch_dim = gt_pose.shape[0]
+            #         fig = plt.figure(figsize=(10*(batch_dim//4), 10))
+            #         for batch_ind in range(batch_dim):
+            #             ax = fig.add_subplot(2, batch_dim, batch_ind+1, projection='3d')
 
-                        xs = gt_pose[batch_ind, :, 0]
-                        ys = gt_pose[batch_ind, :, 1]
-                        zs = -gt_pose[batch_ind, :, 2]
+            #             xs = gt_pose[batch_ind, :, 0]
+            #             ys = gt_pose[batch_ind, :, 1]
+            #             zs = -gt_pose[batch_ind, :, 2]
 
-                        def renderBones():
-                            link = [[0, 1], [1, 2], [1, 5], [2, 3], [3, 4], [2, 8]
-                                , [8, 9], [9, 10], [10, 11], [8, 12]
-                                , [5, 12], [5, 6], [6, 7], [12, 13], [13, 14], [14, 15]]
-                            for l in link:
-                                index1, index2 = l[0], l[1]
-                                ax.plot([xs[index1], xs[index2]], [ys[index1], ys[index2]], [zs[index1], zs[index2]],
-                                        linewidth=1)
-                        renderBones()
-                        ax.scatter(xs, ys, zs)
+            #             def renderBones():
+            #                 link = [[0, 1], [1, 2], [1, 5], [2, 3], [3, 4], [2, 8]
+            #                     , [8, 9], [9, 10], [10, 11], [8, 12]
+            #                     , [5, 12], [5, 6], [6, 7], [12, 13], [13, 14], [14, 15]]
+            #                 for l in link:
+            #                     index1, index2 = l[0], l[1]
+            #                     ax.plot([xs[index1], xs[index2]], [ys[index1], ys[index2]], [zs[index1], zs[index2]],
+            #                             linewidth=1)
+            #             renderBones()
+            #             ax.scatter(xs, ys, zs)
 
-                        ax.set_xlim(-1, 1)
-                        ax.set_ylim(-1, 1)
-                        ax.set_zlim(-1, 1)
-                        ax.title.set_text(f'Ground Truth {batch_ind}')
-                    for batch_ind in range(batch_dim):
-                        ax = fig.add_subplot(2, batch_dim, batch_dim+batch_ind+1, projection='3d')
+            #             ax.set_xlim(-1, 1)
+            #             ax.set_ylim(-1, 1)
+            #             ax.set_zlim(-1, 1)
+            #             ax.title.set_text(f'Ground Truth {batch_ind}')
+            #         for batch_ind in range(batch_dim):
+            #             ax = fig.add_subplot(2, batch_dim, batch_dim+batch_ind+1, projection='3d')
 
 
-                        xs = pred_pose[batch_ind, :, 0]
-                        ys = pred_pose[batch_ind, :, 1]
-                        zs = -pred_pose[batch_ind, :, 2]
+            #             xs = pred_pose[batch_ind, :, 0]
+            #             ys = pred_pose[batch_ind, :, 1]
+            #             zs = -pred_pose[batch_ind, :, 2]
 
-                        def renderBones():
-                            link = [[0, 1], [1, 2], [1, 5], [2, 3], [3, 4], [2, 8]
-                                , [8, 9], [9, 10], [10, 11], [8, 12]
-                                , [5, 12], [5, 6], [6, 7], [12, 13], [13, 14], [14, 15]]
-                            for l in link:
-                                index1, index2 = l[0], l[1]
-                                ax.plot([xs[index1], xs[index2]], [ys[index1], ys[index2]], [zs[index1], zs[index2]],
-                                        linewidth=1, label=r'$z=y=x$')
-                        renderBones()
-                        ax.scatter(xs, ys, zs)
+            #             def renderBones():
+            #                 link = [[0, 1], [1, 2], [1, 5], [2, 3], [3, 4], [2, 8]
+            #                     , [8, 9], [9, 10], [10, 11], [8, 12]
+            #                     , [5, 12], [5, 6], [6, 7], [12, 13], [13, 14], [14, 15]]
+            #                 for l in link:
+            #                     index1, index2 = l[0], l[1]
+            #                     ax.plot([xs[index1], xs[index2]], [ys[index1], ys[index2]], [zs[index1], zs[index2]],
+            #                             linewidth=1, label=r'$z=y=x$')
+            #             renderBones()
+            #             ax.scatter(xs, ys, zs)
 
-                        ax.set_xlim(-1, 1)
-                        ax.set_ylim(-1, 1)
-                        ax.set_zlim(-1, 1)
-                        ax.title.set_text(f'Pred {batch_ind}')
-                    fig.savefig(os.path.join(plot_3d_dir, '3D_plot'))
-                    fig.clf()
+            #             ax.set_xlim(-1, 1)
+            #             ax.set_ylim(-1, 1)
+            #             ax.set_zlim(-1, 1)
+            #             ax.title.set_text(f'Pred {batch_ind}')
+            #         fig.savefig(os.path.join(plot_3d_dir, '3D_plot'))
+            #         fig.clf()
 
             if batch_count % args.model_save_freq == 0:
                 if batch_count != 0:
