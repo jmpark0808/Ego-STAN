@@ -94,11 +94,42 @@ class SequenceEmbedder(nn.Module):
 
         z = self.seq_transformer(zs)
         # z = batch_size x 20
-        print(z.size())
+
         p3d = self.pose_decoder(z)
         # p3d = batch_size x 16 x 3
 
-        p2d = self.heatmap_decoder(z)
-        # p2d = batch_size x 15 x 47 x 47
+        p2d = self.heatmap_decoder(z_all)
+        # p2d = (batch_size*len_seq) x 15 x 47 x 47
 
         return hms, p3d, p2d
+
+class xREgoPose(nn.Module):
+    def __init__(self):
+        super(xREgoPose, self).__init__()
+        # Generator that produces the HeatMap
+        self.heatmap = HeatMap()
+        # Encoder that takes 2D heatmap and transforms to latent vector Z
+        self.encoder = Encoder()
+        # Pose decoder that takes latent vector Z and transforms to 3D pose coordinates
+        self.pose_decoder = PoseDecoder()
+        # Heatmap decoder that takes latent vector Z and generates the original 2D heatmap
+        self.heatmap_decoder = HeatmapDecoder()
+
+
+    def forward(self, x):
+        # x = 3 x 368 x 368
+
+        heatmap = self.heatmap(x)
+        # heatmap = 15 x 47 x 47
+        
+        z = self.encoder(heatmap)
+        # z = 20
+
+        pose = self.pose_decoder(z)
+        # pose = 16 x 3
+
+        generated_heatmaps = self.heatmap_decoder(z)
+        # generated_heatmaps = 15 x 47 x 47
+
+        return heatmap, pose, generated_heatmaps
+        
