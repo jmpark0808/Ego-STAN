@@ -41,8 +41,8 @@ if __name__ == '__main__':
     parser.add_argument('--display_freq', help='Frequency to display result image on Tensorboard, in batch units',
                         default=64, type=int)
     parser.add_argument('--load_resnet', help='Directory of ResNet 101 weights', default=None)
-    parser.add_argument('--hm_train_steps', help='Number of steps to pre-train heatmap predictor', default=100000, type=int)
-
+    parser.add_argument('--hm_train_steps', help='Number of steps to pre-train heatmap predictor, Defaults to 0 for concat', default=0, type=int)
+    #Change 4: -> hm_train_steps set to 0 to avoid training of heatmap.
 
     args = parser.parse_args()
     device = torch.device(args.cuda)
