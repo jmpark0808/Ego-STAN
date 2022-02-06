@@ -35,6 +35,43 @@ class HeatMap(nn.Module):
 
         return heatmap
 
+# -> Edit of HeatMap class, except returns a feature map as well -> Why is it in net and not in blocks?
+
+class FeatureHeatMaps(nn.Module):
+    def __init__(self):
+        super(FeatureHeatMaps, self).__init__()
+        # Resnet 101 without last average pooling and fully connected layers
+        self.resnet101 = torchvision.models.resnet101(pretrained=False)
+        # Upsampling to get 47x47 feature maps
+        self.feature_upsample = nn.Upsample(scale_factor=(47/12), mode= 'nearest')
+        # Convolutions to feature map pool
+        self.featuremap_deconv = nn.Sequential(*[nn.ConvTranspose2d(2048, 1024, kernel_size=3,
+                                                                 stride=2, dilation=1, padding=1),
+                                              nn.ConvTranspose2d(1024, 15, kernel_size=3,
+                                                                 stride=2, dilation=1, padding=0)])
+        # Identical Upconvolutions -> Might experiment with different features
+        self.heatmap_deconv = nn.Sequential(*[nn.ConvTranspose2d(2048, 1024, kernel_size=3,
+                                                         stride=2, dilation=1, padding=1),
+                                      nn.ConvTranspose2d(1024, 15, kernel_size=3,
+                                                         stride=2, dilation=1, padding=0)])
+
+    def update_resnet101(self):
+        self.resnet101 = nn.Sequential(*[l for ind, l in enumerate(self.resnet101.children()) if ind < 8])
+
+    def forward(self, x):
+        # x = 3 x 368 x 368
+
+        x = self.resnet101(x)
+        # x = 2048 x 12 x 12
+
+        heatmap = self.heatmap_deconv(x)
+        # heatmap = 15 x 47 x 47
+
+        depthmap = self.featuremap_deconv(x)
+        # depthmap = 15 x 47 x 47
+
+        return heatmap, depthmap
+
 
 class PoseEstimator(nn.Module):
     def __init__(self):
@@ -133,3 +170,32 @@ class xREgoPose(nn.Module):
 
         return heatmap, pose, generated_heatmaps
         
+class FeatureConcatEgoPose(nn.Module):
+    def __init__(self):
+        super(FeatureConcatEgoPose, self).__init__()
+        # Generator that produces both the HeatMap and Feature Map (increasing uncertainty)
+        self.feature_heatmaps = FeatureHeatMaps()
+        # Encoder that takes 2D heatmap as well as Feature Maps and transforms to latent vector Z
+        self.encoder = FeatureConcatEncoder()
+        # Pose decoder that takes latent vector Z and transforms to 3D pose coordinates
+        self.pose_decoder = PoseDecoder()
+        # Heatmap decoder that takes latent vector Z and generates the original 2D heatmap
+        self.heatmap_decoder = HeatmapDecoder()
+
+
+    def forward(self, x):
+        # x = 3 x 368 x 368
+
+        heatmap, depthmap = self.feature_heatmaps(x)
+        # heatmap = 15 x 47 x 47, depthmap = 15 x 47 x 47
+        
+        z = self.encoder(heatmap, depthmap)
+        # z = 20
+
+        pose = self.pose_decoder(z)
+        # pose = 16 x 3
+
+        generated_heatmaps = self.heatmap_decoder(z)
+        # generated_heatmaps = 15 x 47 x 47
+
+        return heatmap, pose, generated_heatmaps
