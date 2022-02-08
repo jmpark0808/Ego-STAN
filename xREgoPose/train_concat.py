@@ -42,6 +42,7 @@ if __name__ == '__main__':
                         default=64, type=int)
     parser.add_argument('--load_resnet', help='Directory of ResNet 101 weights', default=None)
     parser.add_argument('--hm_train_steps', help='Number of steps to pre-train heatmap predictor, Defaults to 0 for concat', default=0, type=int)
+    parser.add_argument('--encoder_type', help='Type of encoder for concatenation, Defaults to "map_concat"', default= 'map_concat', type=int)
     #Change 4: -> hm_train_steps set to 0 to avoid training of heatmap.
 
     args = parser.parse_args()
@@ -79,8 +80,9 @@ if __name__ == '__main__':
 
     
     load = args.load
+    encoder_type = args.encoder_type
     start_iter = 0
-    model = FeatureConcatEgoPose().to(device=args.cuda) #Change 1, xREgoPose -> FeatureConcatEgoPose
+    model = FeatureConcatEgoPose(encoder_type).to(device=args.cuda) #Change 1, xREgoPose -> FeatureConcatEgoPose
 
 
     # Xavier Initialization
