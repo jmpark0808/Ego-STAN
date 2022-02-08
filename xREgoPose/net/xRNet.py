@@ -171,12 +171,19 @@ class xREgoPose(nn.Module):
         return heatmap, pose, generated_heatmaps
         
 class FeatureConcatEgoPose(nn.Module):
-    def __init__(self):
+
+    encoder_dict = {
+        'map_concat': FeatureConcatEncoder(),
+        'branch_concat': FeatureBranchEncoder(),
+        'concat_reconstruct': FeatureReEncoder()
+    }
+
+    def __init__(self, encoder_type = 'map_concat'):
         super(FeatureConcatEgoPose, self).__init__()
         # Generator that produces both the HeatMap and Feature Map (increasing uncertainty)
         self.feature_heatmaps = FeatureHeatMaps()
         # Encoder that takes 2D heatmap as well as Feature Maps and transforms to latent vector Z
-        self.encoder = FeatureConcatEncoder()
+        self.encoder = self.encoder_dict[encoder_type]
         # Pose decoder that takes latent vector Z and transforms to 3D pose coordinates
         self.pose_decoder = PoseDecoder()
         # Heatmap decoder that takes latent vector Z and generates the original 2D heatmap
