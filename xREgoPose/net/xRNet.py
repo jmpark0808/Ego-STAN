@@ -42,8 +42,6 @@ class FeatureHeatMaps(nn.Module):
         super(FeatureHeatMaps, self).__init__()
         # Resnet 101 without last average pooling and fully connected layers
         self.resnet101 = torchvision.models.resnet101(pretrained=False)
-        # Upsampling to get 47x47 feature maps
-        self.feature_upsample = nn.Upsample(scale_factor=(47/12), mode= 'nearest')
         # Convolutions to feature map pool
         self.featuremap_deconv = nn.Sequential(*[nn.ConvTranspose2d(2048, 1024, kernel_size=3,
                                                                  stride=2, dilation=1, padding=1),
