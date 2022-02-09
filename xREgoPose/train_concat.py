@@ -10,7 +10,7 @@ from torchvision import transforms
 from tensorboardX import SummaryWriter
 from tqdm import tqdm
 from loss import mse, auto_encoder_loss
-from xREgoPose.net.xRNet import *
+from net.xRNet import *
 from dataset.mocap import Mocap
 from utils import config, evaluate
 from base import SetType
@@ -42,7 +42,7 @@ if __name__ == '__main__':
                         default=64, type=int)
     parser.add_argument('--load_resnet', help='Directory of ResNet 101 weights', default=None)
     parser.add_argument('--hm_train_steps', help='Number of steps to pre-train heatmap predictor, Defaults to 100k', default=100000, type=int)
-    parser.add_argument('--encoder_type', help='Type of encoder for concatenation, Defaults to "map_concat"', default= 'map_concat', type=int)
+    parser.add_argument('--encoder_type', help='Type of encoder for concatenation, Defaults to "map_concat"', default= 'map_concat')
     #Change 4: -> hm_train_steps set to 0 to avoid training of heatmap.
 
     args = parser.parse_args()
