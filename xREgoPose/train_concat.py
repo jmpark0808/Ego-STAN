@@ -41,7 +41,7 @@ if __name__ == '__main__':
     parser.add_argument('--display_freq', help='Frequency to display result image on Tensorboard, in batch units',
                         default=64, type=int)
     parser.add_argument('--load_resnet', help='Directory of ResNet 101 weights', default=None)
-    parser.add_argument('--hm_train_steps', help='Number of steps to pre-train heatmap predictor, Defaults to 0 for concat', default=0, type=int)
+    parser.add_argument('--hm_train_steps', help='Number of steps to pre-train heatmap predictor, Defaults to 100k', default=100000, type=int)
     parser.add_argument('--encoder_type', help='Type of encoder for concatenation, Defaults to "map_concat"', default= 'map_concat', type=int)
     #Change 4: -> hm_train_steps set to 0 to avoid training of heatmap.
 
@@ -126,8 +126,9 @@ if __name__ == '__main__':
     lr_decay = args.lr_decay
     decay_step = args.decay_step
     learning_rate = learning_rate * (lr_decay ** (start_iter // decay_step))
-
-    opt = torch.optim.SGD(model.feature_heatmaps.parameters(), lr=learning_rate, momentum=0.9, nesterov=True)
+    heatmap_params = list(model.feature_heatmaps.resnet101.parameters()) + list(model.feature_heatmaps.heatmap_deconv.parameters())
+    
+    opt = torch.optim.SGD(heatmap_params, lr=learning_rate, momentum=0.9, nesterov=True)
 
     # Logger Setup
     os.makedirs(os.path.join('log', now.strftime('%m%d%H%M')), exist_ok=True)
@@ -350,8 +351,7 @@ if __name__ == '__main__':
                 learning_rate *= lr_decay
                 if hm_train_steps > 0:
                     #Change 3.2 -> updating only the feature+heatmap predictor parameters 
-                    # -> Should I change it such that the up-sampler is not trained?
-                    opt = torch.optim.SGD(model.feature_heatmaps.parameters(), lr=learning_rate, momentum=0.9, nesterov=True)
+                    opt = torch.optim.SGD(heatmap_params, lr=learning_rate, momentum=0.9, nesterov=True)
                 else:
                     opt = torch.optim.SGD(model.parameters(), lr=learning_rate, momentum=0.9, nesterov=True)
 
