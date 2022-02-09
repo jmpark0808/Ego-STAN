@@ -174,7 +174,9 @@ if __name__ == '__main__':
                 writer.add_scalar('Total GHM loss', loss_2d_ghm.item(), global_step=iterate)
                 with torch.no_grad():
                     MPJPE = torch.mean(torch.sqrt(torch.sum(torch.pow(p3d-pose, 2), dim=2)))
+                    MPJPE_STD = torch.std(torch.sqrt(torch.sum(torch.pow(p3d-pose, 2), dim=2)))
                     writer.add_scalar('Mean Per-Joint Position Error', MPJPE, global_step=iterate)
+                    writer.add_scalar('Mean Per-Joint Position Error STD', MPJPE_STD, global_step=iterate)
 
             loss.backward()
             opt.step()
@@ -231,6 +233,7 @@ if __name__ == '__main__':
                     val_mpjpe_lower = eval_lower.get_results()
 
                     writer.add_scalar("Validation MPJPE Fully Body", val_mpjpe['All']['mpjpe'], global_step=iterate)
+                    writer.add_scalar("Validation MPJPE Fully Body STD", val_mpjpe['All']['std_mpjpe'], global_step=iterate)
                     writer.add_scalar("Validation MPJPE Upper Body", val_mpjpe_upper['All']['mpjpe'], global_step=iterate)
                     writer.add_scalar("Validation MPJPE Lower Body", val_mpjpe_lower['All']['mpjpe'], global_step=iterate)
                     writer.add_scalar("Validation HM loss", val_hm_loss, global_step=iterate)
