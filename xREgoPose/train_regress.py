@@ -94,7 +94,8 @@ if __name__ == "__main__":
         val_check_interval=dict_args['val_freq'],
         deterministic=True,
         gpus=dict_args['gpus'],
-        profiler=profiler
+        profiler=profiler,
+        max_epochs=dict_args["epoch"]
     )
 
     # Trainer: train model
