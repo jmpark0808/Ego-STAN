@@ -36,6 +36,7 @@ if __name__ == "__main__":
     parser.add_argument('--dataset_val', help='Directory of your validation Dataset', required=True, default=None)
     parser.add_argument('--cuda', help="'cuda' for cuda, 'cpu' for cpu, default = cuda",
                         default='cuda', choices=['cuda', 'cpu'])
+    parser.add_argument('--gpus', help="Number of gpus to use for training", default=1, type=int)
     parser.add_argument('--batch_size', help="batchsize, default = 1", default=1, type=int)
     parser.add_argument('--epoch', help='# of epochs. default = 20', default=20, type=int)
     parser.add_argument('--model_save_freq', help='How often to save model weights, in batch units', default=64, type=int)
@@ -73,7 +74,7 @@ if __name__ == "__main__":
     )
     
     # Callback: monitor learning rate
-    lr_monitor = LearningRateMonitor(logging_interval='step')
+    lr_monitor_callback = LearningRateMonitor(logging_interval='step')
 
     # Callback: model checkpoint strategy
     checkpoint_callback = ModelCheckpoint(
@@ -94,4 +95,12 @@ if __name__ == "__main__":
     # Data: create validation dataloader
     data_val = Mocap(dict_args["dataset_val"], SetType.VAL, transform=data_transform)
     dataloader_val = DataLoader(data_val, batch_size=dict_args["batch_size"], pin_memory=True)
+
+    # Trainer: initialize training behaviour
+    trainer = pl.Trainer(
+        callbacks=[early_stopping_callback, lr_monitor_callback, checkpoint_callback]
+        val_check_interval=dict_args['val_freq'],
+        deterministic=True,
+        gpus=dict_args['gpus'],
+    )
 
