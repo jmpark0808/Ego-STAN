@@ -3,11 +3,9 @@
 import pytorch_lightning as pl
 import torch
 import torch.nn as nn
-from utils import config, evaluate
+from utils import evaluate
 from xREgoPose.net.xRNet import HeatMap
 
-
-# Xavier Initialization
 
 class DirectRegression(pl.LightningModule):
     def __init__(self, **kwargs):
@@ -83,20 +81,7 @@ class DirectRegression(pl.LightningModule):
             self.parameters(), lr=self.lr, momentum=0.9, nesterov=True
         )
 
-        # convigure learning rate schedulers
-        # You can use the LearningRateMonitor to log the training learning rate
-        # It seems like you can set frequency or step_size
-        # I'm not yet sure which one is used so for now I'll log the lr
-        lr_scheduler = torch.optim.lr_scheduler.StepLR(
-            optimizer, step_size=self.decay_step, gamma=self.lr_decay
-        )
-        lr_scheduler_config = {
-            "schedulers": lr_scheduler,
-            "interval": "step",
-            "frequency": self.decay_steps,
-            "name": "learning_rate",
-        }
-        return {"optimizer": optimizer, "lr_scheduler": lr_scheduler_config}
+        return optimizer
 
     def forward(self, x):
         """
@@ -132,13 +117,13 @@ class DirectRegression(pl.LightningModule):
 
         # calculate pose loss
         pose_loss = self.loss(p3d, pose)
-        self.log('train_loss', pose_loss)
+        self.log("train_loss", pose_loss)
 
         # calculate mpjpe loss
         mpjpe = torch.mean(torch.sqrt(torch.sum(torch.pow(p3d - pose, 2))))
         mpjpe_std = torch.std(torch.sqrt(torch.sum(torch.pow(p3d - pose, 2))))
-        self.log('train_mpjpe', mpjpe)
-        self.log('train_mpjpe_std', mpjpe_std)
+        self.log("train_mpjpe", mpjpe)
+        self.log("train_mpjpe_std", mpjpe_std)
 
         return pose_loss
 
@@ -188,6 +173,7 @@ class DirectRegression(pl.LightningModule):
         self.log("val_mpjpe_upper_body", val_mpjpe_upper["All"]["mpjpe"])
         self.log("val_mpjpe_lower_body", val_mpjpe_lower["All"]["mpjpe"])
         self.log("val_loss", self.val_loss_3d_pose_total)
+
 
 if __name__ == "__main__":
     pass

@@ -2,26 +2,17 @@ import argparse
 import datetime
 import os
 
-import matplotlib.pyplot as plt
-import numpy as np
 import pytorch_lightning as pl
-import torch
-import torch.nn.functional as F
-import torchvision
-from matplotlib.pyplot import MultipleLocator
 from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from pytorch_lightning.callbacks.lr_monitor import LearningRateMonitor
-from tensorboardX import SummaryWriter
+from pytorch_lightning.profiler import SimpleProfiler
 from torch.utils.data import DataLoader
 from torchvision import transforms
-from tqdm import tqdm
 
 import dataset.transform as trsf
 from base import SetType
 from dataset.mocap import Mocap
-from loss import auto_encoder_loss, mse
-from utils import config, evaluate
 from xREgoPose.net.DirectRegression import DirectRegression
 
 # Deterministic
@@ -63,7 +54,7 @@ if __name__ == "__main__":
     os.makedirs(os.path.join(weight_save_dir), exist_ok=True)
 
     # Initialize model to train
-    model = DirectRegression().to(device=dict_args['cuda'])
+    model = DirectRegression(**dict_args)
 
     # Callback: early stopping parameters
     early_stopping_callback = EarlyStopping(
@@ -97,10 +88,14 @@ if __name__ == "__main__":
     dataloader_val = DataLoader(data_val, batch_size=dict_args["batch_size"], pin_memory=True)
 
     # Trainer: initialize training behaviour
+    profiler = SimpleProfiler()
     trainer = pl.Trainer(
-        callbacks=[early_stopping_callback, lr_monitor_callback, checkpoint_callback]
+        callbacks=[early_stopping_callback, lr_monitor_callback, checkpoint_callback],
         val_check_interval=dict_args['val_freq'],
         deterministic=True,
         gpus=dict_args['gpus'],
+        profiler=profiler
     )
 
+    # Trainer: train model
+    trainer.fit(model, train_dataloaders=dataloader_train, val_dataloaders=dataloader_val)
