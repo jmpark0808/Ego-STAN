@@ -12,7 +12,7 @@ from torchvision import transforms
 
 import dataset.transform as trsf
 from base import SetType
-from dataset.mocap import Mocap
+from dataset.mocap import MocapDataModule
 from net.DirectRegression import DirectRegression
 
 # Deterministic
@@ -72,20 +72,8 @@ if __name__ == "__main__":
         dirpath=weight_save_dir, save_top_k=5, verbose=True, monitor="val_mpjpe_full_body", mode="min"
     )
 
-    # Data: data transformation strategy
-    data_transform = transforms.Compose(
-        [trsf.ImageTrsf(), trsf.Joints3DTrsf(), trsf.ToTensor()]
-    )
-
-    # Data: create train dataloader
-    data_train = Mocap(dict_args["dataset_tr"], SetType.TRAIN, transform=data_transform)
-    dataloader_train = DataLoader(
-        data_train, batch_size=dict_args["batch_size"], shuffle=True, pin_memory=True
-    )
-
-    # Data: create validation dataloader
-    data_val = Mocap(dict_args["dataset_val"], SetType.VAL, transform=data_transform)
-    dataloader_val = DataLoader(data_val, batch_size=dict_args["batch_size"], pin_memory=True)
+    # Data: load data module
+    data_module = MocapDataModule(**dict_args)
 
     # Trainer: initialize training behaviour
     profiler = SimpleProfiler()
@@ -99,4 +87,4 @@ if __name__ == "__main__":
     )
 
     # Trainer: train model
-    trainer.fit(model, train_dataloaders=dataloader_train, val_dataloaders=dataloader_val)
+    trainer.fit(model, data_module)
