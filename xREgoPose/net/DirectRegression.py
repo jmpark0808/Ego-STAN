@@ -4,7 +4,7 @@ import pytorch_lightning as pl
 import torch
 import torch.nn as nn
 from utils import evaluate
-from xREgoPose.net.xRNet import HeatMap
+from net.xRNet import HeatMap
 
 
 class DirectRegression(pl.LightningModule):

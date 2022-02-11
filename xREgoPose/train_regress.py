@@ -13,7 +13,7 @@ from torchvision import transforms
 import dataset.transform as trsf
 from base import SetType
 from dataset.mocap import Mocap
-from xREgoPose.net.DirectRegression import DirectRegression
+from net.DirectRegression import DirectRegression
 
 # Deterministic
 pl.seed_everything(42)
