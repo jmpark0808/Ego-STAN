@@ -70,7 +70,7 @@ class DirectRegression(pl.LightningModule):
             + lambda_theta * cosine_similarity_error
             + lambda_L * limb_length_error
         )
-        return LAE_pose
+        return torch.mean(LAE_pose)
 
     def configure_optimizers(self):
         """
