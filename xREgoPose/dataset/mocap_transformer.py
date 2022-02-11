@@ -21,7 +21,7 @@ class MocapTransformer(BaseDataset):
     ROOT_DIRS = ['rgba', 'json']
     CM_TO_M = 100
 
-    def __init__(self, *args, sequence_length=5, skip =4, **kwargs):
+    def __init__(self, *args, sequence_length=5, skip =0, **kwargs):
         """Init class, to allow variable sequence length, inherits from Base
         Keyword Arguments:
             sequence_length -- length of image sequence (default: {5})
