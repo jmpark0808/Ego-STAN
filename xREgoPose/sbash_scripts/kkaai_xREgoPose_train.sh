@@ -113,7 +113,8 @@ python ~/projects/def-pfieguth/kkaai/xREgoPose/xREgoPose/train_regress.py \
     --dataset_tr $SLURM_TMPDIR/TrainSet \
     --dataset_val $SLURM_TMPDIR/ValSet \
     --batch_size 16 \
-    --epoch 30 \
+    --epoch 1 \
+    --num_workers 4 \
     --lr 0.001 \
     --es_patience 7 \
     --display_freq 64 \

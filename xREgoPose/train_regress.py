@@ -31,6 +31,7 @@ if __name__ == "__main__":
     parser.add_argument('--gpus', help="Number of gpus to use for training", default=1, type=int)
     parser.add_argument('--batch_size', help="batchsize, default = 1", default=1, type=int)
     parser.add_argument('--epoch', help='# of epochs. default = 20', default=20, type=int)
+    parser.add_argument('--num_workers', help="# of dataloader cpu process", default=0, type=int)
     parser.add_argument('--model_save_freq', help='How often to save model weights, in batch units', default=64, type=int)
     parser.add_argument('--val_freq', help='How often to run validation set, in batch units', default=64, type=int)
     parser.add_argument('--es_patience', help='Max # of consecutive validation runs w/o improvment', default=5, type=int)

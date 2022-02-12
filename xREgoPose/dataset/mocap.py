@@ -207,7 +207,7 @@ class MocapDataModule(pl.LightningDataModule):
         self.train_dir = kwargs['dataset_tr']
         self.val_dir = kwargs['dataset_val']
         self.batch_size = kwargs['batch_size']
-        # self.num_workers = kwargs['num_workers']
+        self.num_workers = kwargs['num_workers']
 
         # Data: data transformation strategy
         self.data_transform = transforms.Compose(
@@ -216,10 +216,14 @@ class MocapDataModule(pl.LightningDataModule):
         
     def train_dataloader(self):
         data_train = Mocap(self.train_dir, SetType.TRAIN, transform=self.data_transform)
-        return DataLoader(data_train, batch_size=self.batch_size, shuffle=True, pin_memory=True)
+        return DataLoader(
+                data_train, batch_size=self.batch_size, 
+                num_workers=self.num_workers, shuffle=True, pin_memory=True)
 
     def val_dataloader(self):
         data_val = Mocap(self.val_dir, SetType.VAL, transform=self.data_transform)
-        return DataLoader(data_val, batch_size=self.batch_size, pin_memory=True)
+        return DataLoader(
+                data_val, batch_size=self.batch_size, 
+                num_workers=self.num_workers, pin_memory=True)
 
 
