@@ -107,9 +107,12 @@ cd ${dataset_dir}
 download_set "TrainSet"
 download_set "ValSet"
 
+logdir=/home/kkaai/projects/def-pfieguth/kkaai/xREgoPose/xREgoPose/
+
 # Start training
-python ~/projects/def-pfieguth/kkaai/xREgoPose/xREgoPose/train_regress.py \
-    --logdir /home/kkaai/projects/def-pfieguth/kkaai/xREgoPose/xREgoPose/ \
+tensorboard --logdir=${logdir} --host 0.0.0.0 --load_fast false & \
+    python ~/projects/def-pfieguth/kkaai/xREgoPose/xREgoPose/train_regress.py \
+    --logdir ${logdir} \
     --dataset_tr $SLURM_TMPDIR/TrainSet \
     --dataset_val $SLURM_TMPDIR/ValSet \
     --batch_size 16 \
