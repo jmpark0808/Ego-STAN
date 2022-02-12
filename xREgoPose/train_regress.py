@@ -7,6 +7,7 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from pytorch_lightning.callbacks.lr_monitor import LearningRateMonitor
 from pytorch_lightning.profiler import SimpleProfiler
+from pytorch_lightning.loggers import TensorBoardLogger
 from torch.utils.data import DataLoader
 from torchvision import transforms
 
@@ -49,9 +50,8 @@ if __name__ == "__main__":
 
     # Initialize logging paths
     now = datetime.datetime.now()
-    os.makedirs(os.path.join('log', now.strftime('%m%d%H%M')), exist_ok=True)
     weight_save_dir = os.path.join(dict_args["logdir"], os.path.join('models', 'state_dict', now.strftime('%m%d%H%M')))
-    os.makedirs(os.path.join(weight_save_dir), exist_ok=True)
+    os.makedirs(weight_save_dir, exist_ok=True)
 
     # Initialize model to train
     model = DirectRegression(**dict_args)
@@ -77,12 +77,14 @@ if __name__ == "__main__":
 
     # Trainer: initialize training behaviour
     profiler = SimpleProfiler()
+    logger = TensorBoardLogger(save_dir=dict_args['logdir'], name='lightning_logs')
     trainer = pl.Trainer(
         callbacks=[early_stopping_callback, lr_monitor_callback, checkpoint_callback],
         val_check_interval=dict_args['val_freq'],
         deterministic=True,
         gpus=dict_args['gpus'],
         profiler=profiler,
+        logger=logger,
         max_epochs=dict_args["epoch"]
     )
 
