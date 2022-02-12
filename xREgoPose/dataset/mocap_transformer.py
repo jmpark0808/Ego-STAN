@@ -21,13 +21,14 @@ class MocapTransformer(BaseDataset):
     ROOT_DIRS = ['rgba', 'json']
     CM_TO_M = 100
 
-    def __init__(self, *args, sequence_length=5, **kwargs):
+    def __init__(self, *args, sequence_length=5, skip =0, **kwargs):
         """Init class, to allow variable sequence length, inherits from Base
         Keyword Arguments:
             sequence_length -- length of image sequence (default: {5})
         """
 
         self.sequence_length = sequence_length
+        self.skip = skip
         super().__init__(*args, **kwargs)
 
     def index_db(self):
@@ -67,6 +68,7 @@ class MocapTransformer(BaseDataset):
                 encoded = []
 
                 len_seq = self.sequence_length
+                m = self.skip 
 
                 if sub_dir == 'rgba':
                     for p in paths:
@@ -74,8 +76,8 @@ class MocapTransformer(BaseDataset):
                         frame_idx = int(p[-10:-4])
 
                         for i in range(len_seq):
-                            if os.path.exists(p[0:-10] + "{0:06}.png".format(frame_idx+i)):
-                                frame_path = p[0:-10] + "{0:06}.png".format(frame_idx+i)
+                            if os.path.exists(p[0:-10] + "{0:06}.png".format(frame_idx+i+i*m)):
+                                frame_path = p[0:-10] + "{0:06}.png".format(frame_idx+i+i*m)
                                 encoded_sequence.append(frame_path.encode('utf8'))
                         
                         if(len(encoded_sequence) == len_seq):
@@ -88,10 +90,10 @@ class MocapTransformer(BaseDataset):
                         frame_idx = int(p[-11:-5])
 
                         for i in range(len_seq):
-                            if not os.path.exists(p[0:-11] + "{0:06}.json".format(frame_idx+i)):
+                            if not os.path.exists(p[0:-11] + "{0:06}.json".format(frame_idx+i+i*m)):
                                 isSequence = False
                             else:
-                                json_path = p[0:-11] + "{0:06}.json".format(frame_idx+i)
+                                json_path = p[0:-11] + "{0:06}.json".format(frame_idx+i+i*m)
                                 encoded_sequence.append(json_path.encode('utf8'))
 
                         if(isSequence) and (len(encoded_sequence) == len_seq):
@@ -152,7 +154,7 @@ class MocapTransformer(BaseDataset):
 
         # checking for correct sequence of rgba/image files
         for i in range(len(img_paths)-1):
-            if int(img_paths[i][-10:-4]) != int(img_paths[i+1][-10:-4]) -1:
+            if int(img_paths[i][-10:-4]) != int(img_paths[i+1][-10:-4]) - (self.skip + 1):
                 self.logger.error(
                     '{} \n is not the correct frame after \n {}'.format(
                                                     img_paths[i+1], img_paths[i])
@@ -165,14 +167,19 @@ class MocapTransformer(BaseDataset):
 
         # read joint positions
         json_paths = [path.decode('utf8') for path in self.index['json'][index]]
-        
+
         # checking if json path corresponds to the path of the last rgba frame in the sequence
         # checking for correct sequence of rgba/image files
         for i in range(len(json_paths)-1):
-            if int(json_paths[i][-11:-5]) != int(json_paths[i+1][-11:-5]) -1:
+            if int(json_paths[i][-11:-5]) != int(json_paths[i+1][-11:-5]) - (self.skip + 1):
                 self.logger.error(
                     '{} \n is not the correct frame after \n {}'.format(
                                                     json_paths[i+1], json_paths[i])
+                                                                                )
+            if int(json_paths[i][-11:-5]) != int(img_paths[i][-10:-4]):
+                self.logger.error(
+                    '{} \n does not match \n {}'.format(
+                                                    img_paths[i], json_paths[i])
                                                                                 )
 
         all_p2d_heatmap = []
