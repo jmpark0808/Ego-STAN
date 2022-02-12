@@ -122,7 +122,7 @@ class DirectRegression(pl.LightningModule):
         # calculate mpjpe loss
         mpjpe = torch.mean(torch.sqrt(torch.sum(torch.pow(p3d - pose, 2))))
         mpjpe_std = torch.std(torch.sqrt(torch.sum(torch.pow(p3d - pose, 2))))
-        self.log("train_mpjpe", mpjpe)
+        self.log("train_mpjpe_full_body", mpjpe)
         self.log("train_mpjpe_std", mpjpe_std)
 
         return pose_loss

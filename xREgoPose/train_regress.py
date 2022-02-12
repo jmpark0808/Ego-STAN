@@ -64,9 +64,6 @@ if __name__ == "__main__":
         verbose=True,
         patience=dict_args["es_patience"],
     )
-    
-    # Callback: monitor learning rate
-    lr_monitor_callback = LearningRateMonitor(logging_interval='step')
 
     # Callback: model checkpoint strategy
     checkpoint_callback = ModelCheckpoint(
@@ -80,7 +77,7 @@ if __name__ == "__main__":
     profiler = SimpleProfiler()
     logger = TensorBoardLogger(save_dir=dict_args['logdir'], name='lightning_logs')
     trainer = pl.Trainer(
-        callbacks=[early_stopping_callback, lr_monitor_callback, checkpoint_callback],
+        callbacks=[early_stopping_callback, checkpoint_callback],
         val_check_interval=dict_args['val_freq'],
         deterministic=True,
         gpus=dict_args['gpus'],
