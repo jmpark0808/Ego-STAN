@@ -22,11 +22,10 @@ class DirectRegression(pl.LightningModule):
         # must be defined for logging computational graph
         self.example_input_array = torch.rand((1, 3, 368, 368))
 
-        # Generator that produces 15x47x47 feature map
         self.heatmap = HeatMap()
-        # Pose detector that takes 15x47x47 to 3D pose coordinates
-        self.l1 = nn.Linear(33135, 690)
-        self.l2 = nn.Linear(690, 48)
+        self.conv1 = nn.Conv2d(2048, 512, kernel_size=1)
+        self.l1 = nn.Linear(73728, 7000)
+        self.l2 = nn.Linear(7000, 48)
 
         # Initialize the mpjpe evaluation pipeline
         self.eval_body = evaluate.EvalBody()
@@ -95,10 +94,13 @@ class DirectRegression(pl.LightningModule):
 
         :return: 16x3 joint inferences
         """
-        x = self.heatmap(x)
-        # x = 15 x 47 x 47
+        # x = 3 x 368 x 368
+        x = self.heatmap.resnet101(x)
+        # x = 2048 x 12 x12
+        x = self.conv1(x)
+        # x = 512 x 12 x 12
         x = x.reshape(x.size(0), -1)
-        # x = 33135
+        # x = 73728
         x = self.l1(x)
         x = self.l2(x)
         x = x.reshape(x.size(0), 16, 3)
