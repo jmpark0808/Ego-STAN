@@ -4,6 +4,7 @@ import pytorch_lightning as pl
 import torch
 import torch.nn as nn
 from utils import evaluate
+
 from net.xRNet import HeatMap
 
 
@@ -120,8 +121,8 @@ class DirectRegression(pl.LightningModule):
         self.log("train_loss", pose_loss)
 
         # calculate mpjpe loss
-        mpjpe = torch.mean(torch.sqrt(torch.sum(torch.pow(p3d - pose, 2))))
-        mpjpe_std = torch.std(torch.sqrt(torch.sum(torch.pow(p3d - pose, 2))))
+        mpjpe = torch.mean(torch.sqrt(torch.sum(torch.pow(p3d - pose, 2), dim=2)))
+        mpjpe_std = torch.std(torch.sqrt(torch.sum(torch.pow(p3d - pose, 2), dim=2)))
         self.log("train_mpjpe_full_body", mpjpe)
         self.log("train_mpjpe_std", mpjpe_std)
 
