@@ -75,7 +75,7 @@ if __name__ == "__main__":
 
     # Trainer: initialize training behaviour
     profiler = SimpleProfiler()
-    logger = TensorBoardLogger(save_dir=dict_args['logdir'], name='lightning_logs')
+    logger = TensorBoardLogger(save_dir=dict_args['logdir'], name='lightning_logs', log_graph=True)
     trainer = pl.Trainer(
         callbacks=[early_stopping_callback, checkpoint_callback],
         val_check_interval=dict_args['val_freq'],

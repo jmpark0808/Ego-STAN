@@ -19,6 +19,9 @@ class DirectRegression(pl.LightningModule):
         self.decay_step = kwargs["decay_step"]
         self.load_resnet = kwargs["load_resnet"]
 
+        # must be defined for logging computational graph
+        self.example_input_array = torch.rand((1, 3, 368, 368))
+
         # Generator that produces 15x47x47 feature map
         self.heatmap = HeatMap()
         # Pose detector that takes 15x47x47 to 3D pose coordinates
