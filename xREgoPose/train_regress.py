@@ -26,6 +26,7 @@ if __name__ == "__main__":
                              "None --> Do not use pre-trained model. Training will start from random initialized model")
     parser.add_argument('--dataset_tr', help='Directory of your train Dataset', required=True, default=None)
     parser.add_argument('--dataset_val', help='Directory of your validation Dataset', required=True, default=None)
+    parser.add_argument('--dataset_test', help='Directory of your test Dataset', default=None)
     parser.add_argument('--cuda', help="'cuda' for cuda, 'cpu' for cpu, default = cuda",
                         default='cuda', choices=['cuda', 'cpu'])
     parser.add_argument('--gpus', help="Number of gpus to use for training", default=1, type=int)
