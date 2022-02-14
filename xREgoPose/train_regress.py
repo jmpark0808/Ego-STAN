@@ -17,7 +17,7 @@ from dataset.mocap import MocapDataModule
 from net.DirectRegression import DirectRegression
 
 # Deterministic
-pl.seed_everything(42)
+pl.seed_everything(102)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
