@@ -8,12 +8,17 @@ joint positions are loaded.
 
 """
 import os
+import pytorch_lightning as pl
 from skimage import io as sio
 from skimage.transform import resize
 import numpy as np
 from base import BaseDataset
 from utils import io, config
+from base import SetType
+import dataset.transform as trsf
 import matplotlib.pyplot as plt
+from torch.utils.data import DataLoader
+from torchvision import transforms
 
 def generate_heatmap(joints, heatmap_sigma):
     """
@@ -193,3 +198,39 @@ class Mocap(BaseDataset):
     def __len__(self):
 
         return len(self.index[self.ROOT_DIRS[0]])
+
+class MocapDataModule(pl.LightningDataModule):
+
+    def __init__(self, **kwargs):
+        super().__init__()
+
+        self.train_dir = kwargs['dataset_tr']
+        self.val_dir = kwargs['dataset_val']
+        self.test_dir = kwargs['dataset_test']
+        self.batch_size = kwargs['batch_size']
+        self.num_workers = kwargs['num_workers']
+
+        # Data: data transformation strategy
+        self.data_transform = transforms.Compose(
+            [trsf.ImageTrsf(), trsf.Joints3DTrsf(), trsf.ToTensor()]
+        )
+        
+    def train_dataloader(self):
+        data_train = Mocap(self.train_dir, SetType.TRAIN, transform=self.data_transform)
+        return DataLoader(
+                data_train, batch_size=self.batch_size, 
+                num_workers=self.num_workers, shuffle=True, pin_memory=True)
+
+    def val_dataloader(self):
+        data_val = Mocap(self.val_dir, SetType.VAL, transform=self.data_transform)
+        return DataLoader(
+                data_val, batch_size=self.batch_size, 
+                num_workers=self.num_workers, pin_memory=True)
+
+    def test_dataloader(self):
+        data_test = Mocap(self.test_dir, SetType.TEST, transform=self.data_transform)
+        return DataLoader(
+                data_test, batch_size=self.batch_size, 
+                num_workers=self.num_workers, pin_memory=True)
+
+

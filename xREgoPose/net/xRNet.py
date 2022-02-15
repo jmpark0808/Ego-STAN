@@ -187,7 +187,6 @@ class FeatureConcatEgoPose(nn.Module):
         # Heatmap decoder that takes latent vector Z and generates the original 2D heatmap
         self.heatmap_decoder = HeatmapDecoder()
 
-
     def forward(self, x):
         # x = 3 x 368 x 368
 
