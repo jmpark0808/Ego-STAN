@@ -15,12 +15,19 @@ import dataset.transform as trsf
 from base import SetType
 from dataset.mocap import MocapDataModule
 from net.DirectRegression import DirectRegression
+from net.xRNet import xREgoPose
 
 # Deterministic
 pl.seed_everything(102)
 
+MODEL_DIRECTORY = {
+    "direct_regression": DirectRegression,
+    "xregopose": xREgoPose,
+}
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
+    parser.add_argument('--model', help='Model name to train', required=True, default=None)
     parser.add_argument("--load",
                         help="Directory of pre-trained model,  \n"
                              "None --> Do not use pre-trained model. Training will start from random initialized model")
@@ -50,13 +57,15 @@ if __name__ == "__main__":
     args = parser.parse_args()
     dict_args = vars(args)
 
+    # Initialize model to train
+    assert dict_args['model'] in MODEL_DIRECTORY
+    model = MODEL_DIRECTORY[dict_args['model']](**dict_args)
+
     # Initialize logging paths
     now = datetime.datetime.now()
     weight_save_dir = os.path.join(dict_args["logdir"], os.path.join('models', 'state_dict', now.strftime('%m%d%H%M')))
     os.makedirs(weight_save_dir, exist_ok=True)
 
-    # Initialize model to train
-    model = DirectRegression(**dict_args)
 
     # Callback: early stopping parameters
     early_stopping_callback = EarlyStopping(

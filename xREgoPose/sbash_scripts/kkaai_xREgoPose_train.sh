@@ -112,6 +112,7 @@ logdir=/home/kkaai/projects/def-pfieguth/kkaai/xREgoPose/xREgoPose/
 # Start training
 tensorboard --logdir=${logdir} --host 0.0.0.0 --load_fast false & \
     python ~/projects/def-pfieguth/kkaai/xREgoPose/xREgoPose/train_regress.py \
+    --model direct_regression \
     --logdir ${logdir} \
     --dataset_tr $SLURM_TMPDIR/TrainSet \
     --dataset_val $SLURM_TMPDIR/ValSet \
