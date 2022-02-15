@@ -9,8 +9,8 @@ import torchvision
 from torchvision import transforms
 from tensorboardX import SummaryWriter
 from tqdm import tqdm
-from loss import mse, auto_encoder_loss
-from net.xRNet import *
+from Legacy.loss import mse, auto_encoder_loss
+from Legacy.xRNet import *
 from dataset.mocap_transformer import MocapTransformer
 from utils import config, evaluate
 from base import SetType

@@ -16,7 +16,6 @@ from base import BaseDataset
 from utils import io, config
 from base import SetType
 import dataset.transform as trsf
-import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader
 from torchvision import transforms
 
@@ -232,5 +231,4 @@ class MocapDataModule(pl.LightningDataModule):
         return DataLoader(
                 data_test, batch_size=self.batch_size, 
                 num_workers=self.num_workers, pin_memory=True)
-
 

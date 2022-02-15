@@ -7,13 +7,17 @@ joint positions are loaded.
 """
 import os
 import torch
+import pytorch_lightning as pl
 from skimage import io as sio
 from skimage.transform import resize
 import numpy as np
 from base import BaseDataset
 from utils import io, config
-import matplotlib.pyplot as plt
+from base import SetType
+import dataset.transform as trsf
 from dataset.mocap import generate_heatmap
+from torch.utils.data import DataLoader
+from torchvision import transforms
 
 class MocapTransformer(BaseDataset):
     """Mocap Dataset loader"""
@@ -206,3 +210,57 @@ class MocapTransformer(BaseDataset):
     def __len__(self):
 
         return len(self.index[self.ROOT_DIRS[0]])
+
+
+class MocapSeqDataModule(pl.LightningDataModule):
+
+    def __init__(self, **kwargs):
+        super().__init__()
+
+        self.train_dir = kwargs['dataset_tr']
+        self.val_dir = kwargs['dataset_val']
+        self.test_dir = kwargs['dataset_test']
+        self.batch_size = kwargs['batch_size']
+        self.num_workers = kwargs['num_workers']
+        self.seq_len = kwargs['seq_len']
+        self.skip = kwargs['skip']
+
+        # Data: data transformation strategy
+        self.data_transform = transforms.Compose(
+            [trsf.ImageTrsf(), trsf.Joints3DTrsf(), trsf.ToTensor()]
+        )
+        
+    def train_dataloader(self):
+        data_train = MocapTransformer(
+            self.train_dir,
+            SetType.TRAIN,
+            transform=self.data_transform,
+            sequence_length = self.seq_len,
+            skip = self.skip)
+        return DataLoader(
+                data_train, batch_size=self.batch_size, 
+                num_workers=self.num_workers, shuffle=True, pin_memory=True)
+
+    def val_dataloader(self):
+        data_val =  MocapTransformer(
+            self.val_dir,
+            SetType.VAL,
+            transform=self.data_transform,
+            sequence_length = self.seq_len,
+            skip = self.skip)
+        return DataLoader(
+                data_val, batch_size=self.batch_size, 
+                num_workers=self.num_workers, pin_memory=True)
+
+    def test_dataloader(self):
+        data_test =  MocapTransformer(
+            self.test_dir,
+            SetType.TEST,
+            transform=self.data_transform,
+            sequence_length = self.seq_len,
+            skip = self.skip)
+        return DataLoader(
+                data_test, batch_size=self.batch_size, 
+                num_workers=self.num_workers, pin_memory=True)
+
+

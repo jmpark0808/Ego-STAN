@@ -9,7 +9,7 @@ import torchvision
 from torchvision import transforms
 from tensorboardX import SummaryWriter
 from tqdm import tqdm
-from loss import mse, auto_encoder_loss
+from Legacy.loss import mse, auto_encoder_loss
 from xREgoPose.net.xRNet import *
 from dataset.mocap import Mocap
 from utils import config, evaluate
