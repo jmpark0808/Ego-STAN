@@ -24,7 +24,6 @@ from net.xRNetSeqHM import xREgoPoseSeqHM
 
 # Deterministic
 
-
 MODEL_DIRECTORY = {
     "direct_regression": DirectRegression,
     "xregopose": xREgoPose,

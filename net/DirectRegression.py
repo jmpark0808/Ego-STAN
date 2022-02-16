@@ -23,7 +23,9 @@ class DirectRegression(pl.LightningModule):
         self.example_input_array = torch.rand((1, 3, 368, 368))
 
         self.heatmap = HeatMap()
+        self.d1 = nn.Dropout(p=0.25)
         self.l1 = nn.Linear(33135, 690)
+        self.d2 = nn.Dropout(p=0.25)
         self.l2 = nn.Linear(690, 48)
 
         # Initialize the mpjpe evaluation pipeline
@@ -99,7 +101,9 @@ class DirectRegression(pl.LightningModule):
         # x = 15 x 47 x 47
         x = x.reshape(x.size(0), -1)
         # x = 33135
+        x = self.d1(x)
         x = self.l1(x)
+        x = self.d2(x)
         x = self.l2(x)
         x = x.reshape(x.size(0), 16, 3)
         return x
