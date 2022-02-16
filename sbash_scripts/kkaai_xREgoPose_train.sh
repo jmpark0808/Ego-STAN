@@ -1,10 +1,12 @@
 #!/bin/bash
 #SBATCH --gres=gpu:1      
-#SBATCH --cpus-per-task=12 
+#SBATCH --nodes 1
+#SBATCH --tasks-per-node=1
+#SBATCH --cpus-per-task=24
 #SBATCH --mem=32000M       
 #SBATCH --time=1-12:00     
 #SBATCH --account=rrg-pfieguth
-export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
+# export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
 
 module load python/3.9 cuda cudnn
 
@@ -118,7 +120,7 @@ tensorboard --logdir=${logdir} --host 0.0.0.0 --load_fast false & \
     --dataset_val $SLURM_TMPDIR/ValSet \
     --batch_size 16 \
     --epoch 20 \
-    --num_workers 0 \
+    --num_workers 24 \
     --lr 0.001 \
     --es_patience 7 \
     --display_freq 64 \
