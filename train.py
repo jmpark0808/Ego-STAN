@@ -16,8 +16,8 @@ from base import SetType
 from dataset.mocap import MocapDataModule
 from dataset.mocap_transformer import MocapSeqDataModule
 from net.DirectRegression import DirectRegression
-from net.xRNetBaseLine import xREgoPose
 from net.xRNetSeq import xREgoPoseSeq
+from net.xRNetBaseLine import xREgoPose
 
 # Deterministic
 pl.seed_everything(102)

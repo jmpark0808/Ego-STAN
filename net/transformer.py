@@ -75,10 +75,10 @@ class Transformer(nn.Module):
         return x
 
 class PoseTransformer(nn.Module):
-    def __init__(self, *, seq_len, dim, depth, heads, mlp_dim, dim_head = 64, dropout = 0., emb_dropout = 0.):
+    def __init__(self, *, seq_len, dim, depth, heads, mlp_dim, dim_head = 64, dropout = 0.1, emb_dropout = 0.1):
         super().__init__()
   
-        self.to_embedding = nn.Linear(20, dim)
+        # self.to_embedding = nn.Linear(20, dim)
 
         self.pos_embedding = nn.Parameter(torch.randn(1, seq_len, dim))
         self.cls_token = nn.Parameter(torch.randn(1, 1, dim))
@@ -88,7 +88,7 @@ class PoseTransformer(nn.Module):
         self.linear = nn.Linear(dim, 20)
 
     def forward(self, x): # x = (batch, seq_len, 20)
-        x = self.to_embedding(x) # x = (batch, seq_len, dim)
+        # x = self.to_embedding(x) # x = (batch, seq_len, dim)
         
         x += self.pos_embedding # x = (batch, seq_len, dim)
         x = self.dropout(x) # x = (batch, seq_len, dim)
