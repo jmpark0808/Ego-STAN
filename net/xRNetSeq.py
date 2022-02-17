@@ -30,7 +30,7 @@ class xREgoPoseSeq(pl.LightningModule):
         # Encoder that takes 2D heatmap and transforms to latent vector Z
         self.encoder = Encoder()
         # Transformer that takes sequence of latent vector Z and outputs a single Z vector
-        self.seq_transformer = PoseTransformer(seq_len=self.seq_len, dim=256, depth=3, heads=8, mlp_dim=512)
+        self.seq_transformer = PoseTransformer(seq_len=self.seq_len, dim=20, depth=1, heads=1, mlp_dim=40)
         # Pose decoder that takes latent vector Z and transforms to 3D pose coordinates
         self.pose_decoder = PoseDecoder()
         # Heatmap decoder that takes latent vector Z and generates the original 2D heatmap
