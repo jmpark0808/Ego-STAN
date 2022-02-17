@@ -18,6 +18,7 @@ from dataset.mocap_transformer import MocapSeqDataModule
 from net.DirectRegression import DirectRegression
 from net.xRNetSeq import xREgoPoseSeq
 from net.xRNetBaseLine import xREgoPose
+from net.xRNetConcat import xRNetConcat
 
 # Deterministic
 pl.seed_everything(102)
@@ -25,7 +26,8 @@ pl.seed_everything(102)
 MODEL_DIRECTORY = {
     "direct_regression": DirectRegression,
     "xregopose": xREgoPose,
-    "xregopose_seq": xREgoPoseSeq
+    "xregopose_seq": xREgoPoseSeq,
+    "xregopose_concat":xRNetConcat,
 }
 DATALOADER_DIRECTORY = {
     'baseline': MocapDataModule,
@@ -65,6 +67,8 @@ if __name__ == "__main__":
                         default='5', type=int)
     parser.add_argument('--skip', help="# of images/frames to skip in between frames, default = 0",
                         default='0', type=int)
+    parser.add_argument('--encoder_type', help='Type of encoder for concatenation, Defaults to "branch_concat"', 
+                        default= 'branch_concat')
 
     args = parser.parse_args()
     dict_args = vars(args)

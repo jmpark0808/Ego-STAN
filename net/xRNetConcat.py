@@ -9,7 +9,7 @@ from net.blocks import *
 
 
 
-class xRConcatNet(pl.LightningModule):
+class xRNetConcat(pl.LightningModule):
 
     encoder_dict = {
         'map_concat': FeatureConcatEncoder(),
@@ -65,7 +65,7 @@ class xRConcatNet(pl.LightningModule):
         if self.load_resnet:
             self.feature_heatmaps.resnet101.load_state_dict(torch.load(self.load_resnet))
         self.feature_heatmaps.update_resnet101()
-        self.globa_step = 0
+        self.iteration = 0
         self.update_optim_flag = True
 
     def mse(self, pred, label):
@@ -88,13 +88,13 @@ class xRConcatNet(pl.LightningModule):
         heatmap_error = torch.sqrt(torch.sum(torch.pow(hm_resnet.view(hm_resnet.size(0), -1) - hm_decoder.view(hm_decoder.size(0), -1), 2), dim=1))
         LAE_pose = lambda_p*(pose_l2norm + lambda_theta*cosine_similarity_error + lambda_L*limb_length_error)
         LAE_hm = lambda_hm*heatmap_error
-        return torch.mean(LAE_pose)+torch.mean(LAE_hm)
+        return torch.mean(LAE_pose), torch.mean(LAE_hm)
 
     def configure_optimizers(self):
         """
         Choose what optimizers and learning-rate schedulers to use in your optimization.
         """
-        if self.globa_step <= self.hm_train_steps:
+        if self.iteration <= self.hm_train_steps:
             heatmap_params = list(self.feature_heatmaps.resnet101.parameters()) + list(self.feature_heatmaps.heatmap_deconv.parameters())
             optimizer = torch.optim.SGD(
             heatmap_params, lr=self.lr, momentum=0.9, weight_decay=5e-4
@@ -135,7 +135,7 @@ class xRConcatNet(pl.LightningModule):
         logging resources:
         https://pytorch-lightning.readthedocs.io/en/latest/starter/introduction_guide.html
         """
-        if self.globa_step > self.hm_train_steps and self.update_optim_flag:
+        if self.iteration > self.hm_train_steps and self.update_optim_flag:
             self.trainer.accelerator_backend.setup_optimizers(self)
             self.update_optim_flag=False
         img, p2d, p3d, action = batch
@@ -147,7 +147,7 @@ class xRConcatNet(pl.LightningModule):
         heatmap, pose, generated_heatmap = self.forward(img)
 
 
-        if self.globa_step <= self.hm_train_steps:
+        if self.iteration <= self.hm_train_steps:
             heatmap = torch.sigmoid(heatmap)
             loss = self.mse(heatmap, p2d)
             self.log('Total HM loss', loss.item())
@@ -168,7 +168,7 @@ class xRConcatNet(pl.LightningModule):
         mpjpe_std = torch.std(torch.sqrt(torch.sum(torch.pow(p3d - pose, 2), dim=2)))
         self.log("train_mpjpe_full_body", mpjpe)
         self.log("train_mpjpe_std", mpjpe_std)
-        self.globa_step += img.size(0)
+        self.iteration += img.size(0)
         return loss
 
     def validation_step(self, batch, batch_idx):

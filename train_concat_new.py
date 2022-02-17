@@ -17,7 +17,7 @@ from dataset.mocap import MocapDataModule
 from dataset.mocap_transformer import MocapSeqDataModule
 from net.DirectRegression import DirectRegression
 from net.xRNetBaseLine import xREgoPose
-from net.xRConcatNet import xRConcatNet
+from net.xRNetConcat import xRNetConcat
 from net.xRNetSeq import xREgoPoseSeq
 
 # Deterministic
@@ -27,7 +27,7 @@ MODEL_DIRECTORY = {
     "direct_regression": DirectRegression,
     "xregopose": xREgoPose,
     "xregopose_seq": xREgoPoseSeq,
-    "xregopose_concat":xRConcatNet
+    "xregopose_concat":xRNetConcat
 }
 DATALOADER_DIRECTORY = {
     'baseline': MocapDataModule,
