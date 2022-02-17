@@ -171,7 +171,7 @@ class MocapTransformer(BaseDataset):
 
         # read joint positions
         json_paths = [path.decode('utf8') for path in self.index['json'][index]]
-
+       
         # checking if json path corresponds to the path of the last rgba frame in the sequence
         # checking for correct sequence of rgba/image files
         for i in range(len(json_paths)-1):
@@ -193,8 +193,9 @@ class MocapTransformer(BaseDataset):
             p2d, p3d = self._process_points(data)
             p2d[:, 0] = p2d[:, 0]-180 # Translate p2d coordinates by 180 pixels to the left
 
+            distances = np.sqrt(np.sum(p3d**2, axis=1))[1:]
+            p2d_heatmap = generate_heatmap(p2d[1:, :], distances) # exclude head
 
-            p2d_heatmap = generate_heatmap(p2d[1:, :], 3) # exclude head
             all_p2d_heatmap.append(p2d_heatmap)
             # get action name
             action = data['action']

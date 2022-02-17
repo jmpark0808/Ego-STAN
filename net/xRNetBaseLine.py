@@ -1,12 +1,11 @@
 # -*- coding: utf-8 -*-
 
-from typing_extensions import Self
 import pytorch_lightning as pl
 import torch
 import torch.nn as nn
 from utils import evaluate
 from net.blocks import *
-from net.transformer import PoseTransformer
+
 
 
 class xREgoPose(pl.LightningModule):
@@ -20,7 +19,6 @@ class xREgoPose(pl.LightningModule):
         self.decay_step = kwargs["decay_step"]
         self.load_resnet = kwargs["load_resnet"]
         self.hm_train_steps = kwargs["hm_train_steps"]
-        self.seq_len = kwargs['seq_len']
 
         # must be defined for logging computational graph
         self.example_input_array = torch.rand((1, 3, 368, 368))
@@ -29,8 +27,6 @@ class xREgoPose(pl.LightningModule):
         self.heatmap = HeatMap()
         # Encoder that takes 2D heatmap and transforms to latent vector Z
         self.encoder = Encoder()
-        # Transformer that takes sequence of latent vector Z and outputs a single Z vector
-        self.seq_transformer = PoseTransformer(seq_len=self.seq_len, dim=256, depth=3, heads=8, mlp_dim=512)
         # Pose decoder that takes latent vector Z and transforms to 3D pose coordinates
         self.pose_decoder = PoseDecoder()
         # Heatmap decoder that takes latent vector Z and generates the original 2D heatmap
@@ -60,7 +56,7 @@ class xREgoPose(pl.LightningModule):
         if self.load_resnet:
             self.heatmap.resnet101.load_state_dict(torch.load(self.load_resnet))
         self.heatmap.update_resnet101()
-        self.global_step = 0
+        self.iteration = 0
         self.update_optim_flag = True
 
     def mse(self, pred, label):
@@ -83,13 +79,13 @@ class xREgoPose(pl.LightningModule):
         heatmap_error = torch.sqrt(torch.sum(torch.pow(hm_resnet.view(hm_resnet.size(0), -1) - hm_decoder.view(hm_decoder.size(0), -1), 2), dim=1))
         LAE_pose = lambda_p*(pose_l2norm + lambda_theta*cosine_similarity_error + lambda_L*limb_length_error)
         LAE_hm = lambda_hm*heatmap_error
-        return torch.mean(LAE_pose)+torch.mean(LAE_hm)
+        return torch.mean(LAE_pose), torch.mean(LAE_hm)
 
     def configure_optimizers(self):
         """
         Choose what optimizers and learning-rate schedulers to use in your optimization.
         """
-        if self.global_step <= self.hm_train_steps:
+        if self.iteration <= self.hm_train_steps:
             optimizer = torch.optim.SGD(
             self.heatmap.parameters(), lr=self.lr, momentum=0.9, weight_decay=5e-4
         )
@@ -105,37 +101,25 @@ class xREgoPose(pl.LightningModule):
         """
         Forward pass through model
 
-        :param x: Input sequence of image
+        :param x: Input image
 
         :return: 2D heatmap, 16x3 joint inferences, 2D reconstructed heatmap
         """
-        # Flattening first two dimensions
+        # x = 3 x 368 x 368
 
-        dim = x.shape 
-        #shape -> batch_size x len_seq x 3 x 368 x 368
+        heatmap = self.heatmap(x)
+        # heatmap = 15 x 47 x 47
+        
+        z = self.encoder(heatmap)
+        # z = 20
 
-        imgs = torch.reshape(x, (dim[0]*dim[1], dim[2], dim[3], dim[4]))
-        # imgs = # (batch_size*len_seq) x 3 x 368 x 368
+        pose = self.pose_decoder(z)
+        # pose = 16 x 3
 
-        hms = self.heatmap(imgs)
-        # hms = (batch_size*len_seq) x 15 x 47 x 47
+        generated_heatmaps = self.heatmap_decoder(z)
+        # generated_heatmaps = 15 x 47 x 47
 
-        z_all = self.encoder(hms)
-        # z_all = (batch_size*len_seq) x 20
-
-        zs = torch.reshape(z_all, (dim[0], dim[1], z_all.shape[-1]))
-        # zs = batch_size x len_seq x 20
-
-        z = self.seq_transformer(zs)
-        # z = batch_size x 20
-
-        p3d = self.pose_decoder(z)
-        # p3d = batch_size x 16 x 3
-
-        p2d = self.heatmap_decoder(z_all)
-        # p2d = (batch_size*len_seq) x 15 x 47 x 47
-
-        return hms, p3d, p2d
+        return heatmap, pose, generated_heatmaps
 
     def training_step(self, batch, batch_idx):
         """
@@ -144,28 +128,27 @@ class xREgoPose(pl.LightningModule):
         https://pytorch-lightning.readthedocs.io/en/latest/starter/introduction_guide.html
 
         """
-        if self.global_step > self.hm_train_steps and self.update_optim_flag:
+        if self.iteration > self.hm_train_steps and self.update_optim_flag:
             self.trainer.accelerator_backend.setup_optimizers(self)
             self.update_optim_flag=False
-        sequence_imgs, p2d, p3d, action = batch
-        sequence_imgs = sequence_imgs.cuda()
+        img, p2d, p3d, action = batch
+        img = img.cuda()
         p2d = p2d.cuda()
-        p2d = p2d.reshape(-1, 15, 47, 47)
         p3d = p3d.cuda()
 
         # forward pass
-        pred_hm, pred_3d, gen_hm = self.forward(sequence_imgs)
+        heatmap, pose, generated_heatmap = self.forward(img)
 
 
-        if self.global_step <= self.hm_train_steps:
-            pred_hm = torch.sigmoid(pred_hm)
-            loss = self.mse(pred_hm, p2d)
+        if self.iteration <= self.hm_train_steps:
+            heatmap = torch.sigmoid(heatmap)
+            loss = self.mse(heatmap, p2d)
             self.log('Total HM loss', loss.item())
         else:
-            pred_hm = torch.sigmoid(pred_hm)
-            gen_hm = torch.sigmoid(gen_hm)
-            hm_loss = self.mse(pred_hm, p2d)
-            loss_3d_pose, loss_2d_ghm = self.auto_encoder_loss(pred_3d, p3d, gen_hm, pred_hm)
+            heatmap = torch.sigmoid(heatmap)
+            generated_heatmap = torch.sigmoid(generated_heatmap)
+            hm_loss = self.mse(heatmap, p2d)
+            loss_3d_pose, loss_2d_ghm = self.auto_encoder_loss(pose, p3d, generated_heatmap, heatmap)
             ae_loss = loss_2d_ghm + loss_3d_pose
             loss = hm_loss + ae_loss
             self.log('Total HM loss', hm_loss.item())
@@ -178,7 +161,7 @@ class xREgoPose(pl.LightningModule):
         mpjpe_std = torch.std(torch.sqrt(torch.sum(torch.pow(p3d - pose, 2), dim=2)))
         self.log("train_mpjpe_full_body", mpjpe)
         self.log("train_mpjpe_std", mpjpe_std)
-        self.global_step += sequence_imgs.size(0)
+        self.iteration += img.size(0)
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -186,13 +169,13 @@ class xREgoPose(pl.LightningModule):
         Compute the metrics for validation batch
         validation loop: https://pytorch-lightning.readthedocs.io/en/stable/common/lightning_module.html#hooks
         """
-        sequence_imgs, p2d, p3d, action = batch
-        sequence_imgs = sequence_imgs.cuda()
+        img, p2d, p3d, action = batch
+        img = img.cuda()
         p2d = p2d.cuda()
         p3d = p3d.cuda()
 
         # forward pass
-        heatmap, pose, generated_heatmap = self.forward(sequence_imgs)
+        heatmap, pose, generated_heatmap = self.forward(img)
         heatmap = torch.sigmoid(heatmap)
         generated_heatmap = torch.sigmoid(generated_heatmap)
    

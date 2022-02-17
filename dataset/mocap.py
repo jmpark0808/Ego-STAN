@@ -31,9 +31,11 @@ def generate_heatmap(joints, heatmap_sigma):
                        heatmap_size[1]),
                       dtype=np.float32)
     target_weight = np.ones((num_joints, 1), dtype=np.float32)
-    tmp_size = heatmap_sigma * 3
+    heatmap_sigma += 2
+    sigma_size = heatmap_sigma * 3
 
     for joint_id in range(num_joints):
+        tmp_size = sigma_size[joint_id]
         feat_stride = np.asarray([940, 800]) / np.asarray([heatmap_size[0], heatmap_size[1]])
         mu_x = int(joints[joint_id][0] / feat_stride[0] + 0.5)
         mu_y = int(joints[joint_id][1] / feat_stride[1] + 0.5)
@@ -55,7 +57,7 @@ def generate_heatmap(joints, heatmap_sigma):
         y = x[:, np.newaxis]
         x0 = y0 = size // 2
         # The gaussian is not normalized, we want the center value to equal 1
-        g = np.exp(- ((x - x0) ** 2 + (y - y0) ** 2) / (2 * heatmap_sigma ** 2))
+        g = np.exp(- ((x - x0) ** 2 + (y - y0) ** 2) / (2 * heatmap_sigma[joint_id] ** 2))
 
         # Usable gaussian range
         g_x = max(0, -ul[0]), min(br[0], heatmap_size[0]) - ul[0]
@@ -182,8 +184,9 @@ class Mocap(BaseDataset):
         p2d[:, 0] = p2d[:, 0]-180 # Translate p2d coordinates by 180 pixels to the left
 
 
-        p2d_heatmap = generate_heatmap(p2d[1:, :], 3) # exclude head
-
+        distances = np.sqrt(np.sum(p3d**2, axis=1))[1:]
+        p2d_heatmap = generate_heatmap(p2d[1:, :], distances) # exclude head
+        
         # get action name
         action = data['action']
 
