@@ -29,7 +29,6 @@ class FeedForward(nn.Module):
         )
     def forward(self, x):
         return self.net(x)
-
 class Attention(nn.Module):
     def __init__(self, dim, heads = 8, dim_head = 64, dropout = 0.):
         super().__init__()
@@ -50,14 +49,14 @@ class Attention(nn.Module):
     def forward(self, x):
         qkv = self.to_qkv(x).chunk(3, dim = -1)
         q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h = self.heads), qkv)
-
+        
         dots = torch.matmul(q, k.transpose(-1, -2)) * self.scale
 
         attn = self.attend(dots)
-
+        
         out = torch.matmul(attn, v)
         out = rearrange(out, 'b h n d -> b n (h d)')
-        return self.to_out(out)
+        return self.to_out(out), attn
 
 class Transformer(nn.Module):
     def __init__(self, dim, depth, heads, dim_head, mlp_dim, dropout = 0.):
@@ -69,10 +68,13 @@ class Transformer(nn.Module):
                 PreNorm(dim, FeedForward(dim, mlp_dim, dropout = dropout))
             ]))
     def forward(self, x):
+        atts = []
         for attn, ff in self.layers:
-            x = attn(x) + x
+            x_, att = attn(x)
+            atts.append(att)
+            x = x_ + x
             x = ff(x) + x
-        return x
+        return x, atts
 
 class PoseTransformer(nn.Module):
     def __init__(self, *, seq_len, dim, depth, heads, mlp_dim, dim_head = 64, dropout = 0.1, emb_dropout = 0.):
@@ -80,7 +82,7 @@ class PoseTransformer(nn.Module):
   
         # self.to_embedding = nn.Linear(20, dim)
 
-        self.pos_embedding = nn.Parameter(torch.randn(1, seq_len, dim))
+        self.pos_embedding = nn.Parameter(torch.randn(1, seq_len+1, dim))
         self.cls_token = nn.Parameter(torch.randn(1, 1, dim))
         self.dropout = nn.Dropout(emb_dropout)
 

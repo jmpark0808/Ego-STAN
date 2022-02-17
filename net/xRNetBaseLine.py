@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 
-from typing_extensions import Self
 import pytorch_lightning as pl
 import torch
 import torch.nn as nn
@@ -57,7 +56,7 @@ class xREgoPose(pl.LightningModule):
         if self.load_resnet:
             self.heatmap.resnet101.load_state_dict(torch.load(self.load_resnet))
         self.heatmap.update_resnet101()
-        self.global_step = 0
+        self.iteration = 0
         self.update_optim_flag = True
 
     def mse(self, pred, label):
@@ -80,13 +79,13 @@ class xREgoPose(pl.LightningModule):
         heatmap_error = torch.sqrt(torch.sum(torch.pow(hm_resnet.view(hm_resnet.size(0), -1) - hm_decoder.view(hm_decoder.size(0), -1), 2), dim=1))
         LAE_pose = lambda_p*(pose_l2norm + lambda_theta*cosine_similarity_error + lambda_L*limb_length_error)
         LAE_hm = lambda_hm*heatmap_error
-        return torch.mean(LAE_pose)+torch.mean(LAE_hm)
+        return torch.mean(LAE_pose), torch.mean(LAE_hm)
 
     def configure_optimizers(self):
         """
         Choose what optimizers and learning-rate schedulers to use in your optimization.
         """
-        if self.global_step <= self.hm_train_steps:
+        if self.iteration <= self.hm_train_steps:
             optimizer = torch.optim.SGD(
             self.heatmap.parameters(), lr=self.lr, momentum=0.9, weight_decay=5e-4
         )
@@ -129,7 +128,7 @@ class xREgoPose(pl.LightningModule):
         https://pytorch-lightning.readthedocs.io/en/latest/starter/introduction_guide.html
 
         """
-        if self.global_step > self.hm_train_steps and self.update_optim_flag:
+        if self.iteration > self.hm_train_steps and self.update_optim_flag:
             self.trainer.accelerator_backend.setup_optimizers(self)
             self.update_optim_flag=False
         img, p2d, p3d, action = batch
@@ -141,7 +140,7 @@ class xREgoPose(pl.LightningModule):
         heatmap, pose, generated_heatmap = self.forward(img)
 
 
-        if self.global_step <= self.hm_train_steps:
+        if self.iteration <= self.hm_train_steps:
             heatmap = torch.sigmoid(heatmap)
             loss = self.mse(heatmap, p2d)
             self.log('Total HM loss', loss.item())
@@ -162,7 +161,7 @@ class xREgoPose(pl.LightningModule):
         mpjpe_std = torch.std(torch.sqrt(torch.sum(torch.pow(p3d - pose, 2), dim=2)))
         self.log("train_mpjpe_full_body", mpjpe)
         self.log("train_mpjpe_std", mpjpe_std)
-        self.global_step += img.size(0)
+        self.iteration += img.size(0)
         return loss
 
     def validation_step(self, batch, batch_idx):

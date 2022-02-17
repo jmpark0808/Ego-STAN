@@ -30,11 +30,12 @@ MODEL_DIRECTORY = {
 DATALOADER_DIRECTORY = {
     'baseline': MocapDataModule,
     'sequential': MocapSeqDataModule
-}
+} 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('--model', help='Model name to train', required=True, default=None)
+    parser.add_argument('--dataloader', help="Type of dataloader", required=True, default=None)
     parser.add_argument("--load",
                         help="Directory of pre-trained model,  \n"
                              "None --> Do not use pre-trained model. Training will start from random initialized model")

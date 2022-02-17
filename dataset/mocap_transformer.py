@@ -193,8 +193,9 @@ class MocapTransformer(BaseDataset):
             p2d, p3d = self._process_points(data)
             p2d[:, 0] = p2d[:, 0]-180 # Translate p2d coordinates by 180 pixels to the left
 
+            distances = np.sqrt(np.sum(p3d**2, axis=1))[1:]
+            p2d_heatmap = generate_heatmap(p2d[1:, :], distances) # exclude head
 
-            p2d_heatmap = generate_heatmap(p2d[1:, :], 3) # exclude head
             all_p2d_heatmap.append(p2d_heatmap)
             # get action name
             action = data['action']
