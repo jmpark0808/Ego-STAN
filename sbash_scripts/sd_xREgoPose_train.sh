@@ -109,7 +109,7 @@ cd ${dataset_dir}
 download_set "TrainSet"
 download_set "ValSet"
 
-logdir=/home/s42hossa/projects/def-pfieguth/s42hossa/experiments
+logdir=/home/s42hossa/projects/def-pfieguth/s42hossa/experiments/exp_3_branch_concat
 
 # Start training
 tensorboard --logdir=${logdir} --host 0.0.0.0 --load_fast false & \
@@ -125,5 +125,5 @@ tensorboard --logdir=${logdir} --host 0.0.0.0 --load_fast false & \
     --es_patience 7 \
     --display_freq 64 \
     --val_freq 2000 \
-	-- encoder_type branch_concat
+    --encoder_type branch_concat
     --load_resnet /home/s42hossa/projects/def-pfieguth/s42hossa/resnet101-63fe2227.pth
