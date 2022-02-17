@@ -111,7 +111,6 @@ class xREgoPoseSeq(pl.LightningModule):
         :return: 2D heatmap, 16x3 joint inferences, 2D reconstructed heatmap
         """
         # Flattening first two dimensions
-
         dim = x.shape 
         #shape -> batch_size x len_seq x 3 x 368 x 368
 

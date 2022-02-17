@@ -91,7 +91,7 @@ class PoseTransformer(nn.Module):
 
     def forward(self, x): # x = (batch, seq_len, 20)
         # x = self.to_embedding(x) # x = (batch, seq_len, dim)
-        
+
         cls_tokens = repeat(self.cls_token, '() n d -> b n d', b = x.size(0))
         x = torch.cat((cls_tokens, x), dim=1)
         x += self.pos_embedding # x = (batch, seq_len+1, dim)

@@ -171,7 +171,7 @@ class MocapTransformer(BaseDataset):
 
         # read joint positions
         json_paths = [path.decode('utf8') for path in self.index['json'][index]]
-
+       
         # checking if json path corresponds to the path of the last rgba frame in the sequence
         # checking for correct sequence of rgba/image files
         for i in range(len(json_paths)-1):
