@@ -75,7 +75,7 @@ class Transformer(nn.Module):
         return x
 
 class PoseTransformer(nn.Module):
-    def __init__(self, *, seq_len, dim, depth, heads, mlp_dim, dim_head = 64, dropout = 0.1, emb_dropout = 0.1):
+    def __init__(self, *, seq_len, dim, depth, heads, mlp_dim, dim_head = 64, dropout = 0.1, emb_dropout = 0.):
         super().__init__()
   
         # self.to_embedding = nn.Linear(20, dim)
@@ -85,17 +85,19 @@ class PoseTransformer(nn.Module):
         self.dropout = nn.Dropout(emb_dropout)
 
         self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim, dropout)
-        self.linear = nn.Linear(dim, 20)
+        # self.linear = nn.Linear(dim, 20)
 
     def forward(self, x): # x = (batch, seq_len, 20)
         # x = self.to_embedding(x) # x = (batch, seq_len, dim)
         
-        x += self.pos_embedding # x = (batch, seq_len, dim)
-        x = self.dropout(x) # x = (batch, seq_len, dim)
+        cls_tokens = repeat(self.cls_token, '() n d -> b n d', b = x.size(0))
+        x = torch.cat((cls_tokens, x), dim=1)
+        x += self.pos_embedding # x = (batch, seq_len+1, dim)
+        x = self.dropout(x) # x = (batch, seq_len+1, dim)
 
-        x = self.transformer(x) # x = (batch, seq_len, dim)
+        x, atts = self.transformer(x) # x = (batch, seq_len+1, dim)
 
-        x = x[:, -1] # retrieving the last sequence token (present) # (batch, 1, dim)
+        x = x[:, 0] # retrieving the class token # (batch, 1, dim)
         x = x.reshape(x.size(0), -1)
-        x = self.linear(x)
-        return x
+        # x = self.linear(x) 
+        return x, atts
