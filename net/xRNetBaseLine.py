@@ -38,8 +38,8 @@ class xREgoPose(pl.LightningModule):
         self.eval_lower = evaluate.EvalLowerBody()
 
         # Initialize total validation pose loss
-        self.val_loss_3d_pose_total = torch.tensor(0, device=self.device)
-        self.val_loss_hm = torch.tensor(0, device=self.device)
+        self.val_loss_3d_pose_total = torch.tensor(0., device=self.device)
+        self.val_loss_hm = torch.tensor(0., device=self.device)
 
         def weight_init(m):
             """
@@ -202,8 +202,8 @@ class xREgoPose(pl.LightningModule):
         self.eval_lower = evaluate.EvalLowerBody()
 
         # Initialize total validation pose loss
-        self.val_loss_3d_pose_total = torch.tensor(0.0, device=self.device)
-        self.val_loss_hm = torch.tensor(0, device=self.device)
+        self.val_loss_3d_pose_total = torch.tensor(0., device=self.device)
+        self.val_loss_hm = torch.tensor(0., device=self.device)
 
     def validation_epoch_end(self, validation_step_outputs):
         val_mpjpe = self.eval_body.get_results()
