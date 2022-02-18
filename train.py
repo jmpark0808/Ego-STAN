@@ -69,6 +69,8 @@ if __name__ == "__main__":
                         default='0', type=int)
     parser.add_argument('--encoder_type', help='Type of encoder for concatenation, Defaults to "branch_concat"', 
                         default= 'branch_concat')
+    parser.add_argument('--heatmap_type', help='Type of 2D ground truth heatmap, Defaults to "baseline"', 
+                        default= 'baseline')
 
     args = parser.parse_args()
     dict_args = vars(args)

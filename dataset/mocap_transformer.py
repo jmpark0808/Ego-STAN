@@ -15,7 +15,7 @@ from base import BaseDataset
 from utils import io, config
 from base import SetType
 import dataset.transform as trsf
-from dataset.mocap import generate_heatmap
+from dataset.mocap import generate_heatmap, generate_heatmap_distance
 from torch.utils.data import DataLoader
 from torchvision import transforms
 
@@ -25,7 +25,7 @@ class MocapTransformer(BaseDataset):
     ROOT_DIRS = ['rgba', 'json']
     CM_TO_M = 100
 
-    def __init__(self, *args, sequence_length=5, skip =0, **kwargs):
+    def __init__(self, *args, sequence_length=5, skip =0, heatmap_type='baseline', **kwargs):
         """Init class, to allow variable sequence length, inherits from Base
         Keyword Arguments:
             sequence_length -- length of image sequence (default: {5})
@@ -33,6 +33,7 @@ class MocapTransformer(BaseDataset):
 
         self.sequence_length = sequence_length
         self.skip = skip
+        self.heatmap_type = heatmap_type
         super().__init__(*args, **kwargs)
 
     def index_db(self):
@@ -184,8 +185,13 @@ class MocapTransformer(BaseDataset):
             p2d, p3d = self._process_points(data)
             p2d[:, 0] = p2d[:, 0]-180 # Translate p2d coordinates by 180 pixels to the left
 
-            distances = np.sqrt(np.sum(p3d**2, axis=1))[1:]
-            p2d_heatmap = generate_heatmap(p2d[1:, :], distances) # exclude head
+            if self.heatmap_type == 'baseline':
+                p2d_heatmap = generate_heatmap(p2d[1:, :], 3) # exclude head
+            elif self.heatmap_type == 'distance':
+                distances = np.sqrt(np.sum(p3d**2, axis=1))[1:]
+                p2d_heatmap = generate_heatmap_distance(p2d[1:, :], distances) # exclude head
+            else:
+                self.logger.error('Unrecognized heatmap type')
 
             all_p2d_heatmap.append(p2d_heatmap)
             # get action name
