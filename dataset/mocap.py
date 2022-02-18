@@ -280,6 +280,7 @@ class MocapDataModule(pl.LightningDataModule):
         self.test_dir = kwargs['dataset_test']
         self.batch_size = kwargs['batch_size']
         self.num_workers = kwargs['num_workers']
+        self.heatmap_type = kwargs['heatmap_type']
 
         # Data: data transformation strategy
         self.data_transform = transforms.Compose(
@@ -287,19 +288,19 @@ class MocapDataModule(pl.LightningDataModule):
         )
         
     def train_dataloader(self):
-        data_train = Mocap(self.train_dir, SetType.TRAIN, transform=self.data_transform)
+        data_train = Mocap(self.train_dir, SetType.TRAIN, transform=self.data_transform, heatmap_type=self.heatmap_type)
         return DataLoader(
                 data_train, batch_size=self.batch_size, 
                 num_workers=self.num_workers, shuffle=True, pin_memory=True)
 
     def val_dataloader(self):
-        data_val = Mocap(self.val_dir, SetType.VAL, transform=self.data_transform)
+        data_val = Mocap(self.val_dir, SetType.VAL, transform=self.data_transform, heatmap_type=self.heatmap_type)
         return DataLoader(
                 data_val, batch_size=self.batch_size, 
                 num_workers=self.num_workers, pin_memory=True)
 
     def test_dataloader(self):
-        data_test = Mocap(self.test_dir, SetType.TEST, transform=self.data_transform)
+        data_test = Mocap(self.test_dir, SetType.TEST, transform=self.data_transform, heatmap_type=self.heatmap_type)
         return DataLoader(
                 data_test, batch_size=self.batch_size, 
                 num_workers=self.num_workers, pin_memory=True)

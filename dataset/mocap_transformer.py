@@ -222,6 +222,7 @@ class MocapSeqDataModule(pl.LightningDataModule):
         self.num_workers = kwargs['num_workers']
         self.seq_len = kwargs['seq_len']
         self.skip = kwargs['skip']
+        self.heatmap_type = kwargs['heatmap_type']
 
         # Data: data transformation strategy
         self.data_transform = transforms.Compose(
@@ -234,7 +235,8 @@ class MocapSeqDataModule(pl.LightningDataModule):
             SetType.TRAIN,
             transform=self.data_transform,
             sequence_length = self.seq_len,
-            skip = self.skip)
+            skip = self.skip,
+            heatmap_type=self.heatmap_type)
         return DataLoader(
                 data_train, batch_size=self.batch_size, 
                 num_workers=self.num_workers, shuffle=True, pin_memory=True)
@@ -245,7 +247,8 @@ class MocapSeqDataModule(pl.LightningDataModule):
             SetType.VAL,
             transform=self.data_transform,
             sequence_length = self.seq_len,
-            skip = self.skip)
+            skip = self.skip,
+            heatmap_type=self.heatmap_type)
         return DataLoader(
                 data_val, batch_size=self.batch_size, 
                 num_workers=self.num_workers, pin_memory=True)
@@ -256,7 +259,8 @@ class MocapSeqDataModule(pl.LightningDataModule):
             SetType.TEST,
             transform=self.data_transform,
             sequence_length = self.seq_len,
-            skip = self.skip)
+            skip = self.skip,
+            heatmap_type=self.heatmap_type)
         return DataLoader(
                 data_test, batch_size=self.batch_size, 
                 num_workers=self.num_workers, pin_memory=True)
