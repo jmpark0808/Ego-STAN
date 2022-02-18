@@ -52,62 +52,53 @@ class MocapTransformer(BaseDataset):
         sub_dirs, _ = io.get_subdirs(path)
         if set(self.ROOT_DIRS) <= set(sub_dirs):
 
+            rgba_d_path = os.path.join(path, self.ROOT_DIRS[0]) #rgba
+            json_d_path = os.path.join(path, self.ROOT_DIRS[1]) #json
+            _, rgba_paths = io.get_files(rgba_d_path)
+            __, json_paths = io.get_files(json_d_path)
+
+            if(len(rgba_paths) != len(json_paths)):
+                self.logger.error("Json and Rgba Directories do not have equal sizes")
+
             # get files from subdirs
             n_frames = -1
 
-            # let's extract the rgba and json data per frame
-            for sub_dir in self.ROOT_DIRS:
-                d_path = os.path.join(path, sub_dir)
-                _, paths = io.get_files(d_path)
-
-                if n_frames < 0:
-                    n_frames = len(paths)
-                else:
-                    if len(paths) != n_frames:
-                        self.logger.error(
-                            'Frames info in {} not matching other passes'.format(d_path))
-                
-                # get the data in sequences -> checks for missing frames
-
-                encoded = []
-
-                len_seq = self.sequence_length
-                m = self.skip 
-
-                if sub_dir == 'rgba':
-                    for p in paths:
-                        encoded_sequence = []
-                        frame_idx = int(p[-10:-4])
-
-                        for i in range(len_seq):
-                            if os.path.exists(p[0:-10] + "{0:06}.png".format(frame_idx+i+i*m)):
-                                frame_path = p[0:-10] + "{0:06}.png".format(frame_idx+i+i*m)
-                                encoded_sequence.append(frame_path.encode('utf8'))
-                        
-                        if(len(encoded_sequence) == len_seq):
-                            encoded.append(encoded_sequence)
-
-                elif sub_dir == 'json':
-                    for p in paths:
-                        isSequence = True
-                        encoded_sequence = []
-                        frame_idx = int(p[-11:-5])
-
-                        for i in range(len_seq):
-                            if not os.path.exists(p[0:-11] + "{0:06}.json".format(frame_idx+i+i*m)):
-                                isSequence = False
-                            else:
-                                json_path = p[0:-11] + "{0:06}.json".format(frame_idx+i+i*m)
-                                encoded_sequence.append(json_path.encode('utf8'))
-
-                        if(isSequence) and (len(encoded_sequence) == len_seq):
-                            encoded.append(encoded_sequence)
-
-                else: 
+            if n_frames < 0:
+                n_frames = len(json_paths)
+            else:
+                if len(json_paths) != n_frames:
                     self.logger.error(
-                        "No case for handling {} sub-directory".format(sub_dir))
-                    
-                indexed_paths.update({sub_dir: encoded})
+                        'Frames info in {} not matching other passes'.format(json_d_path))
+                
+            # get the data in sequences -> checks for missing frames
+            encoded_json = []
+            encoded_rgba = []
+            len_seq = self.sequence_length
+            m = self.skip 
+
+            for json_path in json_paths:
+                encoded_rgba_sequence = []
+                encoded_json_sequence = []
+                frame_idx = int(json_path[-11:-5])
+                rgba_path = json_path[0:-11] + '.rgba.{0:06}.png'.format(frame_idx)
+                for i in range(len_seq):
+                    if (
+                        os.path.exists(rgba_path[0:-10] + "{0:06}.png".format(frame_idx+i+i*m)) and
+                        os.path.exists(json_path[0:-11] + "{0:06}.json".format(frame_idx+i+i*m))
+                        ):
+                        rgba_frame_path = rgba_path[0:-10] + "{0:06}.png".format(frame_idx+i+i*m)
+                        json_frame_path = json_path[0:-11] + "{0:06}.json".format(frame_idx+i+i*m)
+                        encoded_rgba_sequence.append(rgba_frame_path.encode('utf8'))
+                        encoded_json_sequence.append(json_frame_path.encode('utf8'))   
+                if(
+                    len(encoded_json_sequence) == len_seq and
+                    len(encoded_rgba_sequence) == len_seq
+                ):
+                    encoded_json.append(encoded_json_sequence)
+                    encoded_rgba.append(encoded_rgba_sequence)
+
+            indexed_paths.update({'rgba': encoded_rgba})
+            indexed_paths.update({'json': encoded_json})
 
             return indexed_paths
 
