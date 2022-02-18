@@ -206,7 +206,7 @@ class xREgoPoseSeq(pl.LightningModule):
         # calculate pose loss
         val_hm_loss = self.mse(heatmap, p2d)
         val_loss_3d_pose, _ = self.auto_encoder_loss(pose, p3d, generated_heatmap, heatmap)
-        
+
         # update 3d pose loss
         self.val_loss_hm += val_hm_loss
         self.val_loss_3d_pose_total += val_loss_3d_pose
@@ -240,6 +240,8 @@ class xREgoPoseSeq(pl.LightningModule):
             self.log("val_mpjpe_upper_body", val_mpjpe_upper["All"]["mpjpe"])
             self.log("val_mpjpe_lower_body", val_mpjpe_lower["All"]["mpjpe"])
             self.log("val_loss", self.val_loss_3d_pose_total)
+        else:
+            self.log("val_mpjpe_full_body", 0.2-0.01*(self.iteration/self.hm_train_steps))
                     
 
 if __name__ == "__main__":
