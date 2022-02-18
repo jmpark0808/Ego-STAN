@@ -80,7 +80,7 @@ class MocapTransformer(BaseDataset):
                 encoded_rgba_sequence = []
                 encoded_json_sequence = []
                 frame_idx = int(json_path[-11:-5])
-                rgba_path = json_path[0:-11] + '.rgba.{0:06}.png'.format(frame_idx)
+                rgba_path = json_path[0:-12].replace('json','rgba') + '.rgba.{0:06}.png'.format(frame_idx)
                 for i in range(len_seq):
                     if (
                         os.path.exists(rgba_path[0:-10] + "{0:06}.png".format(frame_idx+i+i*m)) and

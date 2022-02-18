@@ -100,7 +100,6 @@ if __name__ == "__main__":
     assert dict_args['dataloader'] in DATALOADER_DIRECTORY
     data_module = DATALOADER_DIRECTORY[dict_args['dataloader']](**dict_args)
 
-
     # Trainer: initialize training behaviour
     profiler = SimpleProfiler()
     logger = TensorBoardLogger(save_dir=dict_args['logdir'], name='lightning_logs', log_graph=True)
@@ -115,4 +114,4 @@ if __name__ == "__main__":
     )
 
     # Trainer: train model
-    trainer.fit(model, data_module)
+    trainer.fit(model, data_module) 

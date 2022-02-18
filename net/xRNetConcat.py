@@ -150,13 +150,13 @@ class xRNetConcat(pl.LightningModule):
 
         if self.iteration <= self.hm_train_steps:
             heatmap = torch.sigmoid(heatmap)
-            loss = self.mse(heatmap, p2d)
+            loss = self.mse(heatmap.float(), p2d.float())
             self.log('Total HM loss', loss.item())
         else:
             heatmap = torch.sigmoid(heatmap)
             generated_heatmap = torch.sigmoid(generated_heatmap)
-            hm_loss = self.mse(heatmap, p2d)
-            loss_3d_pose, loss_2d_ghm = self.auto_encoder_loss(pose, p3d, generated_heatmap, heatmap)
+            hm_loss = self.mse(heatmap.float(), p2d.float())
+            loss_3d_pose, loss_2d_ghm = self.auto_encoder_loss(pose.float(), p3d.float(), generated_heatmap.float(), heatmap.float())
             ae_loss = loss_2d_ghm + loss_3d_pose
             loss = hm_loss + ae_loss
             self.log('Total HM loss', hm_loss.item())
@@ -188,8 +188,8 @@ class xRNetConcat(pl.LightningModule):
         generated_heatmap = torch.sigmoid(generated_heatmap)
    
         # calculate pose loss
-        val_hm_loss = self.mse(heatmap, p2d)
-        val_loss_3d_pose, _ = self.auto_encoder_loss(pose, p3d, generated_heatmap, heatmap)
+        val_hm_loss = self.mse(heatmap.float(), p2d.float())
+        val_loss_3d_pose, _ = self.auto_encoder_loss(pose.float(), p3d.float(), generated_heatmap.float(), heatmap.float())
         # update 3d pose loss
         self.val_loss_hm += val_hm_loss
         self.val_loss_3d_pose_total += val_loss_3d_pose
