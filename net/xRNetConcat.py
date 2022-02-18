@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 
-from typing_extensions import Self
 import pytorch_lightning as pl
 import torch
 import torch.nn as nn
@@ -10,7 +9,6 @@ from net.blocks import *
 
 
 class xRNetConcat(pl.LightningModule):
-
     encoder_dict = {
         'map_concat': FeatureConcatEncoder(),
         'branch_concat': FeatureBranchEncoder(),
@@ -32,9 +30,9 @@ class xRNetConcat(pl.LightningModule):
         # must be defined for logging computational graph
         self.example_input_array = torch.rand((1, 3, 368, 368))
 
-        # Generator that produces the HeatMaps and Feature/Depth Maps
+        # Generator that produces the Feature and HeatMaps
         self.feature_heatmaps = FeatureHeatMaps()
-        # Encoder that takes 2D heatmap and Feature/Depth Maps and transforms to latent vector Z
+        # Encoder that takes the Maps and transforms to latent vector Z
         self.encoder = self.encoder_dict[self.encoder_type]
         # Pose decoder that takes latent vector Z and transforms to 3D pose coordinates
         self.pose_decoder = PoseDecoder()
@@ -110,7 +108,9 @@ class xRNetConcat(pl.LightningModule):
     def forward(self, x):
         """
         Forward pass through model
+
         :param x: Input image
+
         :return: 2D heatmap, 16x3 joint inferences, 2D reconstructed heatmap
         """
         # x = 3 x 368 x 368
@@ -134,6 +134,7 @@ class xRNetConcat(pl.LightningModule):
         Compute and return the training loss
         logging resources:
         https://pytorch-lightning.readthedocs.io/en/latest/starter/introduction_guide.html
+
         """
         if self.iteration > self.hm_train_steps and self.update_optim_flag:
             self.trainer.accelerator_backend.setup_optimizers(self)
