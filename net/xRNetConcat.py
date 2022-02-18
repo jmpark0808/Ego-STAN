@@ -217,12 +217,12 @@ class xRNetConcat(pl.LightningModule):
         val_mpjpe = self.eval_body.get_results()
         val_mpjpe_upper = self.eval_upper.get_results()
         val_mpjpe_lower = self.eval_lower.get_results()
-
-        self.log("val_mpjpe_full_body", val_mpjpe["All"]["mpjpe"])
-        self.log("val_mpjpe_full_body_std", val_mpjpe["All"]["std_mpjpe"])
-        self.log("val_mpjpe_upper_body", val_mpjpe_upper["All"]["mpjpe"])
-        self.log("val_mpjpe_lower_body", val_mpjpe_lower["All"]["mpjpe"])
-        self.log("val_loss", self.val_loss_3d_pose_total)
+        if self.iteration >= self.hm_train_steps:
+            self.log("val_mpjpe_full_body", val_mpjpe["All"]["mpjpe"])
+            self.log("val_mpjpe_full_body_std", val_mpjpe["All"]["std_mpjpe"])
+            self.log("val_mpjpe_upper_body", val_mpjpe_upper["All"]["mpjpe"])
+            self.log("val_mpjpe_lower_body", val_mpjpe_lower["All"]["mpjpe"])
+            self.log("val_loss", self.val_loss_3d_pose_total)
                     
 
 if __name__ == "__main__":
