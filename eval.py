@@ -8,7 +8,7 @@ from torchvision import transforms
 import dataset.transform as trsf
 from base import SetType
 from dataset import Mocap
-from net.xRNet import *
+from Legacy.xRNet import *
 from utils import ConsoleLogger, config, evaluate, io
 
 LOGGER = ConsoleLogger("Main")

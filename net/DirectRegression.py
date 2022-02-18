@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 from utils import evaluate
 
-from net.xRNet import HeatMap
+from net.blocks import HeatMap
 
 
 class DirectRegression(pl.LightningModule):

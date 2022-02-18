@@ -29,7 +29,6 @@ class FeedForward(nn.Module):
         )
     def forward(self, x):
         return self.net(x)
-
 class Attention(nn.Module):
     def __init__(self, dim, heads = 8, dim_head = 64, dropout = 0.):
         super().__init__()
@@ -50,14 +49,14 @@ class Attention(nn.Module):
     def forward(self, x):
         qkv = self.to_qkv(x).chunk(3, dim = -1)
         q, k, v = map(lambda t: rearrange(t, 'b n (h d) -> b h n d', h = self.heads), qkv)
-
+        
         dots = torch.matmul(q, k.transpose(-1, -2)) * self.scale
 
         attn = self.attend(dots)
-
+        
         out = torch.matmul(attn, v)
         out = rearrange(out, 'b h n d -> b n (h d)')
-        return self.to_out(out)
+        return self.to_out(out), attn
 
 class Transformer(nn.Module):
     def __init__(self, dim, depth, heads, dim_head, mlp_dim, dropout = 0.):
@@ -69,33 +68,38 @@ class Transformer(nn.Module):
                 PreNorm(dim, FeedForward(dim, mlp_dim, dropout = dropout))
             ]))
     def forward(self, x):
+        atts = []
         for attn, ff in self.layers:
-            x = attn(x) + x
+            x_, att = attn(x)
+            atts.append(att)
+            x = x_ + x
             x = ff(x) + x
-        return x
+        return x, atts
 
 class PoseTransformer(nn.Module):
-    def __init__(self, *, seq_len, dim, depth, heads, mlp_dim, dim_head = 64, dropout = 0., emb_dropout = 0.):
+    def __init__(self, *, seq_len, dim, depth, heads, mlp_dim, dim_head = 64, dropout = 0.1, emb_dropout = 0.):
         super().__init__()
   
-        self.to_embedding = nn.Linear(20, dim)
+        # self.to_embedding = nn.Linear(20, dim)
 
-        self.pos_embedding = nn.Parameter(torch.randn(1, seq_len, dim))
+        self.pos_embedding = nn.Parameter(torch.randn(1, seq_len+1, dim))
         self.cls_token = nn.Parameter(torch.randn(1, 1, dim))
         self.dropout = nn.Dropout(emb_dropout)
 
         self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim, dropout)
-        self.linear = nn.Linear(dim, 20)
+        # self.linear = nn.Linear(dim, 20)
 
     def forward(self, x): # x = (batch, seq_len, 20)
-        x = self.to_embedding(x) # x = (batch, seq_len, dim)
-        
-        x += self.pos_embedding # x = (batch, seq_len, dim)
-        x = self.dropout(x) # x = (batch, seq_len, dim)
+        # x = self.to_embedding(x) # x = (batch, seq_len, dim)
 
-        x = self.transformer(x) # x = (batch, seq_len, dim)
+        cls_tokens = repeat(self.cls_token, '() n d -> b n d', b = x.size(0))
+        x = torch.cat((cls_tokens, x), dim=1)
+        x += self.pos_embedding # x = (batch, seq_len+1, dim)
+        x = self.dropout(x) # x = (batch, seq_len+1, dim)
 
-        x = x[:, -1] # retrieving the last sequence token (present) # (batch, 1, dim)
+        x, atts = self.transformer(x) # x = (batch, seq_len+1, dim)
+
+        x = x[:, 0] # retrieving the class token # (batch, 1, dim)
         x = x.reshape(x.size(0), -1)
-        x = self.linear(x)
-        return x
+        # x = self.linear(x) 
+        return x, atts

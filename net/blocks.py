@@ -4,6 +4,68 @@ import torch.nn.functional as F
 from typing import Callable, Any, Optional, List
 from torch import Tensor
 import math
+import torchvision
+
+class HeatMap(nn.Module):
+    def __init__(self):
+        super(HeatMap, self).__init__()
+        # Resnet 101 without last average pooling and fully connected layers
+        self.resnet101 = torchvision.models.resnet101(pretrained=False)
+        # First Deconvolution to obtain 2D heatmap
+        self.heatmap_deconv = nn.Sequential(*[nn.ConvTranspose2d(2048, 1024, kernel_size=3,
+                                                                 stride=2, dilation=1, padding=1),
+                                              nn.ConvTranspose2d(1024, 15, kernel_size=3,
+                                                                 stride=2, dilation=1, padding=0)])
+
+    def update_resnet101(self):
+        self.resnet101 = nn.Sequential(*[l for ind, l in enumerate(self.resnet101.children()) if ind < 8])
+
+    def forward(self, x):
+        # x = 3 x 368 x 368
+
+        x = self.resnet101(x)
+        # x = 2048 x 12 x 12
+
+        heatmap = self.heatmap_deconv(x)
+        # heatmap = 15 x 47 x 47
+
+        return heatmap
+
+# -> Edit of HeatMap class, except returns a feature map as well -> Why is it in net and not in blocks?
+
+class FeatureHeatMaps(nn.Module):
+    def __init__(self):
+        super(FeatureHeatMaps, self).__init__()
+        # Resnet 101 without last average pooling and fully connected layers
+        self.resnet101 = torchvision.models.resnet101(pretrained=False)
+        # Convolutions to feature map pool
+        self.featuremap_deconv = nn.Sequential(*[nn.ConvTranspose2d(2048, 1024, kernel_size=3,
+                                                                 stride=2, dilation=1, padding=1),
+                                              nn.ConvTranspose2d(1024, 15, kernel_size=3,
+                                                                 stride=2, dilation=1, padding=0)])
+        # Identical Upconvolutions -> Might experiment with different features
+        self.heatmap_deconv = nn.Sequential(*[nn.ConvTranspose2d(2048, 1024, kernel_size=3,
+                                                         stride=2, dilation=1, padding=1),
+                                      nn.ConvTranspose2d(1024, 15, kernel_size=3,
+                                                         stride=2, dilation=1, padding=0)])
+
+    def update_resnet101(self):
+        self.resnet101 = nn.Sequential(*[l for ind, l in enumerate(self.resnet101.children()) if ind < 8])
+
+    def forward(self, x):
+        # x = 3 x 368 x 368
+
+        x = self.resnet101(x)
+        # x = 2048 x 12 x 12
+
+        heatmap = self.heatmap_deconv(x)
+        # heatmap = 15 x 47 x 47
+
+        depthmap = self.featuremap_deconv(x)
+        # depthmap = 15 x 47 x 47
+
+        return heatmap, depthmap
+
 
 
 class Encoder(nn.Module):

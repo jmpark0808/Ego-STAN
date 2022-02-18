@@ -14,8 +14,11 @@ from torchvision import transforms
 import dataset.transform as trsf
 from base import SetType
 from dataset.mocap import MocapDataModule
+from dataset.mocap_transformer import MocapSeqDataModule
 from net.DirectRegression import DirectRegression
-from net.xRNet import xREgoPose
+from net.xRNetSeq import xREgoPoseSeq
+from net.xRNetBaseLine import xREgoPose
+from net.xRNetConcat import xRNetConcat
 
 # Deterministic
 pl.seed_everything(102)
@@ -23,11 +26,18 @@ pl.seed_everything(102)
 MODEL_DIRECTORY = {
     "direct_regression": DirectRegression,
     "xregopose": xREgoPose,
+    "xregopose_seq": xREgoPoseSeq,
+    "xregopose_concat":xRNetConcat,
 }
+DATALOADER_DIRECTORY = {
+    'baseline': MocapDataModule,
+    'sequential': MocapSeqDataModule
+} 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('--model', help='Model name to train', required=True, default=None)
+    parser.add_argument('--dataloader', help="Type of dataloader", required=True, default=None)
     parser.add_argument("--load",
                         help="Directory of pre-trained model,  \n"
                              "None --> Do not use pre-trained model. Training will start from random initialized model")
@@ -53,6 +63,14 @@ if __name__ == "__main__":
                         default=64, type=int)
     parser.add_argument('--load_resnet', help='Directory of ResNet 101 weights', default=None)
     parser.add_argument('--hm_train_steps', help='Number of steps to pre-train heatmap predictor', default=100000, type=int)
+    parser.add_argument('--seq_len', help="# of images/frames input into sequential model, default = 5",
+                        default='5', type=int)
+    parser.add_argument('--skip', help="# of images/frames to skip in between frames, default = 0",
+                        default='0', type=int)
+    parser.add_argument('--encoder_type', help='Type of encoder for concatenation, Defaults to "branch_concat"', 
+                        default= 'branch_concat')
+    parser.add_argument('--heatmap_type', help='Type of 2D ground truth heatmap, Defaults to "baseline"', 
+                        default= 'baseline')
 
     args = parser.parse_args()
     dict_args = vars(args)
@@ -81,7 +99,8 @@ if __name__ == "__main__":
     )
 
     # Data: load data module
-    data_module = MocapDataModule(**dict_args)
+    assert dict_args['dataloader'] in DATALOADER_DIRECTORY
+    data_module = DATALOADER_DIRECTORY[dict_args['dataloader']](**dict_args)
 
     # Trainer: initialize training behaviour
     profiler = SimpleProfiler()
@@ -97,4 +116,4 @@ if __name__ == "__main__":
     )
 
     # Trainer: train model
-    trainer.fit(model, data_module)
+    trainer.fit(model, data_module) 

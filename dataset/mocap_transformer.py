@@ -7,13 +7,17 @@ joint positions are loaded.
 """
 import os
 import torch
+import pytorch_lightning as pl
 from skimage import io as sio
 from skimage.transform import resize
 import numpy as np
 from base import BaseDataset
 from utils import io, config
-import matplotlib.pyplot as plt
-from dataset.mocap import generate_heatmap
+from base import SetType
+import dataset.transform as trsf
+from dataset.mocap import generate_heatmap, generate_heatmap_distance
+from torch.utils.data import DataLoader
+from torchvision import transforms
 
 class MocapTransformer(BaseDataset):
     """Mocap Dataset loader"""
@@ -21,7 +25,7 @@ class MocapTransformer(BaseDataset):
     ROOT_DIRS = ['rgba', 'json']
     CM_TO_M = 100
 
-    def __init__(self, *args, sequence_length=5, skip =0, **kwargs):
+    def __init__(self, *args, sequence_length=5, skip =0, heatmap_type='baseline', **kwargs):
         """Init class, to allow variable sequence length, inherits from Base
         Keyword Arguments:
             sequence_length -- length of image sequence (default: {5})
@@ -29,6 +33,7 @@ class MocapTransformer(BaseDataset):
 
         self.sequence_length = sequence_length
         self.skip = skip
+        self.heatmap_type = heatmap_type
         super().__init__(*args, **kwargs)
 
     def index_db(self):
@@ -48,62 +53,53 @@ class MocapTransformer(BaseDataset):
         sub_dirs, _ = io.get_subdirs(path)
         if set(self.ROOT_DIRS) <= set(sub_dirs):
 
+            rgba_d_path = os.path.join(path, self.ROOT_DIRS[0]) #rgba
+            json_d_path = os.path.join(path, self.ROOT_DIRS[1]) #json
+            _, rgba_paths = io.get_files(rgba_d_path)
+            __, json_paths = io.get_files(json_d_path)
+
+            if(len(rgba_paths) != len(json_paths)):
+                self.logger.error("Json and Rgba Directories do not have equal sizes")
+
             # get files from subdirs
             n_frames = -1
 
-            # let's extract the rgba and json data per frame
-            for sub_dir in self.ROOT_DIRS:
-                d_path = os.path.join(path, sub_dir)
-                _, paths = io.get_files(d_path)
-
-                if n_frames < 0:
-                    n_frames = len(paths)
-                else:
-                    if len(paths) != n_frames:
-                        self.logger.error(
-                            'Frames info in {} not matching other passes'.format(d_path))
-                
-                # get the data in sequences -> checks for missing frames
-
-                encoded = []
-
-                len_seq = self.sequence_length
-                m = self.skip 
-
-                if sub_dir == 'rgba':
-                    for p in paths:
-                        encoded_sequence = []
-                        frame_idx = int(p[-10:-4])
-
-                        for i in range(len_seq):
-                            if os.path.exists(p[0:-10] + "{0:06}.png".format(frame_idx+i+i*m)):
-                                frame_path = p[0:-10] + "{0:06}.png".format(frame_idx+i+i*m)
-                                encoded_sequence.append(frame_path.encode('utf8'))
-                        
-                        if(len(encoded_sequence) == len_seq):
-                            encoded.append(encoded_sequence)
-
-                elif sub_dir == 'json':
-                    for p in paths:
-                        isSequence = True
-                        encoded_sequence = []
-                        frame_idx = int(p[-11:-5])
-
-                        for i in range(len_seq):
-                            if not os.path.exists(p[0:-11] + "{0:06}.json".format(frame_idx+i+i*m)):
-                                isSequence = False
-                            else:
-                                json_path = p[0:-11] + "{0:06}.json".format(frame_idx+i+i*m)
-                                encoded_sequence.append(json_path.encode('utf8'))
-
-                        if(isSequence) and (len(encoded_sequence) == len_seq):
-                            encoded.append(encoded_sequence)
-
-                else: 
+            if n_frames < 0:
+                n_frames = len(json_paths)
+            else:
+                if len(json_paths) != n_frames:
                     self.logger.error(
-                        "No case for handling {} sub-directory".format(sub_dir))
-                    
-                indexed_paths.update({sub_dir: encoded})
+                        'Frames info in {} not matching other passes'.format(json_d_path))
+                
+            # get the data in sequences -> checks for missing frames
+            encoded_json = []
+            encoded_rgba = []
+            len_seq = self.sequence_length
+            m = self.skip 
+
+            for json_path in json_paths:
+                encoded_rgba_sequence = []
+                encoded_json_sequence = []
+                frame_idx = int(json_path[-11:-5])
+                rgba_path = json_path[0:-12].replace('json','rgba') + '.rgba.{0:06}.png'.format(frame_idx)
+                for i in range(len_seq):
+                    if (
+                        os.path.exists(rgba_path[0:-10] + "{0:06}.png".format(frame_idx+i+i*m)) and
+                        os.path.exists(json_path[0:-11] + "{0:06}.json".format(frame_idx+i+i*m))
+                        ):
+                        rgba_frame_path = rgba_path[0:-10] + "{0:06}.png".format(frame_idx+i+i*m)
+                        json_frame_path = json_path[0:-11] + "{0:06}.json".format(frame_idx+i+i*m)
+                        encoded_rgba_sequence.append(rgba_frame_path.encode('utf8'))
+                        encoded_json_sequence.append(json_frame_path.encode('utf8'))   
+                if(
+                    len(encoded_json_sequence) == len_seq and
+                    len(encoded_rgba_sequence) == len_seq
+                ):
+                    encoded_json.append(encoded_json_sequence)
+                    encoded_rgba.append(encoded_rgba_sequence)
+
+            indexed_paths.update({'rgba': encoded_rgba})
+            indexed_paths.update({'json': encoded_json})
 
             return indexed_paths
 
@@ -167,7 +163,7 @@ class MocapTransformer(BaseDataset):
 
         # read joint positions
         json_paths = [path.decode('utf8') for path in self.index['json'][index]]
-
+       
         # checking if json path corresponds to the path of the last rgba frame in the sequence
         # checking for correct sequence of rgba/image files
         for i in range(len(json_paths)-1):
@@ -189,8 +185,14 @@ class MocapTransformer(BaseDataset):
             p2d, p3d = self._process_points(data)
             p2d[:, 0] = p2d[:, 0]-180 # Translate p2d coordinates by 180 pixels to the left
 
+            if self.heatmap_type == 'baseline':
+                p2d_heatmap = generate_heatmap(p2d[1:, :], 3) # exclude head
+            elif self.heatmap_type == 'distance':
+                distances = np.sqrt(np.sum(p3d**2, axis=1))[1:]
+                p2d_heatmap = generate_heatmap_distance(p2d[1:, :], distances) # exclude head
+            else:
+                self.logger.error('Unrecognized heatmap type')
 
-            p2d_heatmap = generate_heatmap(p2d[1:, :], 3) # exclude head
             all_p2d_heatmap.append(p2d_heatmap)
             # get action name
             action = data['action']
@@ -206,3 +208,57 @@ class MocapTransformer(BaseDataset):
     def __len__(self):
 
         return len(self.index[self.ROOT_DIRS[0]])
+
+
+class MocapSeqDataModule(pl.LightningDataModule):
+
+    def __init__(self, **kwargs):
+        super().__init__()
+
+        self.train_dir = kwargs['dataset_tr']
+        self.val_dir = kwargs['dataset_val']
+        self.test_dir = kwargs['dataset_test']
+        self.batch_size = kwargs['batch_size']
+        self.num_workers = kwargs['num_workers']
+        self.seq_len = kwargs['seq_len']
+        self.skip = kwargs['skip']
+
+        # Data: data transformation strategy
+        self.data_transform = transforms.Compose(
+            [trsf.ImageTrsf(), trsf.Joints3DTrsf(), trsf.ToTensor()]
+        )
+        
+    def train_dataloader(self):
+        data_train = MocapTransformer(
+            self.train_dir,
+            SetType.TRAIN,
+            transform=self.data_transform,
+            sequence_length = self.seq_len,
+            skip = self.skip)
+        return DataLoader(
+                data_train, batch_size=self.batch_size, 
+                num_workers=self.num_workers, shuffle=True, pin_memory=True)
+
+    def val_dataloader(self):
+        data_val =  MocapTransformer(
+            self.val_dir,
+            SetType.VAL,
+            transform=self.data_transform,
+            sequence_length = self.seq_len,
+            skip = self.skip)
+        return DataLoader(
+                data_val, batch_size=self.batch_size, 
+                num_workers=self.num_workers, pin_memory=True)
+
+    def test_dataloader(self):
+        data_test =  MocapTransformer(
+            self.test_dir,
+            SetType.TEST,
+            transform=self.data_transform,
+            sequence_length = self.seq_len,
+            skip = self.skip)
+        return DataLoader(
+                data_test, batch_size=self.batch_size, 
+                num_workers=self.num_workers, pin_memory=True)
+
+
