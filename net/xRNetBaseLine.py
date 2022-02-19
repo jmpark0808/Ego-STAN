@@ -87,11 +87,11 @@ class xREgoPose(pl.LightningModule):
         """
         if self.iteration <= self.hm_train_steps:
             optimizer = torch.optim.SGD(
-            self.heatmap.parameters(), lr=self.lr, momentum=0.9, weight_decay=5e-4, nesterov=True
+            self.heatmap.parameters(), lr=self.lr, momentum=0.9, nesterov=True
         )
         else:
             optimizer = torch.optim.SGD(
-            self.parameters(), lr=self.lr, momentum=0.9, weight_decay=5e-4, nesterov=True
+            self.parameters(), lr=self.lr, momentum=0.9, nesterov=True
         )
         
 
@@ -216,7 +216,7 @@ class xREgoPose(pl.LightningModule):
             self.log("val_mpjpe_lower_body", val_mpjpe_lower["All"]["mpjpe"])
             self.log("val_loss", self.val_loss_3d_pose_total)
         else:
-            self.log("val_mpjpe_full_body", 0.2-0.01*(self.iteration/self.hm_train_steps))
+            self.log("val_mpjpe_full_body", 10-0.01*(self.iteration/self.hm_train_steps))
                     
 
 if __name__ == "__main__":
