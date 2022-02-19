@@ -50,8 +50,7 @@ if __name__ == "__main__":
     parser.add_argument('--batch_size', help="batchsize, default = 1", default=1, type=int)
     parser.add_argument('--epoch', help='# of epochs. default = 20', default=20, type=int)
     parser.add_argument('--num_workers', help="# of dataloader cpu process", default=0, type=int)
-    parser.add_argument('--model_save_freq', help='How often to save model weights, in batch units', default=64, type=int)
-    parser.add_argument('--val_freq', help='How often to run validation set, in batch units', default=64, type=int)
+    parser.add_argument('--val_freq', help='How often to run validation set within a training epoch, i.e. 0.25 will run 4 validation runs in 1 training epoch', default=0.1, type=float)
     parser.add_argument('--es_patience', help='Max # of consecutive validation runs w/o improvment', default=5, type=int)
     parser.add_argument('--logdir', help='logdir for models and losses. default = .', default='./', type=str)
     parser.add_argument('--lr', help='learning_rate for pose. default = 0.001', default=0.001, type=float)
@@ -74,7 +73,8 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     dict_args = vars(args)
-
+    print(dict_args)
+    assert(0)
     # Initialize model to train
     assert dict_args['model'] in MODEL_DIRECTORY
     model = MODEL_DIRECTORY[dict_args['model']](**dict_args)

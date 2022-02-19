@@ -57,7 +57,7 @@ class xREgoPose(pl.LightningModule):
             self.heatmap.resnet101.load_state_dict(torch.load(self.load_resnet))
         self.heatmap.update_resnet101()
         self.iteration = 0
-        self.update_optim_flag = True
+    
 
     def mse(self, pred, label):
         pred = pred.reshape(pred.size(0), -1)
@@ -85,17 +85,13 @@ class xREgoPose(pl.LightningModule):
         """
         Choose what optimizers and learning-rate schedulers to use in your optimization.
         """
-        if self.iteration <= self.hm_train_steps:
-            optimizer = torch.optim.SGD(
-            self.heatmap.parameters(), lr=self.lr, momentum=0.9, nesterov=True
-        )
-        else:
-            optimizer = torch.optim.SGD(
-            self.parameters(), lr=self.lr, momentum=0.9, nesterov=True
+        
+        optimizer = torch.optim.SGD(
+        self.parameters(), lr=self.lr, momentum=0.9, nesterov=True, weight_decay=5e-4
         )
         
-
         return optimizer
+      
 
     def forward(self, x):
         """
@@ -128,10 +124,7 @@ class xREgoPose(pl.LightningModule):
         https://pytorch-lightning.readthedocs.io/en/latest/starter/introduction_guide.html
 
         """
-        if self.iteration > self.hm_train_steps and self.update_optim_flag:
-            #self.trainer.accelerator_backend.setup_optimizers(self)
-            self.configure_optimizers() 
-            self.update_optim_flag=False
+        
         img, p2d, p3d, action = batch
         img = img.cuda()
         p2d = p2d.cuda()
@@ -142,6 +135,7 @@ class xREgoPose(pl.LightningModule):
 
 
         if self.iteration <= self.hm_train_steps:
+            print('Training 2D')
             heatmap = torch.sigmoid(heatmap)
             loss = self.mse(heatmap, p2d)
             self.log('Total HM loss', loss.item())
@@ -156,7 +150,6 @@ class xREgoPose(pl.LightningModule):
             self.log('Total 3D loss', loss_3d_pose.item())
             self.log('Total GHM loss', loss_2d_ghm.item())
      
-
         # calculate mpjpe loss
         mpjpe = torch.mean(torch.sqrt(torch.sum(torch.pow(p3d - pose, 2), dim=2)))
         mpjpe_std = torch.std(torch.sqrt(torch.sum(torch.pow(p3d - pose, 2), dim=2)))

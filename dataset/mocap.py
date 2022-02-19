@@ -245,7 +245,7 @@ class Mocap(BaseDataset):
         p2d, p3d = self._process_points(data)
         p2d[:, 0] = p2d[:, 0]-180 # Translate p2d coordinates by 180 pixels to the left
 
-
+        
         
         if self.heatmap_type == 'baseline':
             p2d_heatmap = generate_heatmap(p2d[1:, :], 3) # exclude head

@@ -44,7 +44,7 @@ class xREgoPoseSeq(pl.LightningModule):
         self.val_loss_3d_pose_total = torch.tensor(0., device=self.device)
         self.val_loss_hm = torch.tensor(0., device=self.device)
         self.iteration = 0
-        self.update_optim_flag = True
+   
 
         def weight_init(m):
             """
@@ -90,13 +90,9 @@ class xREgoPoseSeq(pl.LightningModule):
         """
         Choose what optimizers and learning-rate schedulers to use in your optimization.
         """
-        if self.iteration <= self.hm_train_steps:
-            optimizer = torch.optim.SGD(
-            self.heatmap.parameters(), lr=self.lr, momentum=0.9, nesterov=True
-        )
-        else:
-            optimizer = torch.optim.SGD(
-            self.parameters(), lr=self.lr, momentum=0.9, nesterov=True
+        
+        optimizer = torch.optim.SGD(
+        self.parameters(), lr=self.lr, momentum=0.9, nesterov=True, weight_decay=5e-4
         )
         
 
@@ -146,10 +142,6 @@ class xREgoPoseSeq(pl.LightningModule):
         """
         tensorboard = self.logger.experiment
     
-        if self.iteration > self.hm_train_steps and self.update_optim_flag:
-            #self.trainer.accelerator_backend.setup_optimizers(self)
-            self.configure_optimizers() 
-            self.update_optim_flag=False
         sequence_imgs, p2d, p3d, action = batch
         sequence_imgs = sequence_imgs.cuda()
         p2d = p2d.cuda()
@@ -161,6 +153,7 @@ class xREgoPoseSeq(pl.LightningModule):
 
 
         if self.iteration <= self.hm_train_steps:
+            print('Training 2D')
             pred_hm = torch.sigmoid(pred_hm)
             loss = self.mse(pred_hm, p2d)
             self.log('Total HM loss', loss.item())
