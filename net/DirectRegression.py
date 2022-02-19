@@ -32,6 +32,7 @@ class DirectRegression(pl.LightningModule):
         self.eval_body = evaluate.EvalBody()
         self.eval_upper = evaluate.EvalUpperBody()
         self.eval_lower = evaluate.EvalLowerBody()
+        self.test_results = {}
 
         # Initialize total validation pose loss
         self.val_loss_3d_pose_total = torch.tensor(0, device=self.device)
@@ -182,6 +183,38 @@ class DirectRegression(pl.LightningModule):
         self.log("val_mpjpe_upper_body", val_mpjpe_upper["All"]["mpjpe"])
         self.log("val_mpjpe_lower_body", val_mpjpe_lower["All"]["mpjpe"])
         self.log("val_loss", self.val_loss_3d_pose_total)
+
+    def on_test_start(self):
+        # Initialize the mpjpe evaluation pipeline
+        self.eval_body = evaluate.EvalBody()
+        self.eval_upper = evaluate.EvalUpperBody()
+        self.eval_lower = evaluate.EvalLowerBody()
+
+    def test_step(self, batch, batch_idx):
+        img, p2d, p3d, action = batch
+        img = img.cuda()
+        p3d = p3d.cuda()
+
+        # forward pass
+        pose = self.forward(img)
+
+        # Evaluate mpjpe
+        y_output = pose.data.cpu().numpy()
+        y_target = p3d.data.cpu().numpy()
+        self.eval_body.eval(y_output, y_target, action)
+        self.eval_upper.eval(y_output, y_target, action)
+        self.eval_lower.eval(y_output, y_target, action)
+
+    def test_epoch_end(self, test_step_outputs):
+        test_mpjpe = self.eval_body.get_results()
+        test_mpjpe_upper = self.eval_upper.get_results()
+        test_mpjpe_lower = self.eval_lower.get_results()
+
+        self.test_results = {
+            "Full Body": test_mpjpe,
+            "Upper Body": test_mpjpe_upper,
+            "Lower Body": test_mpjpe_lower,
+        }
 
 
 if __name__ == "__main__":
