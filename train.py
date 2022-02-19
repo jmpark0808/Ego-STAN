@@ -73,8 +73,7 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
     dict_args = vars(args)
-    print(dict_args)
-    assert(0)
+
     # Initialize model to train
     assert dict_args['model'] in MODEL_DIRECTORY
     model = MODEL_DIRECTORY[dict_args['model']](**dict_args)
@@ -112,7 +111,8 @@ if __name__ == "__main__":
         gpus=dict_args['gpus'],
         profiler=profiler,
         logger=logger,
-        max_epochs=dict_args["epoch"]
+        max_epochs=dict_args["epoch"],
+        log_every_n_steps=10
     )
 
     # Trainer: train model
