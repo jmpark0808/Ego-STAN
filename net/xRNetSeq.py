@@ -147,7 +147,8 @@ class xREgoPoseSeq(pl.LightningModule):
         tensorboard = self.logger.experiment
     
         if self.iteration > self.hm_train_steps and self.update_optim_flag:
-            self.trainer.accelerator_backend.setup_optimizers(self)
+            #self.trainer.accelerator_backend.setup_optimizers(self)
+            self.configure_optimizers() 
             self.update_optim_flag=False
         sequence_imgs, p2d, p3d, action = batch
         sequence_imgs = sequence_imgs.cuda()

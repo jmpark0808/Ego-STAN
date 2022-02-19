@@ -129,7 +129,8 @@ class xREgoPose(pl.LightningModule):
 
         """
         if self.iteration > self.hm_train_steps and self.update_optim_flag:
-            self.trainer.accelerator_backend.setup_optimizers(self)
+            #self.trainer.accelerator_backend.setup_optimizers(self)
+            self.configure_optimizers() 
             self.update_optim_flag=False
         img, p2d, p3d, action = batch
         img = img.cuda()
