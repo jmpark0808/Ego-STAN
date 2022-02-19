@@ -87,11 +87,11 @@ class xREgoPose(pl.LightningModule):
         """
         if self.iteration <= self.hm_train_steps:
             optimizer = torch.optim.SGD(
-            self.heatmap.parameters(), lr=self.lr, momentum=0.9, weight_decay=5e-4
+            self.heatmap.parameters(), lr=self.lr, momentum=0.9, weight_decay=5e-4, nesterov=True
         )
         else:
             optimizer = torch.optim.SGD(
-            self.parameters(), lr=self.lr, momentum=0.9, weight_decay=5e-4
+            self.parameters(), lr=self.lr, momentum=0.9, weight_decay=5e-4, nesterov=True
         )
         
 
