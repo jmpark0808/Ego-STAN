@@ -21,7 +21,7 @@ from net.xRNetBaseLine import xREgoPose
 from net.xRNetConcat import xRNetConcat
 
 # Deterministic
-pl.seed_everything(102)
+pl.seed_everything(42)
 
 MODEL_DIRECTORY = {
     "direct_regression": DirectRegression,

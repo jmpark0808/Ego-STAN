@@ -141,7 +141,7 @@ class xREgoPoseSeq(pl.LightningModule):
 
         """
         tensorboard = self.logger.experiment
-    
+        
         sequence_imgs, p2d, p3d, action = batch
         sequence_imgs = sequence_imgs.cuda()
         p2d = p2d.cuda()
