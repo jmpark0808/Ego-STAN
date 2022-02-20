@@ -51,20 +51,11 @@ class xREgoPose(pl.LightningModule):
                     torch.nn.init.zeros_(m.bias)
 
         # Initialize weights
-        self.heatmap.resnet101.apply(weight_init)
+        self.apply(weight_init)
         if self.load_resnet:
             self.heatmap.resnet101.load_state_dict(torch.load(self.load_resnet))
+
         self.heatmap.update_resnet101()
-        self.heatmap.heatmap_deconv.apply(weight_init)
-
-        self.encoder.apply(weight_init)
-        self.pose_decoder.apply(weight_init)
-        self.heatmap_decoder.apply(weight_init)
-
-        # if self.load_resnet:
-        #     self.heatmap.resnet101.load_state_dict(torch.load(self.load_resnet))
-
-        # self.heatmap.update_resnet101()
         self.iteration = 0
     
 
@@ -96,7 +87,7 @@ class xREgoPose(pl.LightningModule):
         """
         
         optimizer = torch.optim.SGD(
-        self.parameters(), lr=self.lr, momentum=0.9, nesterov=True
+        self.heatmap.parameters(), lr=self.lr, momentum=0.9, nesterov=True
         )
         
         return optimizer
