@@ -255,7 +255,6 @@ class Mocap(BaseDataset):
         else:
             self.logger.error('Unrecognized heatmap type')
         
-        
         # get action name
         action = data['action']
 
