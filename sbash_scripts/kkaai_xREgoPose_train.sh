@@ -109,15 +109,17 @@ cd ${dataset_dir}
 download_set "TrainSet"
 download_set "ValSet"
 
-logdir=/home/kkaai/projects/def-pfieguth/kkaai/xREgoPose/xREgoPose/
+logdir=/home/kkaai/projects/def-pfieguth/kkaai/
 
 # Start training
 tensorboard --logdir=${logdir} --host 0.0.0.0 --load_fast false & \
-    python ~/projects/def-pfieguth/kkaai/xREgoPose/xREgoPose/train_regress.py \
+    python ~/projects/def-pfieguth/kkaai/xREgoPose/train.py \
     --model direct_regression \
+    --dataloader baseline \
     --logdir ${logdir} \
     --dataset_tr $SLURM_TMPDIR/TrainSet \
     --dataset_val $SLURM_TMPDIR/ValSet \
+    --seed 42 \
     --batch_size 16 \
     --epoch 20 \
     --num_workers 24 \

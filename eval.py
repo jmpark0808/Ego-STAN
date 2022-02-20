@@ -18,6 +18,7 @@ def main():
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument("--model", required=True, type=str)
     parser.add_argument("--model_checkpoint_file", required=True, type=str)
+    parser.add_argument('--dataloader', required=True, default=None)
     parser.add_argument("--dataset_test", required=True, type=str)
     parser.add_argument("--cuda", default="cuda", choices=["cuda", "cpu"], type=str)
     parser.add_argument("--gpus", help="Number of gpus to use", default=1, type=int)

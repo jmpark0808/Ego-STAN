@@ -112,6 +112,7 @@ download_set "TestSet"
 python ~/projects/def-pfieguth/kkaai/xREgoPose/eval.py \
     --model direct_regression \
     --output_directory /home/kkaai/projects/def-pfieguth/kkaai/test_outputs \
+    --dataloader baseline \
     --dataset_test $SLURM_TMPDIR/TestSet \
     --batch_size 16 \
     --num_workers 24 \
