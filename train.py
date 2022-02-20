@@ -19,6 +19,7 @@ from net.DirectRegression import DirectRegression
 from net.xRNetSeq import xREgoPoseSeq
 from net.xRNetBaseLine import xREgoPose
 from net.xRNetConcat import xRNetConcat
+from net.xRNetHeatmap import xREgoPoseHeatMap
 
 # Deterministic
 pl.seed_everything(42)
@@ -28,6 +29,7 @@ MODEL_DIRECTORY = {
     "xregopose": xREgoPose,
     "xregopose_seq": xREgoPoseSeq,
     "xregopose_concat":xRNetConcat,
+    "xregopose_heatmap": xREgoPoseHeatMap
 }
 DATALOADER_DIRECTORY = {
     'baseline': MocapDataModule,
