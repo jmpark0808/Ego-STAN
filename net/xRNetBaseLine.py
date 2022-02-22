@@ -212,7 +212,7 @@ class xREgoPose(pl.LightningModule):
             self.log("val_mpjpe_lower_body", val_mpjpe_lower["All"]["mpjpe"])
             self.log("val_loss", self.val_loss_3d_pose_total)
         else:
-            self.log("val_mpjpe_full_body", 10-0.01*(self.iteration/self.hm_train_steps))
+            self.log("val_mpjpe_full_body", 0.3-0.01*(self.iteration/self.hm_train_steps))
                     
 
 if __name__ == "__main__":
