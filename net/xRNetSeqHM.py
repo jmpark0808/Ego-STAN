@@ -151,7 +151,6 @@ class xREgoPoseSeqHM(pl.LightningModule):
 
 
         if self.iteration <= self.hm_train_steps:
-            print('Training 2D')
             pred_hm = torch.sigmoid(pred_hm)
             loss = self.mse(pred_hm, p2d)
             self.log('Total HM loss', loss.item())
@@ -183,7 +182,7 @@ class xREgoPoseSeqHM(pl.LightningModule):
         sequence_imgs, p2d, p3d, action = batch
         sequence_imgs = sequence_imgs.cuda()
         p2d = p2d.cuda()
-        p2d = p2d.reshape(-1, 15, 47, 47)
+        p2d = p2d[:, -1, :, :, :]
         p3d = p3d.cuda()
 
         # forward pass

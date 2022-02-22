@@ -153,7 +153,6 @@ class xREgoPoseSeq(pl.LightningModule):
 
 
         if self.iteration <= self.hm_train_steps:
-            print('Training 2D')
             pred_hm = torch.sigmoid(pred_hm)
             loss = self.mse(pred_hm, p2d)
             self.log('Total HM loss', loss.item())
