@@ -65,6 +65,7 @@ class xRNetConcat(pl.LightningModule):
         self.feature_heatmaps.update_resnet101()
         self.iteration = 0
         self.update_optim_flag = True
+        self.save_hyperparameters()
 
     def mse(self, pred, label):
         pred = pred.reshape(pred.size(0), -1)

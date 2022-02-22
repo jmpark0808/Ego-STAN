@@ -57,6 +57,7 @@ class xREgoPose(pl.LightningModule):
 
         self.heatmap.update_resnet101()
         self.iteration = 0
+        self.save_hyperparameters()
     
 
     def mse(self, pred, label):
@@ -124,7 +125,6 @@ class xREgoPose(pl.LightningModule):
         https://pytorch-lightning.readthedocs.io/en/latest/starter/introduction_guide.html
 
         """
-        tensorboard = self.logger.experiment
         
         img, p2d, p3d, action = batch
         img = img.cuda()
@@ -155,8 +155,6 @@ class xREgoPose(pl.LightningModule):
         mpjpe_std = torch.std(torch.sqrt(torch.sum(torch.pow(p3d - pose, 2), dim=2)))
         self.log("train_mpjpe_full_body", mpjpe)
         self.log("train_mpjpe_std", mpjpe_std)
-        tensorboard.add_images('Ground Truth 2D Heatmap', torch.clip(torch.sum(p2d, dim=1, keepdim=True), 0, 1), self.iteration)
-        tensorboard.add_images('Predicted 2D Heatmap', torch.clip(torch.sum(heatmap, dim=1, keepdim=True), 0, 1), self.iteration)
         self.iteration += img.size(0)
         return loss
 

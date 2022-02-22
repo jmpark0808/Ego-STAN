@@ -2,10 +2,11 @@
 
 import pytorch_lightning as pl
 import torch
-import torch.nn as nn
+import numpy as np
 from utils import evaluate
 from net.blocks import *
 from net.transformer import PoseTransformer
+import matplotlib
 
 
 class xREgoPoseSeq(pl.LightningModule):
@@ -44,7 +45,7 @@ class xREgoPoseSeq(pl.LightningModule):
         self.val_loss_3d_pose_total = torch.tensor(0., device=self.device)
         self.val_loss_hm = torch.tensor(0., device=self.device)
         self.iteration = 0
-   
+        self.save_hyperparameters()
 
         def weight_init(m):
             """
@@ -140,14 +141,13 @@ class xREgoPoseSeq(pl.LightningModule):
         https://pytorch-lightning.readthedocs.io/en/latest/starter/introduction_guide.html
 
         """
-        tensorboard = self.logger.experiment
         
         sequence_imgs, p2d, p3d, action = batch
         sequence_imgs = sequence_imgs.cuda()
         p2d = p2d.cuda()
         p2d = p2d.reshape(-1, 15, 47, 47)
         p3d = p3d.cuda()
-    
+
         # forward pass
         pred_hm, pred_3d, gen_hm, atts = self.forward(sequence_imgs)
 
@@ -168,11 +168,6 @@ class xREgoPoseSeq(pl.LightningModule):
             self.log('Total 3D loss', loss_3d_pose.item())
             self.log('Total GHM loss', loss_2d_ghm.item())
      
-        for level, att in enumerate(atts):
-            for head in range(att.size(1)):
-                img = att[:, head, :, :].reshape(att.size(0), 1, att.size(2), att.size(3))
-                for one_img in img:
-                    tensorboard.add_image(f'Level {level}, head {head}, Attention Map', one_img, global_step=self.iteration)
         # calculate mpjpe loss
         mpjpe = torch.mean(torch.sqrt(torch.sum(torch.pow(p3d - pred_3d, 2), dim=2)))
         mpjpe_std = torch.std(torch.sqrt(torch.sum(torch.pow(p3d - pred_3d, 2), dim=2)))
@@ -186,6 +181,7 @@ class xREgoPoseSeq(pl.LightningModule):
         Compute the metrics for validation batch
         validation loop: https://pytorch-lightning.readthedocs.io/en/stable/common/lightning_module.html#hooks
         """
+        tensorboard = self.logger.experiment
         sequence_imgs, p2d, p3d, action = batch
         sequence_imgs = sequence_imgs.cuda()
         p2d = p2d.cuda()
@@ -196,7 +192,17 @@ class xREgoPoseSeq(pl.LightningModule):
         heatmap, pose, generated_heatmap, atts = self.forward(sequence_imgs)
         heatmap = torch.sigmoid(heatmap)
         generated_heatmap = torch.sigmoid(generated_heatmap)
-   
+
+        for level, att in enumerate(atts):
+            for head in range(att.size(1)):
+                img = att[:, head, :, :].reshape(att.size(0), 1, att.size(2), att.size(3))
+                img = img.detach().cpu().numpy()
+                cmap = matplotlib.cm.get_cmap('gist_heat')
+                rgba = np.transpose(np.squeeze(cmap(img), axis=1), (0, 3, 1, 2))[:, :3, :, :]
+                tensorboard.add_images(f'Level {level}, head {head}, Attention Map', rgba, global_step=self.iteration)
+
+        tensorboard.add_images('Val Ground Truth 2D Heatmap', torch.clip(torch.sum(p2d, dim=1, keepdim=True), 0, 1), self.iteration)
+        tensorboard.add_images('Val Predicted 2D Heatmap', torch.clip(torch.sum(heatmap, dim=1, keepdim=True), 0, 1), self.iteration)
         # calculate pose loss
         val_hm_loss = self.mse(heatmap, p2d)
         val_loss_3d_pose, _ = self.auto_encoder_loss(pose, p3d, generated_heatmap, heatmap)

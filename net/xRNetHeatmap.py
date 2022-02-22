@@ -44,6 +44,7 @@ class xREgoPoseHeatMap(pl.LightningModule):
 
         self.heatmap.update_resnet101()
         self.iteration = 0
+        self.save_hyperparameters()
     
 
     def mse(self, pred, label):
