@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+from mimetypes import init
 import pytorch_lightning as pl
 import torch
 import numpy as np
@@ -32,7 +33,7 @@ class xREgoPoseSeq(pl.LightningModule):
         # Transformer that takes sequence of latent vector Z and outputs a single Z vector
         self.seq_transformer = PoseTransformer(seq_len=self.seq_len, dim=20, depth=1, heads=1, mlp_dim=40)
         # Pose decoder that takes latent vector Z and transforms to 3D pose coordinates
-        self.pose_decoder = PoseDecoder()
+        self.pose_decoder = PoseDecoder(initial_dim=20*self.seq_len)
         # Heatmap decoder that takes latent vector Z and generates the original 2D heatmap
         self.heatmap_decoder = HeatmapDecoder()
 
@@ -124,7 +125,7 @@ class xREgoPoseSeq(pl.LightningModule):
         # zs = batch_size x len_seq x 20
 
         z, atts = self.seq_transformer(zs)
-        # z = batch_size x 20
+        # z = batch_size x len_seq*20
 
         p3d = self.pose_decoder(z)
         # p3d = batch_size x 16 x 3

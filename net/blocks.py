@@ -228,9 +228,9 @@ class FeatureBranchEncoder(nn.Module):
         return x
 
 class PoseDecoder(nn.Module):
-    def __init__(self):
+    def __init__(self, initial_dim=20):
         super(PoseDecoder, self).__init__()
-        self.linear1 = nn.Linear(20, 32)
+        self.linear1 = nn.Linear(initial_dim, 32)
         self.linear2 = nn.Linear(32, 32)
         self.linear3 = nn.Linear(32, 48)
 
