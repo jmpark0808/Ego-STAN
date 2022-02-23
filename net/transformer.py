@@ -77,17 +77,17 @@ class Transformer(nn.Module):
         return x, atts
 
 class PoseTransformer(nn.Module):
-    def __init__(self, *, seq_len, dim, depth, heads, mlp_dim, dim_head = 64, dropout = 0.1, emb_dropout = 0.):
+    def __init__(self, *, seq_len, dim, depth, heads, mlp_dim, dim_head = 64, dropout = 0., emb_dropout = 0.):
         super().__init__()
   
-        # self.to_embedding = nn.Linear(20, dim)
+        # self.to_embedding = nn.Linear(15*47*47, dim)
 
         self.pos_embedding = nn.Parameter(torch.randn(1, seq_len+1, dim))
         self.cls_token = nn.Parameter(torch.randn(1, 1, dim))
         self.dropout = nn.Dropout(emb_dropout)
 
         self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim, dropout)
-        # self.linear = nn.Linear(dim, 20)
+        # self.linear = nn.Linear(dim, 15*47*47)
 
     def forward(self, x): # x = (batch, seq_len, 20)
         # x = self.to_embedding(x) # x = (batch, seq_len, dim)
@@ -102,4 +102,32 @@ class PoseTransformer(nn.Module):
         x = x[:, 0] # retrieving the class token # (batch, 1, dim)
         x = x.reshape(x.size(0), -1)
         # x = self.linear(x) 
+        return x, atts
+
+class HeatMapTransformer(nn.Module):
+    def __init__(self, *, seq_len, dim, depth, heads, mlp_dim, dim_head = 64, dropout = 0., emb_dropout = 0.):
+        super().__init__()
+  
+        self.to_embedding = nn.Linear(15*47*47, dim)
+
+        self.pos_embedding = nn.Parameter(torch.randn(1, seq_len+1, dim))
+        self.cls_token = nn.Parameter(torch.randn(1, 1, dim))
+        self.dropout = nn.Dropout(emb_dropout)
+
+        self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim, dropout)
+        self.linear = nn.Linear(dim, 15*47*47)
+
+    def forward(self, x): # x = (batch, seq_len, 20)
+        x = self.to_embedding(x) # x = (batch, seq_len, dim)
+
+        cls_tokens = repeat(self.cls_token, '() n d -> b n d', b = x.size(0))
+        x = torch.cat((cls_tokens, x), dim=1)
+        x += self.pos_embedding # x = (batch, seq_len+1, dim)
+        x = self.dropout(x) # x = (batch, seq_len+1, dim)
+
+        x, atts = self.transformer(x) # x = (batch, seq_len+1, dim)
+
+        x = x[:, 0] # retrieving the class token # (batch, 1, dim)
+        x = x.reshape(x.size(0), -1)
+        x = self.linear(x) 
         return x, atts

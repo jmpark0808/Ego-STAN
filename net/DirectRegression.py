@@ -49,6 +49,7 @@ class DirectRegression(pl.LightningModule):
         if self.load_resnet:
             self.heatmap.resnet101.load_state_dict(torch.load(self.load_resnet))
         self.heatmap.update_resnet101()
+        self.save_hyperparameters()
 
     def loss(self, pose_pred, pose_label):
         """

@@ -52,12 +52,13 @@ class xREgoPose(pl.LightningModule):
 
         # Initialize weights
         self.apply(weight_init)
-
         if self.load_resnet:
             self.heatmap.resnet101.load_state_dict(torch.load(self.load_resnet))
+
         self.heatmap.update_resnet101()
         self.iteration = 0
-        self.update_optim_flag = True
+        self.save_hyperparameters()
+    
 
     def mse(self, pred, label):
         pred = pred.reshape(pred.size(0), -1)
@@ -85,17 +86,13 @@ class xREgoPose(pl.LightningModule):
         """
         Choose what optimizers and learning-rate schedulers to use in your optimization.
         """
-        if self.iteration <= self.hm_train_steps:
-            optimizer = torch.optim.SGD(
-            self.heatmap.parameters(), lr=self.lr, momentum=0.9, weight_decay=5e-4
-        )
-        else:
-            optimizer = torch.optim.SGD(
-            self.parameters(), lr=self.lr, momentum=0.9, weight_decay=5e-4
+        
+        optimizer = torch.optim.SGD(
+        self.parameters(), lr=self.lr, momentum=0.9, nesterov=True
         )
         
-
         return optimizer
+      
 
     def forward(self, x):
         """
@@ -128,9 +125,7 @@ class xREgoPose(pl.LightningModule):
         https://pytorch-lightning.readthedocs.io/en/latest/starter/introduction_guide.html
 
         """
-        if self.iteration > self.hm_train_steps and self.update_optim_flag:
-            self.trainer.accelerator_backend.setup_optimizers(self)
-            self.update_optim_flag=False
+        
         img, p2d, p3d, action = batch
         img = img.cuda()
         p2d = p2d.cuda()
@@ -155,7 +150,6 @@ class xREgoPose(pl.LightningModule):
             self.log('Total 3D loss', loss_3d_pose.item())
             self.log('Total GHM loss', loss_2d_ghm.item())
      
-
         # calculate mpjpe loss
         mpjpe = torch.mean(torch.sqrt(torch.sum(torch.pow(p3d - pose, 2), dim=2)))
         mpjpe_std = torch.std(torch.sqrt(torch.sum(torch.pow(p3d - pose, 2), dim=2)))
@@ -169,6 +163,7 @@ class xREgoPose(pl.LightningModule):
         Compute the metrics for validation batch
         validation loop: https://pytorch-lightning.readthedocs.io/en/stable/common/lightning_module.html#hooks
         """
+        tensorboard = self.logger.experiment
         img, p2d, p3d, action = batch
         img = img.cuda()
         p2d = p2d.cuda()
@@ -192,7 +187,8 @@ class xREgoPose(pl.LightningModule):
         self.eval_body.eval(y_output, y_target, action)
         self.eval_upper.eval(y_output, y_target, action)
         self.eval_lower.eval(y_output, y_target, action)
-
+        tensorboard.add_images('Val Ground Truth 2D Heatmap', torch.clip(torch.sum(p2d, dim=1, keepdim=True), 0, 1), self.iteration)
+        tensorboard.add_images('Val Predicted 2D Heatmap', torch.clip(torch.sum(heatmap, dim=1, keepdim=True), 0, 1), self.iteration)
         return val_loss_3d_pose
 
     def on_validation_start(self):
@@ -215,6 +211,8 @@ class xREgoPose(pl.LightningModule):
             self.log("val_mpjpe_upper_body", val_mpjpe_upper["All"]["mpjpe"])
             self.log("val_mpjpe_lower_body", val_mpjpe_lower["All"]["mpjpe"])
             self.log("val_loss", self.val_loss_3d_pose_total)
+        else:
+            self.log("val_mpjpe_full_body", 0.3-0.01*(self.iteration/self.hm_train_steps))
                     
 
 if __name__ == "__main__":

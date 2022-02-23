@@ -19,15 +19,19 @@ from net.DirectRegression import DirectRegression
 from net.xRNetSeq import xREgoPoseSeq
 from net.xRNetBaseLine import xREgoPose
 from net.xRNetConcat import xRNetConcat
+from net.xRNetHeatmap import xREgoPoseHeatMap
+from net.xRNetSeqHM import xREgoPoseSeqHM
 
 # Deterministic
-pl.seed_everything(102)
+
 
 MODEL_DIRECTORY = {
     "direct_regression": DirectRegression,
     "xregopose": xREgoPose,
     "xregopose_seq": xREgoPoseSeq,
     "xregopose_concat":xRNetConcat,
+    "xregopose_heatmap": xREgoPoseHeatMap,
+    "xregopose_seq_hm": xREgoPoseSeqHM
 }
 DATALOADER_DIRECTORY = {
     'baseline': MocapDataModule,
@@ -50,8 +54,7 @@ if __name__ == "__main__":
     parser.add_argument('--batch_size', help="batchsize, default = 1", default=1, type=int)
     parser.add_argument('--epoch', help='# of epochs. default = 20', default=20, type=int)
     parser.add_argument('--num_workers', help="# of dataloader cpu process", default=0, type=int)
-    parser.add_argument('--model_save_freq', help='How often to save model weights, in batch units', default=64, type=int)
-    parser.add_argument('--val_freq', help='How often to run validation set, in batch units', default=64, type=int)
+    parser.add_argument('--val_freq', help='How often to run validation set within a training epoch, i.e. 0.25 will run 4 validation runs in 1 training epoch', default=0.1, type=float)
     parser.add_argument('--es_patience', help='Max # of consecutive validation runs w/o improvment', default=5, type=int)
     parser.add_argument('--logdir', help='logdir for models and losses. default = .', default='./', type=str)
     parser.add_argument('--lr', help='learning_rate for pose. default = 0.001', default=0.001, type=float)
@@ -71,10 +74,13 @@ if __name__ == "__main__":
                         default= 'branch_concat')
     parser.add_argument('--heatmap_type', help='Type of 2D ground truth heatmap, Defaults to "baseline"', 
                         default= 'baseline')
+    parser.add_argument('--seed', help='Seed for reproduceability', 
+                        default=42, type=int)
 
     args = parser.parse_args()
     dict_args = vars(args)
-
+    
+    pl.seed_everything(dict_args['seed'])
     # Initialize model to train
     assert dict_args['model'] in MODEL_DIRECTORY
     model = MODEL_DIRECTORY[dict_args['model']](**dict_args)
@@ -112,7 +118,8 @@ if __name__ == "__main__":
         gpus=dict_args['gpus'],
         profiler=profiler,
         logger=logger,
-        max_epochs=dict_args["epoch"]
+        max_epochs=dict_args["epoch"],
+        log_every_n_steps=10
     )
 
     # Trainer: train model
