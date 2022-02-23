@@ -23,7 +23,7 @@ from net.xRNetHeatmap import xREgoPoseHeatMap
 from net.xRNetSeqHM import xREgoPoseSeqHM
 
 # Deterministic
-pl.seed_everything(42)
+
 
 MODEL_DIRECTORY = {
     "direct_regression": DirectRegression,
@@ -74,10 +74,13 @@ if __name__ == "__main__":
                         default= 'branch_concat')
     parser.add_argument('--heatmap_type', help='Type of 2D ground truth heatmap, Defaults to "baseline"', 
                         default= 'baseline')
+    parser.add_argument('--seed', help='Seed for reproduceability', 
+                        default=42, type=int)
 
     args = parser.parse_args()
     dict_args = vars(args)
-
+    
+    pl.seed_everything(dict_args['seed'])
     # Initialize model to train
     assert dict_args['model'] in MODEL_DIRECTORY
     model = MODEL_DIRECTORY[dict_args['model']](**dict_args)
