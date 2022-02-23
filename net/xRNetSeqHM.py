@@ -128,7 +128,7 @@ class xREgoPoseSeqHM(pl.LightningModule):
         z_ = self.encoder(hms)
         # z = batch_size*len_seq x 20
 
-        z = torch.reshape(z_, (dim[0], dim[1], z.size(-1)))
+        z = torch.reshape(z_, (dim[0], dim[1], z_.size(-1)))
         # z = batch_size x len_seq x 20
 
         z, _ = self.pose_transformer(z)
