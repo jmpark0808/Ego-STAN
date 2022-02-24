@@ -85,12 +85,6 @@ if __name__ == "__main__":
     assert dict_args['model'] in MODEL_DIRECTORY
     model = MODEL_DIRECTORY[dict_args['model']](**dict_args)
 
-    # Initialize logging paths
-    now = datetime.datetime.now()
-    weight_save_dir = os.path.join(dict_args["logdir"], os.path.join('models', 'state_dict', now.strftime('%m%d%H%M')))
-    os.makedirs(weight_save_dir, exist_ok=True)
-
-
     # Callback: early stopping parameters
     early_stopping_callback = EarlyStopping(
         monitor="val_mpjpe_full_body",
@@ -101,7 +95,7 @@ if __name__ == "__main__":
 
     # Callback: model checkpoint strategy
     checkpoint_callback = ModelCheckpoint(
-        dirpath=weight_save_dir, save_top_k=5, verbose=True, monitor="val_mpjpe_full_body", mode="min"
+        save_top_k=5, verbose=True, monitor="val_mpjpe_full_body", mode="min"
     )
 
     # Data: load data module
