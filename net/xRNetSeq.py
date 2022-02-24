@@ -148,7 +148,8 @@ class xREgoPoseSeq(pl.LightningModule):
         p2d = p2d.cuda()
         p2d = p2d.reshape(-1, 15, 47, 47)
         p3d = p3d.cuda()
-
+        p3d = p3d[:, -1, :, :]
+        
         # forward pass
         pred_hm, pred_3d, gen_hm, atts = self.forward(sequence_imgs)
 
@@ -187,6 +188,7 @@ class xREgoPoseSeq(pl.LightningModule):
         p2d = p2d.cuda()
         p2d = p2d.reshape(-1, 15, 47, 47)
         p3d = p3d.cuda()
+        p3d = p3d[:, -1, :, :]
 
         # forward pass
         heatmap, pose, generated_heatmap, atts = self.forward(sequence_imgs)
@@ -243,6 +245,44 @@ class xREgoPoseSeq(pl.LightningModule):
         else:
             self.log("val_mpjpe_full_body", 0.3-0.01*(self.iteration/self.hm_train_steps))
                     
+    def on_test_start(self):
+        # Initialize the mpjpe evaluation pipeline
+        self.eval_body = evaluate.EvalBody()
+        self.eval_upper = evaluate.EvalUpperBody()
+        self.eval_lower = evaluate.EvalLowerBody()
+
+    def test_step(self, batch, batch_idx):
+        sequence_imgs, p2d, p3d, action = batch
+        sequence_imgs = sequence_imgs.cuda()
+        p2d = p2d.cuda()
+        p2d = p2d.reshape(-1, 15, 47, 47)
+        p3d = p3d.cuda()
+        p3d = p3d[:, -1, :, :]
+
+        # forward pass
+        heatmap, pose, generated_heatmap, atts = self.forward(sequence_imgs)
+        heatmap = torch.sigmoid(heatmap)
+        generated_heatmap = torch.sigmoid(generated_heatmap)
+
+        # Evaluate mpjpe
+        y_output = pose.data.cpu().numpy()
+        y_target = p3d.data.cpu().numpy()
+        self.eval_body.eval(y_output, y_target, action)
+        self.eval_upper.eval(y_output, y_target, action)
+        self.eval_lower.eval(y_output, y_target, action)
+      
+
+    def test_epoch_end(self, test_step_outputs):
+        test_mpjpe = self.eval_body.get_results()
+        test_mpjpe_upper = self.eval_upper.get_results()
+        test_mpjpe_lower = self.eval_lower.get_results()
+
+        self.test_results = {
+            "Full Body": test_mpjpe,
+            "Upper Body": test_mpjpe_upper,
+            "Lower Body": test_mpjpe_lower,
+        }
+
 
 if __name__ == "__main__":
     pass
