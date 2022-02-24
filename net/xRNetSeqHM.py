@@ -34,7 +34,7 @@ class xREgoPoseSeqHM(pl.LightningModule):
         # Transformer that takes sequence of heatmaps and outputs a sequence of heatmaps
         self.heatmap_transformer = HeatMapTransformer(seq_len=self.seq_len, dim=512, depth=1, heads=1, mlp_dim=1024, dim_head=512, dropout=0.15)
         # Pose decoder that takes latent vector Z and transforms to 3D pose coordinates
-        self.pose_decoder = PoseDecoder(initial_dim=self.seq_len*20)
+        self.pose_decoder = PoseDecoder()
         # Heatmap decoder that takes latent vector Z and generates the original 2D heatmap
         self.heatmap_decoder = HeatmapDecoder()
 
@@ -95,7 +95,7 @@ class xREgoPoseSeqHM(pl.LightningModule):
         """
         
         optimizer = torch.optim.SGD(
-        self.parameters(), lr=self.lr, momentum=0.9, nesterov=True
+        self.parameters(), lr=self.lr, momentum=0.9, nesterov=True, weight_decay=5e-4
         )
         
 
