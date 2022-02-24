@@ -52,7 +52,12 @@ def main():
     # Initialize model to test
     assert dict_args["model"] in MODEL_DIRECTORY
     model = MODEL_DIRECTORY[dict_args["model"]](**dict_args)
-    
+
+    model = model.load_from_checkpoint(
+        checkpoint_path=dict_args["model_checkpoint_file"],
+        map_location=dict_args["cuda"]
+    )
+
     # Data: load data module
     assert dict_args["dataloader"] in DATALOADER_DIRECTORY
     data_module = DATALOADER_DIRECTORY[dict_args["dataloader"]](**dict_args)
@@ -62,10 +67,6 @@ def main():
         gpus=dict_args["gpus"],
         deterministic=True,
         logger=logger
-    )
-    model.load_from_checkpoint(
-        checkpoint_path=dict_args["model_checkpoint_file"],
-        map_location=dict_args["cuda"],
     )
     trainer.test(model, datamodule=data_module)
 
