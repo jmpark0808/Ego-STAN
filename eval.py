@@ -55,7 +55,7 @@ def main():
     # Initialize model to test
     assert dict_args["model"] in MODEL_DIRECTORY
     model = MODEL_DIRECTORY[dict_args["model"]](**dict_args)
-    model.load_from_checkpoint(
+    model = model.load_from_checkpoint(
         checkpoint_path=dict_args["model_checkpoint_file"],
         map_location=dict_args["cuda"],
     )
