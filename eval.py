@@ -3,7 +3,7 @@ import datetime
 import os
 
 import pytorch_lightning as pl
-
+from pytorch_lightning.loggers import TensorBoardLogger
 from train import DATALOADER_DIRECTORY, MODEL_DIRECTORY
 from utils import io
 
@@ -39,6 +39,7 @@ def main():
     )
     parser.add_argument('--heatmap_type', help='Type of 2D ground truth heatmap, Defaults to "baseline"', 
                         default= 'baseline')
+    parser.add_argument('--logdir', help='logdir for models and losses. default = .', default='./', type=str)
 
     dict_args = vars(parser.parse_args())
 
@@ -59,11 +60,12 @@ def main():
     # Data: load data module
     assert dict_args["dataloader"] in DATALOADER_DIRECTORY
     data_module = DATALOADER_DIRECTORY[dict_args["dataloader"]](**dict_args)
-
+    logger = TensorBoardLogger(save_dir=dict_args['logdir'], name='lightning_logs', log_graph=True)
     # Trainer: initialize training behaviour
     trainer = pl.Trainer(
         gpus=dict_args["gpus"],
         deterministic=True,
+        logger=logger
     )
 
     trainer.test(model, datamodule=data_module)

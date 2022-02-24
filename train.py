@@ -8,11 +8,8 @@ from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from pytorch_lightning.callbacks.lr_monitor import LearningRateMonitor
 from pytorch_lightning.profiler import SimpleProfiler
 from pytorch_lightning.loggers import TensorBoardLogger
-from torch.utils.data import DataLoader
-from torchvision import transforms
 
-import dataset.transform as trsf
-from base import SetType
+
 from dataset.mocap import MocapDataModule
 from dataset.mocap_transformer import MocapSeqDataModule
 from net.DirectRegression import DirectRegression
