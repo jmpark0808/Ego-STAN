@@ -14,7 +14,7 @@ class xREgoPose(pl.LightningModule):
 
         # parameters
         self.batch_size = kwargs.get("batch_size")
-        self.lr = kwargs.get("lr"]
+        self.lr = kwargs.get("lr")
         self.lr_decay = kwargs.get("lr_decay")
         self.decay_step = kwargs.get("decay_step")
         self.load_resnet = kwargs.get("load_resnet")
