@@ -13,12 +13,12 @@ class xREgoPose(pl.LightningModule):
         super().__init__()
 
         # parameters
-        self.batch_size = kwargs["batch_size"]
-        self.lr = kwargs["lr"]
-        self.lr_decay = kwargs["lr_decay"]
-        self.decay_step = kwargs["decay_step"]
-        self.load_resnet = kwargs["load_resnet"]
-        self.hm_train_steps = kwargs["hm_train_steps"]
+        self.batch_size = kwargs.get("batch_size")
+        self.lr = kwargs.get("lr"]
+        self.lr_decay = kwargs.get("lr_decay")
+        self.decay_step = kwargs.get("decay_step")
+        self.load_resnet = kwargs.get("load_resnet")
+        self.hm_train_steps = kwargs.get("hm_train_steps")
 
         # must be defined for logging computational graph
         self.example_input_array = torch.rand((1, 3, 368, 368))
