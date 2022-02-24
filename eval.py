@@ -75,11 +75,12 @@ def main():
     # Save: store test output results
     now = datetime.datetime.now().strftime("%m%d%H%M")
     test_results = model.test_results
+    print(test_results)
     results_file_name = os.path.join(
         dict_args["output_directory"],
         f"test_results_{dict_args['model']}_{now}.json",
     )
-    io.write_json(results_file_name, test_results)
+    io.write_json(results_file_name, str(test_results))
 
 
 if __name__ == "__main__":
