@@ -100,7 +100,7 @@ class PoseTransformer(nn.Module):
         x, atts = self.transformer(x) # x = (batch, seq_len+1, dim)
 
         #x = x[:, 0] # retrieving the class token # (batch, 1, dim)
-        x = x.reshape(x.size(0), -1)
+        # x = x.reshape(x.size(0), -1)
         # x = self.linear(x) 
         return x, atts
 

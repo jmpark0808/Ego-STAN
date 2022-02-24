@@ -179,6 +179,7 @@ class MocapTransformer(BaseDataset):
                                                                                 )
 
         all_p2d_heatmap = []
+        all_p3d = []
         for json_path in json_paths:
             data = io.read_json(json_path)
 
@@ -194,16 +195,17 @@ class MocapTransformer(BaseDataset):
                 self.logger.error('Unrecognized heatmap type')
 
             all_p2d_heatmap.append(p2d_heatmap)
+            all_p3d.append(p3d)
             # get action name
             action = data['action']
 
         if self.transform:
             imgs = np.array(
                 [self.transform({'image': img})['image'].numpy() for img in imgs])
-            p3d = self.transform({'joints3D': p3d})['joints3D']
+            p3d = np.array([self.transform({'joints3D': p3d})['joints3D'].numpy() for p3d in all_p3d])
             p2d = np.array([self.transform({'joints2D': p2d})['joints2D'].numpy() for p2d in all_p2d_heatmap])
 
-        return torch.tensor(imgs), torch.tensor(p2d), p3d, action
+        return torch.tensor(imgs), torch.tensor(p2d), torch.tensor(p3d), action
 
     def __len__(self):
 
