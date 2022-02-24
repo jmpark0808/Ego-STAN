@@ -37,6 +37,8 @@ def main():
         default="5",
         type=int,
     )
+    parser.add_argument('--heatmap_type', help='Type of 2D ground truth heatmap, Defaults to "baseline"', 
+                        default= 'baseline')
 
     dict_args = vars(parser.parse_args())
 
