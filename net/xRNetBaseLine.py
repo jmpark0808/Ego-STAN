@@ -58,7 +58,7 @@ class xREgoPose(pl.LightningModule):
         self.heatmap.update_resnet101()
         self.iteration = 0
         self.save_hyperparameters()
-    
+        self.test_results = {}
 
     def mse(self, pred, label):
         pred = pred.reshape(pred.size(0), -1)
@@ -214,6 +214,43 @@ class xREgoPose(pl.LightningModule):
         else:
             self.log("val_mpjpe_full_body", 0.3-0.01*(self.iteration/self.hm_train_steps))
                     
+    def on_test_start(self):
+        # Initialize the mpjpe evaluation pipeline
+        self.eval_body = evaluate.EvalBody()
+        self.eval_upper = evaluate.EvalUpperBody()
+        self.eval_lower = evaluate.EvalLowerBody()
+
+    def test_step(self, batch, batch_idx):
+        img, p2d, p3d, action = batch
+        img = img.cuda()
+        p2d = p2d.cuda()
+        p3d = p3d.cuda()
+
+        # forward pass
+        heatmap, pose, generated_heatmap = self.forward(img)
+        heatmap = torch.sigmoid(heatmap)
+        generated_heatmap = torch.sigmoid(generated_heatmap)
+   
+        # Evaluate mpjpe
+        y_output = pose.data.cpu().numpy()
+        y_target = p3d.data.cpu().numpy()
+        self.eval_body.eval(y_output, y_target, action)
+        self.eval_upper.eval(y_output, y_target, action)
+        self.eval_lower.eval(y_output, y_target, action)
+
+
+    def test_epoch_end(self, test_step_outputs):
+        test_mpjpe = self.eval_body.get_results()
+        test_mpjpe_upper = self.eval_upper.get_results()
+        test_mpjpe_lower = self.eval_lower.get_results()
+
+        self.test_results = {
+            "Full Body": test_mpjpe,
+            "Upper Body": test_mpjpe_upper,
+            "Lower Body": test_mpjpe_lower,
+        }
+
+
 
 if __name__ == "__main__":
     pass
