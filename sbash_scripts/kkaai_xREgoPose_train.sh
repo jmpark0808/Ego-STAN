@@ -131,3 +131,39 @@ tensorboard --logdir=${logdir} --host 0.0.0.0 --load_fast false & \
     --display_freq 64 \
     --val_freq 2000 \
     --load_resnet /home/kkaai/projects/def-pfieguth/xREgoPose/xR-EgoPose/resnet101-63fe2227.pth
+
+python ~/projects/def-pfieguth/kkaai/xREgoPose/train.py \
+    --model direct_regression \
+    --dataloader baseline \
+    --eval True \
+    --logdir ${logdir} \
+    --dataset_tr $SLURM_TMPDIR/TrainSet \
+    --dataset_val $SLURM_TMPDIR/ValSet \
+    --dataset_test $SLURM_TMPDIR/TestSet \
+    --seed 22 \
+    --batch_size 16 \
+    --epoch 20 \
+    --num_workers 24 \
+    --lr 0.001 \
+    --es_patience 7 \
+    --display_freq 64 \
+    --val_freq 2000 \
+    --load_resnet /home/kkaai/projects/def-pfieguth/xREgoPose/xR-EgoPose/resnet101-63fe2227.pth
+
+python ~/projects/def-pfieguth/kkaai/xREgoPose/train.py \
+    --model direct_regression \
+    --dataloader baseline \
+    --eval True \
+    --logdir ${logdir} \
+    --dataset_tr $SLURM_TMPDIR/TrainSet \
+    --dataset_val $SLURM_TMPDIR/ValSet \
+    --dataset_test $SLURM_TMPDIR/TestSet \
+    --seed 102 \
+    --batch_size 16 \
+    --epoch 20 \
+    --num_workers 24 \
+    --lr 0.001 \
+    --es_patience 7 \
+    --display_freq 64 \
+    --val_freq 2000 \
+    --load_resnet /home/kkaai/projects/def-pfieguth/xREgoPose/xR-EgoPose/resnet101-63fe2227.pth
