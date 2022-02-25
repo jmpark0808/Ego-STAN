@@ -42,7 +42,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('--model', help='Model name to train', required=True, default=None)
     parser.add_argument('--eval', help='Whether to test model on the best iteration after training'
-                        , default=False)
+                        , default=False, type=bool)
     parser.add_argument('--dataloader', help="Type of dataloader", required=True, default=None)
     parser.add_argument("--load",
                         help="Directory of pre-trained model,  \n"
