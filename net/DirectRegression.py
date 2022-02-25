@@ -24,9 +24,10 @@ class DirectRegression(pl.LightningModule):
 
         self.heatmap = HeatMap()
         self.conv1 = nn.Conv2d(2048, 512, kernel_size=1)
-        self.dr1 = nn.Dropout(p=0.5)
-        self.l1 = nn.Linear(73728, 7000)
-        self.l2 = nn.Linear(7000, 48)
+        # self.dr1 = nn.Dropout(p=0.5)
+        self.l1 = nn.Linear(512*12*12, 7000)
+        self.relu1 = nn.ReLU()
+        self.l2 = nn.Linear(7000, 16*3)
 
         # Initialize the mpjpe evaluation pipeline
         self.eval_body = evaluate.EvalBody()
@@ -104,8 +105,8 @@ class DirectRegression(pl.LightningModule):
         # x = 512 x 12 x 12
         x = x.reshape(x.size(0), -1)
         # x = 73728
-        x = self.dr1(x)
         x = self.l1(x)
+        x = self.relu1(x)
         x = self.l2(x)
         x = x.reshape(x.size(0), 16, 3)
         return x

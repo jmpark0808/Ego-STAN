@@ -23,7 +23,6 @@ from net.xRNetHeatmap import xREgoPoseHeatMap
 from net.xRNetSeqHM import xREgoPoseSeqHM
 from utils.evaluate import create_results_csv
 
-# Deterministic
 
 MODEL_DIRECTORY = {
     "direct_regression": DirectRegression,
@@ -82,7 +81,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
     dict_args = vars(args)
     
+    # Deterministic
     pl.seed_everything(dict_args['seed'])
+
     # Initialize model to train
     assert dict_args['model'] in MODEL_DIRECTORY
     model = MODEL_DIRECTORY[dict_args['model']](**dict_args)
