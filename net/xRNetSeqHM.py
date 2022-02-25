@@ -196,7 +196,7 @@ class xREgoPoseSeqHM(pl.LightningModule):
         Compute the metrics for validation batch
         validation loop: https://pytorch-lightning.readthedocs.io/en/stable/common/lightning_module.html#hooks
         """
-        tensorboard = self.logger.experiment
+        
         sequence_imgs, p2d, p3d, action = batch
         sequence_imgs = sequence_imgs.cuda()
         p2d = p2d.cuda()
@@ -209,16 +209,6 @@ class xREgoPoseSeqHM(pl.LightningModule):
         heatmap = torch.sigmoid(heatmap)
         generated_heatmap = torch.sigmoid(generated_heatmap)
 
-        for level, att in enumerate(atts):
-            for head in range(att.size(1)):
-                img = att[:, head, :, :].reshape(att.size(0), 1, att.size(2), att.size(3))
-                img = img.detach().cpu().numpy()
-                cmap = matplotlib.cm.get_cmap('gist_heat')
-                rgba = np.transpose(np.squeeze(cmap(img), axis=1), (0, 3, 1, 2))[:, :3, :, :]
-                tensorboard.add_images(f'Level {level}, head {head}, Attention Map', rgba, global_step=self.iteration)
-
-        tensorboard.add_images('Val Ground Truth 2D Heatmap', torch.clip(torch.sum(p2d, dim=1, keepdim=True), 0, 1), self.iteration)
-        tensorboard.add_images('Val Predicted 2D Heatmap', torch.clip(torch.sum(heatmap, dim=1, keepdim=True), 0, 1), self.iteration)
         # calculate pose loss
         val_hm_loss = self.mse(heatmap, p2d)
         val_loss_3d_pose, _ = self.auto_encoder_loss(pose, p3d, generated_heatmap, heatmap)
@@ -266,6 +256,7 @@ class xREgoPoseSeqHM(pl.LightningModule):
         self.eval_lower = evaluate.EvalLowerBody()
 
     def test_step(self, batch, batch_idx):
+        tensorboard = self.logger.experiment
         sequence_imgs, p2d, p3d, action = batch
         sequence_imgs = sequence_imgs.cuda()
         p2d = p2d.cuda()
@@ -277,6 +268,14 @@ class xREgoPoseSeqHM(pl.LightningModule):
         heatmap, pose, generated_heatmap, atts = self.forward(sequence_imgs)
         heatmap = torch.sigmoid(heatmap)
         generated_heatmap = torch.sigmoid(generated_heatmap)
+
+        for level, att in enumerate(atts):
+            for head in range(att.size(1)):
+                img = att[:, head, :, :].reshape(att.size(0), 1, att.size(2), att.size(3))
+                img = img.detach().cpu().numpy()
+                cmap = matplotlib.cm.get_cmap('gist_heat')
+                rgba = np.transpose(np.squeeze(cmap(img), axis=1), (0, 3, 1, 2))[:, :3, :, :]
+                tensorboard.add_images(f'Level {level}, head {head}, Attention Map', rgba, global_step=self.iteration)
 
         # Evaluate mpjpe
         y_output = pose.data.cpu().numpy()
