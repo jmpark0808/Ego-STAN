@@ -73,7 +73,7 @@ def main():
     print(test_mpjpe_dict)
     mpjpe_csv_path = os.path.join(
         dict_args["output_directory"],
-        f"test_mpjpe_{dict_args['model']}_{now}.csv",
+        f"{now}_eval.csv",
     )
     create_results_csv(test_mpjpe_dict, mpjpe_csv_path)
 
