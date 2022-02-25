@@ -5,7 +5,7 @@ import torch
 import numpy as np
 from utils import evaluate
 from net.blocks import *
-from net.transformer import HeatMapTransformer, PoseTransformer
+from net.transformer import ResNetTransformer, PoseTransformer
 import matplotlib
 
 
@@ -25,14 +25,17 @@ class xREgoPoseSeqHM(pl.LightningModule):
         # must be defined for logging computational graph
         self.example_input_array = torch.rand((1, self.seq_len, 3, 368, 368))
 
-        # Generator that produces the HeatMap
-        self.heatmap = HeatMap()
+        # Resnet 101 without last average pooling and fully connected layers
+        self.resnet101 = torchvision.models.resnet101(pretrained=False)
+        # First Deconvolution to obtain 2D heatmap
+        self.heatmap_deconv = nn.Sequential(*[nn.ConvTranspose2d(2048, 1024, kernel_size=3,
+                                                                 stride=2, dilation=1, padding=1),
+                                              nn.ConvTranspose2d(1024, 15, kernel_size=3,
+                                                                 stride=2, dilation=1, padding=0)])
         # Encoder that takes 2D heatmap and transforms to latent vector Z
         self.encoder = Encoder()
-        # Transformer that takes sequence of latent vector Z and outputs a single Z vector
-        self.pose_transformer = PoseTransformer(seq_len=self.seq_len, dim=20, depth=1, heads=1, mlp_dim=40, dropout=0.15)
         # Transformer that takes sequence of heatmaps and outputs a sequence of heatmaps
-        self.heatmap_transformer = HeatMapTransformer(seq_len=self.seq_len, dim=512, depth=1, heads=1, mlp_dim=1024, dim_head=512, dropout=0.15)
+        self.heatmap_transformer = ResNetTransformer(seq_len=self.seq_len*12*12, dim=512, depth=3, heads=8, mlp_dim=1024, dim_head=64, dropout=0.)
         # Pose decoder that takes latent vector Z and transforms to 3D pose coordinates
         self.pose_decoder = PoseDecoder()
         # Heatmap decoder that takes latent vector Z and generates the original 2D heatmap
@@ -62,8 +65,8 @@ class xREgoPoseSeqHM(pl.LightningModule):
         self.apply(weight_init)
 
         if self.load_resnet:
-            self.heatmap.resnet101.load_state_dict(torch.load(self.load_resnet))
-        self.heatmap.update_resnet101()
+            self.resnet101.load_state_dict(torch.load(self.load_resnet))
+        self.resnet101 = nn.Sequential(*[l for ind, l in enumerate(self.resnet101.children()) if ind < 8])
         
         
 
@@ -116,31 +119,33 @@ class xREgoPoseSeqHM(pl.LightningModule):
         imgs = torch.reshape(x, (dim[0]*dim[1], dim[2], dim[3], dim[4]))
         # imgs = # (batch_size*len_seq) x 3 x 368 x 368
 
-        hms = self.heatmap(imgs)
-        hms = hms.reshape(dim[0], dim[1], -1)
-        # hms = batch_size x len_seq x 15*47*47
+        resnet = self.resnet101(imgs)
+        # resnet = batch_size*len_seq x 2048 x 12 x 12
+        resnet = resnet.reshape(dim[0], dim[1], 2048, 12, 12)
+        # resnet = batch_size x len_seq x 2048 x 12 x 12
+        resnet = resnet.permute(0, 1, 3, 4, 2)
+        resnet = resnet.reshape(dim[0], -1, 2048)
+        # resnet = batch_size x len_seq*12*12 x 2048
+        
+        resnet, atts = self.resnet_transformer(resnet)
+        # resnet = batch_size x len_seq*12*12 x 2048
+        resnet = resnet.reshape(dim[0], dim[1], 12, 12, 2048)
+        resnet = resnet.permute(0, 1, 4, 2, 3) 
+        # resnet = batch_size x len_seq x 2048 x 12 x 12
+        resnet = resnet[:, -1, :, :, :]
+        # resnet = batch_size x 2048 x 12 x 12
 
-        hms, atts = self.heatmap_transformer(hms)
-        # hms = batch_size x len_seq x 15*47*47
-        hms = hms.reshape(dim[0]*dim[1], 15, 47, 47)
-        # hms = batch_size*len_seq, 15, 47, 47
+        hms = self.heatmap_deconv(resnet)
+        # hms = batch_size x 15 x 47 x 47
 
         z = self.encoder(hms)
-        # z = batch_size*len_seq x 20
-
-        z = torch.reshape(z, (dim[0], dim[1], z.size(-1)))
-        # z = batch_size x len_seq x 20
-
-        z, _ = self.pose_transformer(z)
-        # z = batch_size x len_seq x 20
-        z = z.reshape(dim[0]*dim[1], -1)
-        # z = batch_size*len_seq x 20
+        # z = batch_size x 20
 
         p3d = self.pose_decoder(z)
-        # p3d = batch_size*len_seq x 16 x 3
+        # p3d = batch_size x 16 x 3
 
         p2d = self.heatmap_decoder(z)
-        # p2d = batch_size*seq_len x 15 x 47 x 47
+        # p2d = batch_size x 15 x 47 x 47
 
         return hms, p3d, p2d, atts
 
@@ -155,9 +160,9 @@ class xREgoPoseSeqHM(pl.LightningModule):
         sequence_imgs, p2d, p3d, action = batch
         sequence_imgs = sequence_imgs.cuda()
         p2d = p2d.cuda()
-        p2d = p2d.reshape(-1, 15, 47, 47)
+        p2d = p2d[:, -1, :, :, :]
         p3d = p3d.cuda()
-        p3d = p3d.reshape(-1, 16, 3)
+        p3d = p3d[:, -1, :, :]
 
         # forward pass
         pred_hm, pred_3d, gen_hm, atts = self.forward(sequence_imgs)
@@ -195,10 +200,9 @@ class xREgoPoseSeqHM(pl.LightningModule):
         sequence_imgs, p2d, p3d, action = batch
         sequence_imgs = sequence_imgs.cuda()
         p2d = p2d.cuda()
-        dim = p2d.size()
-        p2d = p2d.reshape(-1, 15, 47, 47)
+        p2d = p2d[:, -1, :, :, :]
         p3d = p3d.cuda()
-        p3d = p3d.reshape(-1, 16, 3)
+        p3d = p3d[:, -1, :, :]
 
         # forward pass
         heatmap, pose, generated_heatmap, atts = self.forward(sequence_imgs)
@@ -224,10 +228,8 @@ class xREgoPoseSeqHM(pl.LightningModule):
         self.val_loss_3d_pose_total += val_loss_3d_pose
 
         # Evaluate mpjpe
-        pose = pose.reshape(dim[0], -1, 16, 3)
-        p3d = p3d.reshape(dim[0], -1, 16, 3)
-        y_output = pose[:, -1, :, :].data.cpu().numpy()
-        y_target = p3d[:, -1, :, :].data.cpu().numpy()
+        y_output = pose.data.cpu().numpy()
+        y_target = p3d.data.cpu().numpy()
         self.eval_body.eval(y_output, y_target, action)
         self.eval_upper.eval(y_output, y_target, action)
         self.eval_lower.eval(y_output, y_target, action)
@@ -267,10 +269,9 @@ class xREgoPoseSeqHM(pl.LightningModule):
         sequence_imgs, p2d, p3d, action = batch
         sequence_imgs = sequence_imgs.cuda()
         p2d = p2d.cuda()
-        dim = p2d.size()
-        p2d = p2d.reshape(-1, 15, 47, 47)
+        p2d = p2d[:, -1, :, :, :]
         p3d = p3d.cuda()
-        p3d = p3d.reshape(-1, 16, 3)
+        p3d = p3d[:, -1, :, :]
 
         # forward pass
         heatmap, pose, generated_heatmap, atts = self.forward(sequence_imgs)
@@ -278,10 +279,8 @@ class xREgoPoseSeqHM(pl.LightningModule):
         generated_heatmap = torch.sigmoid(generated_heatmap)
 
         # Evaluate mpjpe
-        pose = pose.reshape(dim[0], -1, 16, 3)
-        p3d = p3d.reshape(dim[0], -1, 16, 3)
-        y_output = pose[:, -1, :, :].data.cpu().numpy()
-        y_target = p3d[:, -1, :, :].data.cpu().numpy()
+        y_output = pose.data.cpu().numpy()
+        y_target = p3d.data.cpu().numpy()
         self.eval_body.eval(y_output, y_target, action)
         self.eval_upper.eval(y_output, y_target, action)
         self.eval_lower.eval(y_output, y_target, action)
