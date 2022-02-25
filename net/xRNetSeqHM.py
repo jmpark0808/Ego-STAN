@@ -97,10 +97,10 @@ class xREgoPoseSeqHM(pl.LightningModule):
         Choose what optimizers and learning-rate schedulers to use in your optimization.
         """
         
-        optimizer = torch.optim.AdamW(self.parameters, lr=self.lr)
+        optimizer = torch.optim.AdamW(self.parameters(), lr=self.lr)
         scheduler = torch.optim.lr_scheduler.LinearLR(optimizer, start_factor=0.00000001, end_factor=1.0, total_iters=self.hm_train_steps)
 
-        return optimizer, scheduler
+        return [optimizer], [scheduler]
 
     def forward(self, x):
         """

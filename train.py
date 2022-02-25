@@ -101,9 +101,10 @@ if __name__ == "__main__":
 
     # Trainer: initialize training behaviour
     profiler = SimpleProfiler()
+    lr_monitor = LearningRateMonitor(logging_interval='step')
     logger = TensorBoardLogger(save_dir=dict_args['logdir'], name='lightning_logs', log_graph=True)
     trainer = pl.Trainer(
-        callbacks=[early_stopping_callback, checkpoint_callback],
+        callbacks=[early_stopping_callback, checkpoint_callback, lr_monitor],
         val_check_interval=dict_args['val_freq'],
         deterministic=True,
         gpus=dict_args['gpus'],
