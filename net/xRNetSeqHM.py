@@ -97,8 +97,14 @@ class xREgoPoseSeqHM(pl.LightningModule):
         Choose what optimizers and learning-rate schedulers to use in your optimization.
         """
         
-        optimizer = torch.optim.SGD(
-        self.parameters(), lr=self.lr, momentum=0.9, nesterov=True, weight_decay=5e-4
+        optimizer = torch.optim.SGD([
+        {"params": self.resnet101.parameters(), "lr": self.lr},
+        {"params": self.heatmap_deconv.parameters(), "lr": self.lr},
+        {"params": self.encoder.parameters(), "lr": self.lr},
+        {"params": self.resnet_transformer.parameters(), "lr": self.lr*0.01},
+        {"params": self.pose_decoder.parameters(), "lr": self.lr},
+        {"params": self.heatmap_decoder.parameters(), "lr": self.lr}
+        ], lr=self.lr, momentum=0.9, nesterov=True, weight_decay=5e-4
         )
         
 
