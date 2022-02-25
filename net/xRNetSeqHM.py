@@ -98,7 +98,7 @@ class xREgoPoseSeqHM(pl.LightningModule):
         """
         
         optimizer = torch.optim.AdamW(self.parameters(), lr=self.lr)
-        scheduler = torch.optim.lr_scheduler.LinearLR(optimizer, start_factor=0.00000001, end_factor=1.0, total_iters=self.hm_train_steps)
+        scheduler = torch.optim.lr_scheduler.LinearLR(optimizer, start_factor=0.00000001, end_factor=1.0, total_iters=int(self.hm_train_steps/self.batch_size))
 
         return [optimizer], [scheduler]
 
