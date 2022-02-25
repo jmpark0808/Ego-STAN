@@ -1,24 +1,50 @@
 import argparse
+import csv
 import datetime
 import os
 
 import pytorch_lightning as pl
-from torch.utils.data import DataLoader
-from torchvision import transforms
 
-import dataset.transform as trsf
-from base import SetType
-from dataset import Mocap
-from Legacy.xRNet import *
 from train import DATALOADER_DIRECTORY, MODEL_DIRECTORY
-from utils import ConsoleLogger, config, evaluate, io
+
+
+def create_results_csv(mpjpe_dict: dict, csv_path: str):
+    """
+    Save a csv of mpjpe evalutions stored in a dict.
+    Refer to the `test_results` dict in DirectRegression.test_epoch_end
+    for the expected structure for `mpjpe_dict`.
+    """
+
+    m_to_mm = 1000
+
+    # get csv column names
+    action_list = list(mpjpe_dict["Full Body"].keys())
+    action_list.sort()
+    columns = ["Evalution Error [mm]"]
+    columns.extend(action_list)
+    print(f"[print] columns: {columns}")
+
+    with open(csv_path, mode="w") as f:
+        mpjpe_writer = csv.writer(f)
+        mpjpe_writer.writerow(columns)
+        for body_split, action_dict in mpjpe_dict.items():
+            # the first column is the body split (e.g. "Full Body")
+            row = [body_split]
+            row_std = [body_split + " Error STD"]
+            # store mpjpe in order of sorted 'action_list'
+            for action in action_list:
+                row.append(action_dict[action]["mpjpe"] * m_to_mm)
+                row_std.append(action_dict[action]["std_mpjpe"] * m_to_mm)
+
+            mpjpe_writer.writerow(row)
+            mpjpe_writer.writerow(row_std)
 
 
 def main():
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument("--model", required=True, type=str)
     parser.add_argument("--model_checkpoint_file", required=True, type=str)
-    parser.add_argument('--dataloader', required=True, default=None)
+    parser.add_argument("--dataloader", required=True, default=None)
     parser.add_argument("--dataset_test", required=True, type=str)
     parser.add_argument("--cuda", default="cuda", choices=["cuda", "cpu"], type=str)
     parser.add_argument("--gpus", help="Number of gpus to use", default=1, type=int)
@@ -74,13 +100,13 @@ def main():
 
     # Save: store test output results
     now = datetime.datetime.now().strftime("%m%d%H%M")
-    test_results = model.test_results
-    print(test_results)
-    results_file_name = os.path.join(
+    test_mpjpe_dict = model.test_results
+    print(test_mpjpe_dict)
+    mpjpe_csv_path = os.path.join(
         dict_args["output_directory"],
-        f"test_results_{dict_args['model']}_{now}.json",
+        f"test_mpjpe_{dict_args['model']}_{now}.csv",
     )
-    io.write_json(results_file_name, str(test_results))
+    create_results_csv(test_mpjpe_dict, mpjpe_csv_path)
 
 
 if __name__ == "__main__":
