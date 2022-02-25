@@ -21,6 +21,7 @@ from net.xRNetBaseLine import xREgoPose
 from net.xRNetConcat import xRNetConcat
 from net.xRNetHeatmap import xREgoPoseHeatMap
 from net.xRNetSeqHM import xREgoPoseSeqHM
+from utils.evaluate import create_results_csv
 
 # Deterministic
 
@@ -124,7 +125,7 @@ if __name__ == "__main__":
     )
 
     # Trainer: train model
-    trainer.fit(model, data_module) 
+    trainer.fit(model, data_module)
 
     # Evaluate model on best ckpt (defined in 'ModelCheckpoint' callback)
     if dict_args['eval'] and dict_args['dataset_test']:
