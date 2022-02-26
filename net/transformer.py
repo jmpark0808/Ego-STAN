@@ -131,3 +131,31 @@ class ResNetTransformer(nn.Module):
         # x = x.reshape(x.size(0), -1)
         x = self.linear(x) # x = (batch, seq_len, 15*47*47)
         return x, atts
+
+class ResNetTransformerCls(nn.Module):
+    def __init__(self, *, seq_len, dim, depth, heads, mlp_dim, dim_head = 64, dropout = 0., emb_dropout = 0.):
+        super().__init__()
+  
+        self.to_embedding = nn.Linear(2048, dim)
+
+        self.pos_embedding = nn.Parameter(torch.randn(1, seq_len+(12*12), dim))
+        self.cls_token = nn.Parameter(torch.randn(1, 12*12, dim))
+        self.dropout = nn.Dropout(emb_dropout)
+
+        self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim, dropout)
+        self.linear = nn.Linear(dim, 2048)
+
+    def forward(self, x): # x = (batch, seq_len, 20)
+        x = self.to_embedding(x) # x = (batch, seq_len, dim)
+
+        cls_tokens = repeat(self.cls_token, '() n d -> b n d', b = x.size(0))
+        x = torch.cat((cls_tokens, x), dim=1)
+        x += self.pos_embedding # x = (batch, seq_len+144, dim)
+        x = self.dropout(x) # x = (batch, seq_len+144, dim)
+
+        x, atts = self.transformer(x) # x = (batch, seq_len+144, dim)
+
+        x = x[:, :144] # retrieving the class token # (batch, 144, dim)
+        # x = x.reshape(x.size(0), -1)
+        x = self.linear(x) # x = (batch, 144, 2048)
+        return x, atts
