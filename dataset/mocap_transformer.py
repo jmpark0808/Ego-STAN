@@ -80,17 +80,33 @@ class MocapTransformer(BaseDataset):
             for json_path in json_paths:
                 encoded_rgba_sequence = []
                 encoded_json_sequence = []
-                frame_idx = int(json_path[-11:-5])
-                rgba_path = json_path[0:-12].replace('json','rgba') + '.rgba.{0:06}.png'.format(frame_idx)
-                for i in range(len_seq):
-                    if (
-                        os.path.exists(rgba_path[0:-10] + "{0:06}.png".format(frame_idx+i+i*m)) and
-                        os.path.exists(json_path[0:-11] + "{0:06}.json".format(frame_idx+i+i*m))
-                        ):
-                        rgba_frame_path = rgba_path[0:-10] + "{0:06}.png".format(frame_idx+i+i*m)
-                        json_frame_path = json_path[0:-11] + "{0:06}.json".format(frame_idx+i+i*m)
-                        encoded_rgba_sequence.append(rgba_frame_path.encode('utf8'))
-                        encoded_json_sequence.append(json_frame_path.encode('utf8'))   
+                frame_idx = json_path.split('_')[-1].split('.json')[0]
+                if len(frame_idx) == 6:
+                    frame_idx = int(frame_idx)
+                    rgba_path = json_path[0:-12].replace('json','rgba') + '.rgba.{0:06}.png'.format(frame_idx)
+                    for i in range(len_seq):
+                        if (
+                            os.path.exists(rgba_path[0:-10] + "{0:06}.png".format(frame_idx+i+i*m)) and
+                            os.path.exists(json_path[0:-11] + "{0:06}.json".format(frame_idx+i+i*m))
+                            ):
+                            rgba_frame_path = rgba_path[0:-10] + "{0:06}.png".format(frame_idx+i+i*m)
+                            json_frame_path = json_path[0:-11] + "{0:06}.json".format(frame_idx+i+i*m)
+                            encoded_rgba_sequence.append(rgba_frame_path.encode('utf8'))
+                            encoded_json_sequence.append(json_frame_path.encode('utf8'))   
+                elif len(frame_idx) == 4:
+                    frame_idx = int(frame_idx)
+                    rgba_path = json_path[0:-10].replace('json','rgba') + '.rgba.{0:04}.png'.format(frame_idx)
+                    for i in range(len_seq):
+                        if (
+                            os.path.exists(rgba_path[0:-8] + "{0:04}.png".format(frame_idx+i+i*m)) and
+                            os.path.exists(json_path[0:-9] + "{0:04}.json".format(frame_idx+i+i*m))
+                            ):
+                            rgba_frame_path = rgba_path[0:-8] + "{0:04}.png".format(frame_idx+i+i*m)
+                            json_frame_path = json_path[0:-9] + "{0:04}.json".format(frame_idx+i+i*m)
+                            encoded_rgba_sequence.append(rgba_frame_path.encode('utf8'))
+                            encoded_json_sequence.append(json_frame_path.encode('utf8')) 
+                else:
+                    self.logger.error('Frame idx length is other than 6 or 4')
                 if(
                     len(encoded_json_sequence) == len_seq and
                     len(encoded_rgba_sequence) == len_seq
