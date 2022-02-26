@@ -20,6 +20,8 @@ from net.xRNetConcat import xRNetConcat
 from net.xRNetHeatmap import xREgoPoseHeatMap
 from net.xRNetSeqHM import xREgoPoseSeqHM
 from net.xRNetPosterior import xREgoPosePosterior
+from net.xRNetSeqDirect import xREgoPoseSeqDirect
+from net.xRNetSeqHMDirect import xREgoPoseSeqHMDirect
 
 # Deterministic
 
@@ -31,7 +33,9 @@ MODEL_DIRECTORY = {
     "xregopose_concat":xRNetConcat,
     "xregopose_heatmap": xREgoPoseHeatMap,
     "xregopose_seq_hm": xREgoPoseSeqHM,
-    "xregopose_posterior": xREgoPosePosterior
+    "xregopose_posterior": xREgoPosePosterior,
+    "xregopose_seq_hm_direct": xREgoPoseSeqHMDirect,
+    "xregopose_seq_direct": xREgoPoseSeqDirect
 }
 DATALOADER_DIRECTORY = {
     'baseline': MocapDataModule,
