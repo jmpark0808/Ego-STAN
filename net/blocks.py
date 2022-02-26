@@ -272,7 +272,7 @@ class HeatmapDecoder(nn.Module):
 
 class HM2Pose(nn.Module):
     def __init__(self):
-        super(Encoder, self).__init__()
+        super(HM2Pose, self).__init__()
         self.conv1 = nn.Conv2d(15, 64, kernel_size=4, stride=2, padding=2)
         self.lrelu1 = nn.LeakyReLU(0.2)
         self.conv2 = nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1)
@@ -285,7 +285,7 @@ class HM2Pose(nn.Module):
         self.linear2 = nn.Linear(2048, 512)
         self.lrelu5 = nn.LeakyReLU(0.2)
         self.linear3 = nn.Linear(512, 48)
-        self.lrelu6 = nn.LeakyReLU(0.2)
+ 
 
     def forward(self, x):
         x = self.conv1(x)
