@@ -30,7 +30,8 @@ class xREgoPoseSeqDirect(pl.LightningModule):
         # Transformer that takes sequence of heatmaps and outputs a sequence of heatmaps
         self.resnet_transformer = ResNetTransformerCls(seq_len=self.seq_len*12*12, dim=512, depth=3, heads=8, mlp_dim=1024, dim_head=64, dropout=0.)
         # Pose decoder that takes latent vector Z and transforms to 3D pose coordinates
-        self.pose_decoder = nn.Sequential(*[nn.Linear(144*2048, 2048), nn.LeakyReLU(0.2), nn.Linear(2048, 48)])
+        self.linear = nn.Linear(2048, 512)
+        self.pose_decoder = nn.Sequential(*[nn.Linear(144*512, 2048), nn.LeakyReLU(0.2), nn.Linear(2048, 48)])
 
 
         # Initialize the mpjpe evaluation pipeline
@@ -112,8 +113,10 @@ class xREgoPoseSeqDirect(pl.LightningModule):
         
         resnet, atts = self.resnet_transformer(resnet)
         # resnet = batch_size x 144 x 2048
+        resnet = self.linear(resnet)
+        # resnet = batch_size x 144 x 512
         resnet = resnet.reshape(dim[0], -1)
-        # resnet = batch_size x 144*2048
+        # resnet = batch_size x 144*512
 
         p3d = self.pose_decoder(resnet)
         p3d = p3d.reshape(dim[0], 16, 3)
