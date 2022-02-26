@@ -106,28 +106,14 @@ mkdir -p ${dataset_dir}
 cd ${dataset_dir}
 
 # Download and process Train set
-download_set "TrainSet"
-download_set "ValSet"
 download_set "TestSet"
 
-logdir=/home/kkaai/projects/def-pfieguth/kkaai/
-
-# Start training
-tensorboard --logdir=${logdir} --host 0.0.0.0 --load_fast false & \
-    python ~/projects/def-pfieguth/kkaai/xREgoPose/train.py \
+# Start testing
+python ~/projects/def-pfieguth/kkaai/xREgoPose/eval.py \
     --model direct_regression \
+    --output_directory /home/kkaai/projects/def-pfieguth/kkaai/test_outputs \
     --dataloader baseline \
-    --eval True \
-    --logdir ${logdir} \
-    --dataset_tr $SLURM_TMPDIR/TrainSet \
-    --dataset_val $SLURM_TMPDIR/ValSet \
     --dataset_test $SLURM_TMPDIR/TestSet \
-    --seed 42 \
     --batch_size 16 \
-    --epoch 20 \
     --num_workers 24 \
-    --lr 0.001 \
-    --es_patience 7 \
-    --display_freq 64 \
-    --val_freq 2000 \
-    --load_resnet /home/kkaai/projects/def-pfieguth/xREgoPose/xR-EgoPose/resnet101-63fe2227.pth
+    --model_checkpoint_file /home/kkaai/projects/def-pfieguth/kkaai/xREgoPose/ 

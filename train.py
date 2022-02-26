@@ -21,9 +21,9 @@ from net.xRNetBaseLine import xREgoPose
 from net.xRNetConcat import xRNetConcat
 from net.xRNetHeatmap import xREgoPoseHeatMap
 from net.xRNetSeqHM import xREgoPoseSeqHM
+from utils.evaluate import create_results_csv
 
 # Deterministic
-
 
 MODEL_DIRECTORY = {
     "direct_regression": DirectRegression,
@@ -41,6 +41,8 @@ DATALOADER_DIRECTORY = {
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('--model', help='Model name to train', required=True, default=None)
+    parser.add_argument('--eval', help='Whether to test model on the best iteration after training'
+                        , default=False, type=bool)
     parser.add_argument('--dataloader', help="Type of dataloader", required=True, default=None)
     parser.add_argument("--load",
                         help="Directory of pre-trained model,  \n"
@@ -86,8 +88,8 @@ if __name__ == "__main__":
     model = MODEL_DIRECTORY[dict_args['model']](**dict_args)
 
     # Initialize logging paths
-    now = datetime.datetime.now()
-    weight_save_dir = os.path.join(dict_args["logdir"], os.path.join('models', 'state_dict', now.strftime('%m%d%H%M')))
+    now = datetime.datetime.now().strftime('%m%d%H%M')
+    weight_save_dir = os.path.join(dict_args["logdir"], os.path.join('models', 'state_dict', now))
     os.makedirs(weight_save_dir, exist_ok=True)
 
 
@@ -110,7 +112,7 @@ if __name__ == "__main__":
 
     # Trainer: initialize training behaviour
     profiler = SimpleProfiler()
-    logger = TensorBoardLogger(save_dir=dict_args['logdir'], name='lightning_logs', log_graph=True)
+    logger = TensorBoardLogger(save_dir=dict_args['logdir'], version=now, name='lightning_logs', log_graph=True)
     trainer = pl.Trainer(
         callbacks=[early_stopping_callback, checkpoint_callback],
         val_check_interval=dict_args['val_freq'],
@@ -123,4 +125,14 @@ if __name__ == "__main__":
     )
 
     # Trainer: train model
-    trainer.fit(model, data_module) 
+    trainer.fit(model, data_module)
+
+    # Evaluate model on best ckpt (defined in 'ModelCheckpoint' callback)
+    if dict_args['eval'] and dict_args['dataset_test']:
+        trainer.test(model, ckpt_path='best', datamodule=data_module)
+        test_mpjpe_dict = model.test_results
+        mpjpe_csv_path = os.path.join(weight_save_dir, f'{now}_eval.csv')
+        # Store mpjpe test results as a csv
+        create_results_csv(test_mpjpe_dict, mpjpe_csv_path)
+    else:
+        print("Evaluation skipped")

@@ -274,12 +274,12 @@ class MocapDataModule(pl.LightningDataModule):
     def __init__(self, **kwargs):
         super().__init__()
 
-        self.train_dir = kwargs['dataset_tr']
-        self.val_dir = kwargs['dataset_val']
-        self.test_dir = kwargs['dataset_test']
-        self.batch_size = kwargs['batch_size']
-        self.num_workers = kwargs['num_workers']
-        self.heatmap_type = kwargs['heatmap_type']
+        self.train_dir = kwargs.get('dataset_tr')
+        self.val_dir = kwargs.get('dataset_val')
+        self.test_dir = kwargs.get('dataset_test')
+        self.batch_size = kwargs.get('batch_size')
+        self.num_workers = kwargs.get('num_workers', 0)
+        self.heatmap_type = kwargs.get('heatmap_type')
 
         # Data: data transformation strategy
         self.data_transform = transforms.Compose(

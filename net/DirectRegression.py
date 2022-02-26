@@ -13,23 +13,26 @@ class DirectRegression(pl.LightningModule):
         super().__init__()
 
         # parameters
-        self.batch_size = kwargs["batch_size"]
-        self.lr = kwargs["lr"]
-        self.lr_decay = kwargs["lr_decay"]
-        self.decay_step = kwargs["decay_step"]
-        self.load_resnet = kwargs["load_resnet"]
+        self.batch_size = kwargs.get("batch_size")
+        self.lr = kwargs.get("lr")
+        self.lr_decay = kwargs.get("lr_decay")
+        self.decay_step = kwargs.get("decay_step")
+        self.load_resnet = kwargs.get("load_resnet")
 
         # must be defined for logging computational graph
         self.example_input_array = torch.rand((1, 3, 368, 368))
 
         self.heatmap = HeatMap()
-        self.l1 = nn.Linear(33135, 690)
-        self.l2 = nn.Linear(690, 48)
+        self.conv1 = nn.Conv2d(2048, 512, kernel_size=1)
+        self.dr1 = nn.Dropout(p=0.5)
+        self.l1 = nn.Linear(73728, 7000)
+        self.l2 = nn.Linear(7000, 48)
 
         # Initialize the mpjpe evaluation pipeline
         self.eval_body = evaluate.EvalBody()
         self.eval_upper = evaluate.EvalUpperBody()
         self.eval_lower = evaluate.EvalLowerBody()
+        self.test_results = {}
 
         # Initialize total validation pose loss
         self.val_loss_3d_pose_total = torch.tensor(0, device=self.device)
@@ -95,10 +98,13 @@ class DirectRegression(pl.LightningModule):
         :return: 16x3 joint inferences
         """
         # x = 3 x 368 x 368
-        x = self.heatmap(x)
-        # x = 15 x 47 x 47
+        x = self.heatmap.resnet101(x)
+        # x = 2048 x 12 x 12
+        x = self.conv1(x)
+        # x = 512 x 12 x 12
         x = x.reshape(x.size(0), -1)
-        # x = 33135
+        # x = 73728
+        x = self.dr1(x)
         x = self.l1(x)
         x = self.l2(x)
         x = x.reshape(x.size(0), 16, 3)
@@ -177,6 +183,38 @@ class DirectRegression(pl.LightningModule):
         self.log("val_mpjpe_upper_body", val_mpjpe_upper["All"]["mpjpe"])
         self.log("val_mpjpe_lower_body", val_mpjpe_lower["All"]["mpjpe"])
         self.log("val_loss", self.val_loss_3d_pose_total)
+
+    def on_test_start(self):
+        # Initialize the mpjpe evaluation pipeline
+        self.eval_body = evaluate.EvalBody()
+        self.eval_upper = evaluate.EvalUpperBody()
+        self.eval_lower = evaluate.EvalLowerBody()
+
+    def test_step(self, batch, batch_idx):
+        img, p2d, p3d, action = batch
+        img = img.cuda()
+        p3d = p3d.cuda()
+
+        # forward pass
+        pose = self.forward(img)
+
+        # Evaluate mpjpe
+        y_output = pose.data.cpu().numpy()
+        y_target = p3d.data.cpu().numpy()
+        self.eval_body.eval(y_output, y_target, action)
+        self.eval_upper.eval(y_output, y_target, action)
+        self.eval_lower.eval(y_output, y_target, action)
+
+    def test_epoch_end(self, test_step_outputs):
+        test_mpjpe = self.eval_body.get_results()
+        test_mpjpe_upper = self.eval_upper.get_results()
+        test_mpjpe_lower = self.eval_lower.get_results()
+
+        self.test_results = {
+            "Full Body": test_mpjpe,
+            "Upper Body": test_mpjpe_upper,
+            "Lower Body": test_mpjpe_lower,
+        }
 
 
 if __name__ == "__main__":
