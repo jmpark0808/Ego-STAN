@@ -5,7 +5,7 @@ import torch
 import numpy as np
 from utils import evaluate
 from net.blocks import *
-from net.transformer import ResNetTransformer, PoseTransformer
+from net.transformer import ResNetTransformerCls
 import matplotlib
 
 
@@ -35,7 +35,7 @@ class xREgoPoseSeqHM(pl.LightningModule):
         # Encoder that takes 2D heatmap and transforms to latent vector Z
         self.encoder = Encoder()
         # Transformer that takes sequence of heatmaps and outputs a sequence of heatmaps
-        self.resnet_transformer = ResNetTransformer(seq_len=self.seq_len*12*12, dim=512, depth=3, heads=8, mlp_dim=1024, dim_head=64, dropout=0.)
+        self.resnet_transformer = ResNetTransformerCls(seq_len=self.seq_len*12*12, dim=512, depth=3, heads=8, mlp_dim=1024, dim_head=64, dropout=0.)
         # Pose decoder that takes latent vector Z and transforms to 3D pose coordinates
         self.pose_decoder = PoseDecoder()
         # Heatmap decoder that takes latent vector Z and generates the original 2D heatmap
@@ -128,13 +128,11 @@ class xREgoPoseSeqHM(pl.LightningModule):
         # resnet = batch_size x len_seq*12*12 x 2048
         
         resnet, atts = self.resnet_transformer(resnet)
-        # resnet = batch_size x len_seq*12*12 x 2048
-        resnet = resnet.reshape(dim[0], dim[1], 12, 12, 2048)
-        resnet = resnet.permute(0, 1, 4, 2, 3) 
-        # resnet = batch_size x len_seq x 2048 x 12 x 12
-        resnet = resnet[:, -1, :, :, :]
+        # resnet = batch_size x 12*12 x 2048
+        resnet = resnet.reshape(dim[0], 12, 12, 2048)
+        resnet = resnet.permute(0, 3, 1 ,2) 
         # resnet = batch_size x 2048 x 12 x 12
-
+ 
         hms = self.heatmap_deconv(resnet)
         # hms = batch_size x 15 x 47 x 47
 
