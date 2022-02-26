@@ -231,12 +231,16 @@ class PoseDecoder(nn.Module):
     def __init__(self, initial_dim=20):
         super(PoseDecoder, self).__init__()
         self.linear1 = nn.Linear(initial_dim, 32)
+        self.lrelu1 = nn.LeakyReLU(0.2)
         self.linear2 = nn.Linear(32, 32)
+        self.lrelu2 = nn.LeakyReLU(0.2)
         self.linear3 = nn.Linear(32, 48)
 
     def forward(self, x):
         x = self.linear1(x)
+        x = self.lrelu1(x)
         x = self.linear2(x)
+        x = self.lrelu2(x)
         x = self.linear3(x)
         x = x.reshape(x.size(0), 16, 3)
         return x
@@ -245,15 +249,21 @@ class HeatmapDecoder(nn.Module):
     def __init__(self):
         super(HeatmapDecoder, self).__init__()
         self.linear1 = nn.Linear(20, 512)
+        self.lrelu1 = nn.LeakyReLU(0.2)
         self.linear2 = nn.Linear(512, 2048)
+        self.lrelu2 = nn.LeakyReLU(0.2)
         self.linear3 = nn.Linear(2048, 18432)
+        self.lrelu3 = nn.LeakyReLU(0.2)
         self.deconv1 = nn.ConvTranspose2d(512, 128, kernel_size=4, stride=2, padding=1)
         self.deconv2 = nn.ConvTranspose2d(128, 64, kernel_size=4, stride=2, padding=1)
         self.deconv3 = nn.ConvTranspose2d(64, 15, kernel_size=3, stride=2, padding=1)
     def forward(self, x):
         x = self.linear1(x)
+        x = self.lrelu1(x)
         x = self.linear2(x)
+        x = self.lrelu2(x)
         x = self.linear3(x)
+        x = self.lrelu3(x)
         x = x.reshape(x.size(0), 512, 6, 6)
         x = self.deconv1(x)
         x = self.deconv2(x)
