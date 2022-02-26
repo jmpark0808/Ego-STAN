@@ -1,6 +1,7 @@
 import argparse
 import datetime
 import os
+from re import X
 
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import ModelCheckpoint
@@ -18,6 +19,7 @@ from net.xRNetBaseLine import xREgoPose
 from net.xRNetConcat import xRNetConcat
 from net.xRNetHeatmap import xREgoPoseHeatMap
 from net.xRNetSeqHM import xREgoPoseSeqHM
+from net.xRNetPosterior import xREgoPosePosterior
 
 # Deterministic
 
@@ -28,7 +30,8 @@ MODEL_DIRECTORY = {
     "xregopose_seq": xREgoPoseSeq,
     "xregopose_concat":xRNetConcat,
     "xregopose_heatmap": xREgoPoseHeatMap,
-    "xregopose_seq_hm": xREgoPoseSeqHM
+    "xregopose_seq_hm": xREgoPoseSeqHM,
+    "xregopose_posterior": xREgoPosePosterior
 }
 DATALOADER_DIRECTORY = {
     'baseline': MocapDataModule,
