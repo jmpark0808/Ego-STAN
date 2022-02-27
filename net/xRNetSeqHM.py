@@ -266,7 +266,7 @@ class xREgoPoseSeqHM(pl.LightningModule):
         heatmap, pose, generated_heatmap, atts = self.forward(sequence_imgs)
         heatmap = torch.sigmoid(heatmap)
         generated_heatmap = torch.sigmoid(generated_heatmap)
-
+        '''
         for level, att in enumerate(atts):
             for head in range(att.size(1)):
                 img = att[:, head, :, :].reshape(att.size(0), 1, att.size(2), att.size(3))
@@ -274,7 +274,7 @@ class xREgoPoseSeqHM(pl.LightningModule):
                 cmap = matplotlib.cm.get_cmap('gist_heat')
                 rgba = np.transpose(np.squeeze(cmap(img), axis=1), (0, 3, 1, 2))[:, :3, :, :]
                 tensorboard.add_images(f'Level {level}, head {head}, Attention Map', rgba, global_step=self.iteration)
-
+        '''
         # Evaluate mpjpe
         y_output = pose.data.cpu().numpy()
         y_target = p3d.data.cpu().numpy()
