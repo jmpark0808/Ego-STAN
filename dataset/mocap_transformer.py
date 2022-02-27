@@ -166,10 +166,17 @@ class MocapTransformer(BaseDataset):
 
         # checking for correct sequence of rgba/image files
         for i in range(len(img_paths)-1):
-            if int(img_paths[i][-10:-4]) != int(img_paths[i+1][-10:-4]) - (self.skip + 1):
-                self.logger.error(
-                    '{} \n is not the correct frame after \n {}'.format(
-                                                    img_paths[i+1], img_paths[i])
+            try:
+                if int(img_paths[i][-10:-4]) != int(img_paths[i+1][-10:-4]) - (self.skip + 1):
+                    self.logger.error(
+                        '{} \n is not the correct frame after \n {}'.format(
+                                                        img_paths[i+1], img_paths[i])
+                                                                                )
+            except:
+                if int(img_paths[i][-8:-4]) != int(img_paths[i+1][-8:-4]) - (self.skip + 1):
+                    self.logger.error(
+                        '{} \n is not the correct frame after \n {}'.format(
+                                                        img_paths[i+1], img_paths[i])
                                                                                 )
 
         imgs = [sio.imread(img_path).astype(np.float32) for img_path in img_paths]
@@ -183,16 +190,28 @@ class MocapTransformer(BaseDataset):
         # checking if json path corresponds to the path of the last rgba frame in the sequence
         # checking for correct sequence of rgba/image files
         for i in range(len(json_paths)-1):
-            if int(json_paths[i][-11:-5]) != int(json_paths[i+1][-11:-5]) - (self.skip + 1):
-                self.logger.error(
-                    '{} \n is not the correct frame after \n {}'.format(
-                                                    json_paths[i+1], json_paths[i])
-                                                                                )
-            if int(json_paths[i][-11:-5]) != int(img_paths[i][-10:-4]):
-                self.logger.error(
-                    '{} \n does not match \n {}'.format(
-                                                    img_paths[i], json_paths[i])
-                                                                                )
+            try:
+                if int(json_paths[i][-11:-5]) != int(json_paths[i+1][-11:-5]) - (self.skip + 1):
+                    self.logger.error(
+                        '{} \n is not the correct frame after \n {}'.format(
+                                                        json_paths[i+1], json_paths[i])
+                                                                                    )
+                if int(json_paths[i][-11:-5]) != int(img_paths[i][-10:-4]):
+                    self.logger.error(
+                        '{} \n does not match \n {}'.format(
+                                                        img_paths[i], json_paths[i])
+                                                                                    )
+            except:
+                if int(json_paths[i][-9:-5]) != int(json_paths[i+1][-9:-5]) - (self.skip + 1):
+                    self.logger.error(
+                        '{} \n is not the correct frame after \n {}'.format(
+                                                        json_paths[i+1], json_paths[i])
+                                                                                    )
+                if int(json_paths[i][-9:-5]) != int(img_paths[i][-8:-4]):
+                    self.logger.error(
+                        '{} \n does not match \n {}'.format(
+                                                        img_paths[i], json_paths[i])
+                                                                                    )
 
         all_p2d_heatmap = []
         all_p3d = []
