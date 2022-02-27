@@ -3,13 +3,45 @@
 """
 Class for model evaluation
 
-@author: Denis Tome'
-
 """
+import csv
+
 import numpy as np
 from base import BaseEval
 
 __all__ = ["EvalBody", "EvalUpperBody", "EvalLowerBody"]
+
+
+def create_results_csv(mpjpe_dict: dict, csv_path: str):
+    """
+    Save a csv of mpjpe evalutions stored in a dict.
+    Refer to the `test_results` dict in DirectRegression.test_epoch_end
+    for the expected structure for `mpjpe_dict`.
+    """
+
+    m_to_mm = 1000
+
+    # get csv column names
+    action_list = list(mpjpe_dict["Full Body"].keys())
+    action_list.sort()
+    columns = ["Evalution Error [mm]"]
+    columns.extend(action_list)
+    print(f"[print] columns: {columns}")
+
+    with open(csv_path, mode="w") as f:
+        mpjpe_writer = csv.writer(f)
+        mpjpe_writer.writerow(columns)
+        for body_split, action_dict in mpjpe_dict.items():
+            # the first column is the body split (e.g. "Full Body")
+            row = [body_split]
+            row_std = [body_split + " Error STD"]
+            # store mpjpe in order of sorted 'action_list'
+            for action in action_list:
+                row.append(action_dict[action]["mpjpe"] * m_to_mm)
+                row_std.append(action_dict[action]["std_mpjpe"] * m_to_mm)
+
+            mpjpe_writer.writerow(row)
+            mpjpe_writer.writerow(row_std)
 
 
 def compute_error(pred, gt):
