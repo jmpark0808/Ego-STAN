@@ -6,26 +6,25 @@ import torch.nn as nn
 from utils import evaluate
 from net.blocks import *
 
-
+encoder_dict = {
+    'map_concat': FeatureConcatEncoder(),
+    'branch_concat': FeatureBranchEncoder(),
+    'concat_reconstruct': FeatureReEncoder()
+}
 
 class xRNetConcat(pl.LightningModule):
-    encoder_dict = {
-        'map_concat': FeatureConcatEncoder(),
-        'branch_concat': FeatureBranchEncoder(),
-        'concat_reconstruct': FeatureReEncoder()
-    }
 
     def __init__(self, **kwargs):
         super().__init__()
 
         # parameters
-        self.batch_size = kwargs["batch_size"]
-        self.lr = kwargs["lr"]
-        self.lr_decay = kwargs["lr_decay"]
-        self.decay_step = kwargs["decay_step"]
-        self.load_resnet = kwargs["load_resnet"]
-        self.hm_train_steps = kwargs["hm_train_steps"]
-        self.encoder_type = kwargs["encoder_type"]
+        self.batch_size = kwargs.get("batch_size")
+        self.lr = kwargs.get("lr")
+        self.lr_decay = kwargs.get("lr_decay")
+        self.decay_step = kwargs.get("decay_step")
+        self.load_resnet = kwargs.get("load_resnet")
+        self.hm_train_steps = kwargs.get("hm_train_steps")
+        self.encoder_type = kwargs.get("encoder_type")
 
         # must be defined for logging computational graph
         self.example_input_array = torch.rand((1, 3, 368, 368))
@@ -33,7 +32,8 @@ class xRNetConcat(pl.LightningModule):
         # Generator that produces the Feature and HeatMaps
         self.feature_heatmaps = FeatureHeatMaps()
         # Encoder that takes the Maps and transforms to latent vector Z
-        self.encoder = self.encoder_dict[self.encoder_type]
+        #self.encoder = encoder_dict[self.encoder_type]
+        self.encoder = FeatureBranchEncoder()
         # Pose decoder that takes latent vector Z and transforms to 3D pose coordinates
         self.pose_decoder = PoseDecoder()
         # Heatmap decoder that takes latent vector Z and generates the original 2D heatmap
@@ -59,12 +59,11 @@ class xRNetConcat(pl.LightningModule):
 
         # Initialize weights
         self.apply(weight_init)
-
         if self.load_resnet:
             self.feature_heatmaps.resnet101.load_state_dict(torch.load(self.load_resnet))
+        
         self.feature_heatmaps.update_resnet101()
         self.iteration = 0
-        self.update_optim_flag = True
         self.save_hyperparameters()
 
     def mse(self, pred, label):
@@ -93,18 +92,13 @@ class xRNetConcat(pl.LightningModule):
         """
         Choose what optimizers and learning-rate schedulers to use in your optimization.
         """
-        if self.iteration <= self.hm_train_steps:
-            heatmap_params = list(self.feature_heatmaps.resnet101.parameters()) + list(self.feature_heatmaps.heatmap_deconv.parameters())
-            optimizer = torch.optim.SGD(
-            heatmap_params, lr=self.lr, momentum=0.9, weight_decay=5e-4
-        )
-        else:
-            optimizer = torch.optim.SGD(
-            self.parameters(), lr=self.lr, momentum=0.9, weight_decay=5e-4
+        
+        optimizer = torch.optim.SGD(
+        self.parameters(), lr=self.lr, momentum=0.9, nesterov=True
         )
         
-
         return optimizer
+
 
     def forward(self, x):
         """
@@ -137,9 +131,7 @@ class xRNetConcat(pl.LightningModule):
         https://pytorch-lightning.readthedocs.io/en/latest/starter/introduction_guide.html
 
         """
-        if self.iteration > self.hm_train_steps and self.update_optim_flag:
-            self.trainer.accelerator_backend.setup_optimizers(self)
-            self.update_optim_flag=False
+
         img, p2d, p3d, action = batch
         img = img.cuda()
         p2d = p2d.cuda()
@@ -164,7 +156,6 @@ class xRNetConcat(pl.LightningModule):
             self.log('Total 3D loss', loss_3d_pose.item())
             self.log('Total GHM loss', loss_2d_ghm.item())
      
-
         # calculate mpjpe loss
         mpjpe = torch.mean(torch.sqrt(torch.sum(torch.pow(p3d - pose, 2), dim=2)))
         mpjpe_std = torch.std(torch.sqrt(torch.sum(torch.pow(p3d - pose, 2), dim=2)))
@@ -178,6 +169,7 @@ class xRNetConcat(pl.LightningModule):
         Compute the metrics for validation batch
         validation loop: https://pytorch-lightning.readthedocs.io/en/stable/common/lightning_module.html#hooks
         """
+        tensorboard = self.logger.experiment
         img, p2d, p3d, action = batch
         img = img.cuda()
         p2d = p2d.cuda()
@@ -201,7 +193,8 @@ class xRNetConcat(pl.LightningModule):
         self.eval_body.eval(y_output, y_target, action)
         self.eval_upper.eval(y_output, y_target, action)
         self.eval_lower.eval(y_output, y_target, action)
-
+        tensorboard.add_images('Val Ground Truth 2D Heatmap', torch.clip(torch.sum(p2d, dim=1, keepdim=True), 0, 1), self.iteration)
+        tensorboard.add_images('Val Predicted 2D Heatmap', torch.clip(torch.sum(heatmap, dim=1, keepdim=True), 0, 1), self.iteration)
         return val_loss_3d_pose
 
     def on_validation_start(self):
@@ -225,7 +218,41 @@ class xRNetConcat(pl.LightningModule):
             self.log("val_mpjpe_lower_body", val_mpjpe_lower["All"]["mpjpe"])
             self.log("val_loss", self.val_loss_3d_pose_total)
         else:
-            self.log("val_mpjpe_full_body", 0.2-0.01*(self.iteration/self.hm_train_steps))
+            self.log("val_mpjpe_full_body", 0.3-0.01*(self.iteration/self.hm_train_steps))
+
+    def on_test_start(self):
+        # Initialize the mpjpe evaluation pipeline
+        self.eval_body = evaluate.EvalBody()
+        self.eval_upper = evaluate.EvalUpperBody()
+        self.eval_lower = evaluate.EvalLowerBody()
+
+    def test_step(self, batch, batch_idx):
+        img, p2d, p3d, action = batch
+        img = img.cuda()
+        p3d = p3d.cuda()
+
+        # forward pass
+        heatmap, p3d_hat, _ = self.forward(img)
+        heatmap = torch.sigmoid(heatmap)
+        heatmap = heatmap.detach()
+
+        # Evaluate mpjpe
+        y_output = p3d_hat.data.cpu().numpy()
+        y_target = p3d.data.cpu().numpy()
+        self.eval_body.eval(y_output, y_target, action)
+        self.eval_upper.eval(y_output, y_target, action)
+        self.eval_lower.eval(y_output, y_target, action)
+
+    def test_epoch_end(self, test_step_outputs):
+        test_mpjpe = self.eval_body.get_results()
+        test_mpjpe_upper = self.eval_upper.get_results()
+        test_mpjpe_lower = self.eval_lower.get_results()
+
+        self.test_results = {
+            "Full Body": test_mpjpe,
+            "Upper Body": test_mpjpe_upper,
+            "Lower Body": test_mpjpe_lower,
+        }
                     
 
 if __name__ == "__main__":
