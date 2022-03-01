@@ -139,6 +139,41 @@ class FeatureConcatEncoder(nn.Module):
         x = self.lrelu6(x)
         return x
 
+# -> Only change from previous model is that it encodes pose rather than latent vector.
+
+class FeatureConcat2Pose(nn.Module):
+    def __init__(self):
+        super(FeatureConcatEncoder, self).__init__()
+        self.conv1 = nn.Conv2d(30, 64, kernel_size=4, stride=2, padding=2)
+        self.lrelu1 = nn.LeakyReLU(0.2)
+        self.conv2 = nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1)
+        self.lrelu2 = nn.LeakyReLU(0.2)
+        self.conv3 = nn.Conv2d(128, 512, kernel_size=4, stride=2, padding=1)
+        self.lrelu3 = nn.LeakyReLU(0.2)
+
+        self.linear1 = nn.Linear(18432, 2048)
+        self.lrelu4 = nn.LeakyReLU(0.2)
+        self.linear2 = nn.Linear(2048, 512)
+        self.lrelu5 = nn.LeakyReLU(0.2)
+        self.linear3 = nn.Linear(512, 48)
+
+    def forward(self, x, y):
+        x = torch.concat([x, y], 1)
+        x = self.conv1(x)
+        x = self.lrelu1(x)
+        x = self.conv2(x)
+        x = self.lrelu2(x)
+        x = self.conv3(x)
+        x = self.lrelu3(x)
+        x = x.reshape(x.size(0), -1) # flatten
+        x = self.linear1(x)
+        x = self.lrelu4(x)
+        x = self.linear2(x)
+        x = self.lrelu5(x)
+        x = self.linear3(x)
+        x = x.reshape(x.size(0), 16, 3)
+        return x
+
 # -> Variation of the FeatureReEncoder class that reconstructs a heatmap-like feature map (15x47x47)
 # -> Instead of going from 30 maps to 64, goes from 30 maps to 15 to 64
 
@@ -176,6 +211,42 @@ class FeatureReEncoder(nn.Module):
         x = self.lrelu5(x)
         x = self.linear3(x)
         x = self.lrelu6(x)
+        return x
+# -> Only change from previous model is that it encodes pose rather than latent vector
+
+class FeatureReJoin2Pose(nn.Module):
+    def __init__(self):
+        super(FeatureReEncoder, self).__init__()
+        self.deconv_1 = nn.ConvTranspose2d(30, 15, kernel_size=4, stride=1, padding=2)
+        self.conv1 = nn.Conv2d(15, 64, kernel_size=4, stride=2, padding=2)
+        self.lrelu1 = nn.LeakyReLU(0.2)
+        self.conv2 = nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1)
+        self.lrelu2 = nn.LeakyReLU(0.2)
+        self.conv3 = nn.Conv2d(128, 512, kernel_size=4, stride=2, padding=1)
+        self.lrelu3 = nn.LeakyReLU(0.2)
+
+        self.linear1 = nn.Linear(18432, 2048)
+        self.lrelu4 = nn.LeakyReLU(0.2)
+        self.linear2 = nn.Linear(2048, 512)
+        self.lrelu5 = nn.LeakyReLU(0.2)
+        self.linear3 = nn.Linear(512, 48)
+
+    def forward(self, x, y):
+        x = torch.concat([x, y], 1)
+        x = self.deconv_1(x)
+        x = self.conv1(x)
+        x = self.lrelu1(x)
+        x = self.conv2(x)
+        x = self.lrelu2(x)
+        x = self.conv3(x)
+        x = self.lrelu3(x)
+        x = x.reshape(x.size(0), -1) # flatten
+        x = self.linear1(x)
+        x = self.lrelu4(x)
+        x = self.linear2(x)
+        x = self.lrelu5(x)
+        x = self.linear3(x)
+        x = x.reshape(x.size(0), 16, 3)
         return x
 
 # -> Variation of the Encoder class that concatenates the features extracted from Feature maps and HeatMaps.
@@ -225,6 +296,53 @@ class FeatureBranchEncoder(nn.Module):
         x = self.lrelu6(x)
         x = self.linear4(x)
         x = self.lrelu7(x)
+        return x
+
+# -> Same as FeatureBranchEncoder, except that it gets pose instead of latent vector
+
+class FeatureBranch2Pose(nn.Module):
+    def __init__(self):
+        super(FeatureBranch2Pose, self).__init__()
+
+        self.convs_hm = nn.Sequential(*[
+            nn.Conv2d(15, 64, kernel_size=4, stride=2, padding=2),
+            nn.LeakyReLU(0.2),
+            nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1),
+            nn.LeakyReLU(0.2),
+            nn.Conv2d(128, 512, kernel_size=4, stride=2, padding=1),
+            nn.LeakyReLU(0.2)
+            ])
+
+        self.convs_fm = nn.Sequential(*[
+            nn.Conv2d(15, 64, kernel_size=4, stride=2, padding=2),
+            nn.LeakyReLU(0.2),
+            nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1),
+            nn.LeakyReLU(0.2),
+            nn.Conv2d(128, 512, kernel_size=4, stride=2, padding=1),
+            nn.LeakyReLU(0.2)
+            ])
+
+        self.linear1 = nn.Linear(36864, 18432)
+        self.lrelu4 = nn.LeakyReLU(0.2)
+        self.linear2 = nn.Linear(18432, 2048)
+        self.lrelu5 = nn.LeakyReLU(0.2)
+        self.linear3 = nn.Linear(2048, 512)
+        self.lrelu6 = nn.LeakyReLU(0.2)
+        self.linear4 = nn.Linear(512, 48)
+
+    def forward(self, x, y):
+        x_hm = self.convs_hm(x)
+        x_dm = self.convs_dm(y)
+        x = torch.cat(tensors=[x_hm, x_dm], dim=1)
+        x = x.reshape(x.size(0), -1) # flatten
+        x = self.linear1(x)
+        x = self.lrelu4(x)
+        x = self.linear2(x)
+        x = self.lrelu5(x)
+        x = self.linear3(x)
+        x = self.lrelu6(x)
+        x = self.linear4(x)
+        x = x.reshape(x.size(0), 16, 3)
         return x
 
 class PoseDecoder(nn.Module):
