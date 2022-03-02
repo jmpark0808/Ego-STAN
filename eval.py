@@ -1,5 +1,4 @@
 import argparse
-import csv
 import datetime
 import os
 import pathlib
@@ -70,13 +69,14 @@ def main():
 
     # Grab weight file parent directory
     model_dir = pathlib.Path(dict_args['model_checkpoint_file']).parent.stem
+    now = datetime.datetime.now().strftime('%m%d%H%M')
 
     # Save: store test output results
     test_mpjpe_dict = model.test_results
     print(test_mpjpe_dict)
     mpjpe_csv_path = os.path.join(
         dict_args["output_directory"],
-        f"{model_dir}_eval.csv",
+        f"{model_dir}_{now}_eval.csv",
     )
     create_results_csv(test_mpjpe_dict, mpjpe_csv_path)
 
