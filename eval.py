@@ -2,6 +2,7 @@ import argparse
 import csv
 import datetime
 import os
+import pathlib
 
 import pytorch_lightning as pl
 
@@ -67,13 +68,15 @@ def main():
 
     trainer.test(model, datamodule=data_module)
 
+    # Grab weight file parent directory
+    model_dir = pathlib.Path(dict_args['model_checkpoint_file']).parent.stem
+
     # Save: store test output results
-    now = datetime.datetime.now().strftime("%m%d%H%M")
     test_mpjpe_dict = model.test_results
     print(test_mpjpe_dict)
     mpjpe_csv_path = os.path.join(
         dict_args["output_directory"],
-        f"{now}_eval.csv",
+        f"{model_dir}_eval.csv",
     )
     create_results_csv(test_mpjpe_dict, mpjpe_csv_path)
 
