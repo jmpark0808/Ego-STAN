@@ -114,7 +114,7 @@ logdir=/home/s42hossa/scratch/experiments/exp_4_seq_concat_direct
 # Start training
 tensorboard --logdir=${logdir} --host 0.0.0.0 --load_fast false & \
     python ~/projects/def-pfieguth/s42hossa/xREgoPose/train.py \
-    --model xregopose_seq_concat_direct \
+    --model xregopose_seq_concat \
     --dataloader sequential \
     --logdir ${logdir} \
     --dataset_tr $SLURM_TMPDIR/TrainSet \

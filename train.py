@@ -19,6 +19,7 @@ from net.xRNetBaseLine import xREgoPose
 from net.xRNetConcat import xRNetConcat
 from net.xRNetHeatmap import xREgoPoseHeatMap
 from net.xRNetSeqHM import xREgoPoseSeqHM
+from net.xRNetSeqConcat import xREgoPoseSeqConcat
 from net.xRNetPosterior import xREgoPosePosterior
 from net.xRNetSeqDirect import xREgoPoseSeqDirect
 from net.xRNetSeqHMDirect import xREgoPoseSeqHMDirect
@@ -34,6 +35,7 @@ MODEL_DIRECTORY = {
     "xregopose_concat":xRNetConcat,
     "xregopose_heatmap": xREgoPoseHeatMap,
     "xregopose_seq_hm": xREgoPoseSeqHM,
+    "xregopose_seq_concat": xREgoPoseSeqConcat,
     "xregopose_posterior": xREgoPosePosterior,
     "xregopose_seq_hm_direct": xREgoPoseSeqHMDirect,
     "xregopose_seq_concat_direct": xREgoPoseSeqConcatDirect,
