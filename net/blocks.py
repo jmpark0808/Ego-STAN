@@ -143,7 +143,7 @@ class FeatureConcatEncoder(nn.Module):
 
 class FeatureConcat2Pose(nn.Module):
     def __init__(self):
-        super(FeatureConcatEncoder, self).__init__()
+        super(FeatureConcat2Pose, self).__init__()
         self.conv1 = nn.Conv2d(30, 64, kernel_size=4, stride=2, padding=2)
         self.lrelu1 = nn.LeakyReLU(0.2)
         self.conv2 = nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1)
@@ -216,7 +216,7 @@ class FeatureReEncoder(nn.Module):
 
 class FeatureReJoin2Pose(nn.Module):
     def __init__(self):
-        super(FeatureReEncoder, self).__init__()
+        super(FeatureReJoin2Pose, self).__init__()
         self.deconv_1 = nn.ConvTranspose2d(30, 15, kernel_size=4, stride=1, padding=2)
         self.conv1 = nn.Conv2d(15, 64, kernel_size=4, stride=2, padding=2)
         self.lrelu1 = nn.LeakyReLU(0.2)
@@ -313,7 +313,7 @@ class FeatureBranch2Pose(nn.Module):
             nn.LeakyReLU(0.2)
             ])
 
-        self.convs_fm = nn.Sequential(*[
+        self.convs_dm = nn.Sequential(*[
             nn.Conv2d(15, 64, kernel_size=4, stride=2, padding=2),
             nn.LeakyReLU(0.2),
             nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1),

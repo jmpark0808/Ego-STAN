@@ -22,6 +22,7 @@ from net.xRNetSeqHM import xREgoPoseSeqHM
 from net.xRNetPosterior import xREgoPosePosterior
 from net.xRNetSeqDirect import xREgoPoseSeqDirect
 from net.xRNetSeqHMDirect import xREgoPoseSeqHMDirect
+from net.xRNetSeqConcatDirect import xREgoPoseSeqConcatDirect
 from utils.evaluate import create_results_csv
 
 # Deterministic
@@ -35,6 +36,7 @@ MODEL_DIRECTORY = {
     "xregopose_seq_hm": xREgoPoseSeqHM,
     "xregopose_posterior": xREgoPosePosterior,
     "xregopose_seq_hm_direct": xREgoPoseSeqHMDirect,
+    "xregopose_seq_concat_direct": xREgoPoseSeqConcatDirect,
     "xregopose_seq_direct": xREgoPoseSeqDirect
 }
 DATALOADER_DIRECTORY = {

@@ -14,7 +14,7 @@ pose_dict = {
     'concat_reconstruct': FeatureReJoin2Pose()
 }
 
-class xREgoPoseSeqHMDirect(pl.LightningModule):
+class xREgoPoseSeqConcatDirect(pl.LightningModule):
     def __init__(self, **kwargs):
         super().__init__()
 
