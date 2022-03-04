@@ -23,6 +23,7 @@ from net.xRNetPosterior import xREgoPosePosterior
 from net.xRNetSeqDirect import xREgoPoseSeqDirect
 from net.xRNetSeqHMDirect import xREgoPoseSeqHMDirect
 from net.xRNetHM2Pose import xRNetHM2Pose
+from net.xRNetHM2Pose_noconv import xRNetHM2Pose_noconv
 from utils.evaluate import create_results_csv
 
 # Deterministic
@@ -37,7 +38,8 @@ MODEL_DIRECTORY = {
     "xregopose_posterior": xREgoPosePosterior,
     "xregopose_seq_hm_direct": xREgoPoseSeqHMDirect,
     "xregopose_seq_direct": xREgoPoseSeqDirect,
-    "xregopose_hm2pose": xRNetHM2Pose
+    "xregopose_hm2pose": xRNetHM2Pose,
+    "xregopose_hm2pose_noconv": xRNetHM2Pose_noconv
 }
 DATALOADER_DIRECTORY = {
     'baseline': MocapDataModule,
