@@ -109,7 +109,7 @@ download_set "TrainSet"
 download_set "ValSet"
 download_set "TestSet"
 
-logdir=/home/s42hossa/scratch/experiments/exp_4_seq_concat_direct
+logdir=/home/s42hossa/scratch/experiments/exp_5_seq_concat_branch
 
 # Start training
 tensorboard --logdir=${logdir} --host 0.0.0.0 --load_fast false & \
