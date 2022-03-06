@@ -31,6 +31,38 @@ class HeatMap(nn.Module):
 
         return heatmap
 
+class HeatMapSkip(nn.Module):
+    def __init__(self):
+        super(HeatMapSkip, self).__init__()
+        # Resnet 101 without last average pooling and fully connected layers
+        self.resnet101 = torchvision.models.resnet101(pretrained=False)
+        # Average Pooling and flattening
+        self.avgpool_flatten = nn.Sequential(nn.AvgPool2d((12,12), stride=1), nn.Flatten(start_dim = 1))
+        # First Deconvolution to obtain 2D heatmap
+        self.heatmap_deconv = nn.Sequential(*[nn.ConvTranspose2d(2048, 1024, kernel_size=3,
+                                                                 stride=2, dilation=1, padding=1),
+                                              nn.ConvTranspose2d(1024, 15, kernel_size=3,
+                                                                 stride=2, dilation=1, padding=0)])
+
+    def update_resnet101(self):
+        self.avgpool_flatten = nn.Sequential(*[l for ind, l in enumerate(self.resnet101.children()) if ind == 8], 
+                                nn.Flatten(start_dim = 1))
+        self.resnet101 = nn.Sequential(*[l for ind, l in enumerate(self.resnet101.children()) if ind < 8])
+
+    def forward(self, x):
+        # x = 3 x 368 x 368
+
+        x = self.resnet101(x)
+        # x = 2048 x 12 x 12
+
+        heatmap = self.heatmap_deconv(x)
+        # heatmap = 15 x 47 x 47
+
+        skip_features = self.avgpool_flatten(x)
+        # skip_features = batch_size x 2048
+
+        return heatmap, skip_features
+
 # -> Edit of HeatMap class, except returns a feature map as well -> Why is it in net and not in blocks?
 
 class FeatureHeatMaps(nn.Module):
@@ -342,6 +374,160 @@ class FeatureBranch2Pose(nn.Module):
         x = self.linear3(x)
         x = self.lrelu6(x)
         x = self.linear4(x)
+        x = x.reshape(x.size(0), 16, 3)
+        return x
+
+class HMSkipEncoder(nn.Module):
+    def __init__(self):
+        super(HMSkipEncoder, self).__init__()
+        self.conv1 = nn.Conv2d(15, 64, kernel_size=4, stride=2, padding=2)
+        self.lrelu1 = nn.LeakyReLU(0.2)
+        self.conv2 = nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1)
+        self.lrelu2 = nn.LeakyReLU(0.2)
+        self.conv3 = nn.Conv2d(128, 512, kernel_size=4, stride=2, padding=1)
+        self.lrelu3 = nn.LeakyReLU(0.2)
+
+        self.lrelu_y = nn.LeakyReLU(0.2)
+        self.linear1 = nn.Linear(18432, 2048)
+        self.lrelu4 = nn.LeakyReLU(0.2)
+        self.linear2 = nn.Linear(4096, 2048)
+        self.lrelu5 = nn.LeakyReLU(0.2)
+        self.linear3 = nn.Linear(2048, 512)
+        self.lrelu6 = nn.LeakyReLU(0.2)
+        self.linear4 = nn.Linear(512, 20)
+        self.lrelu7 = nn.LeakyReLU(0.2)
+ 
+
+    def forward(self, x, y):
+        x = self.conv1(x)
+        x = self.lrelu1(x)
+        x = self.conv2(x)
+        x = self.lrelu2(x)
+        x = self.conv3(x)
+        x = self.lrelu3(x)
+        x = x.reshape(x.size(0), -1) # flatten
+        x = self.linear1(x)
+        x = self.lrelu4(x) # do we still need an activation here?
+        y = self.lrelu_y(y) # having activation on the skip features after.
+        x = torch.cat(tensors=[x, y], dim=1) #concatenation w/ skip features
+        x = self.linear2(x)
+        x = self.lrelu5(x)
+        x = self.linear3(x)
+        x = self.lrelu6(x)
+        x = self.linear4(x)
+        x = self.lrelu7(x)
+        return x
+
+class HMSkip2Pose(nn.Module):
+    def __init__(self):
+        super(HMSkip2Pose, self).__init__()
+        self.conv1 = nn.Conv2d(15, 64, kernel_size=4, stride=2, padding=2)
+        self.lrelu1 = nn.LeakyReLU(0.2)
+        self.conv2 = nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1)
+        self.lrelu2 = nn.LeakyReLU(0.2)
+        self.conv3 = nn.Conv2d(128, 512, kernel_size=4, stride=2, padding=1)
+        self.lrelu3 = nn.LeakyReLU(0.2)
+
+        self.lrelu_y = nn.LeakyReLU(0.2)
+        self.linear1 = nn.Linear(18432, 2048)
+        self.lrelu4 = nn.LeakyReLU(0.2)
+        self.linear2 = nn.Linear(4096, 2048)
+        self.lrelu5 = nn.LeakyReLU(0.2)
+        self.linear3 = nn.Linear(2048, 512)
+        self.lrelu6 = nn.LeakyReLU(0.2)
+        self.linear4 = nn.Linear(512, 48)
+ 
+
+    def forward(self, x, y):
+        x = self.conv1(x)
+        x = self.lrelu1(x)
+        x = self.conv2(x)
+        x = self.lrelu2(x)
+        x = self.conv3(x)
+        x = self.lrelu3(x)
+        x = x.reshape(x.size(0), -1) # flatten
+        x = self.linear1(x)
+        x = self.lrelu4(x) #do we still need an activation here?
+        y = self.lrelu_y(y) #having activation on the skip features after.
+        x = torch.cat(tensors=[x, y], dim=1) #concatenation w/ skip features
+        x = self.linear2(x)
+        x = self.lrelu5(x)
+        x = self.linear3(x)
+        x = self.lrelu6(x)
+        x = self.linear4(x)
+        x = x.reshape(x.size(0), 16, 3)
+        return x
+
+class HMResSkipEncoder(nn.Module):
+    def __init__(self):
+        super(HMResSkipEncoder, self).__init__()
+        self.conv1 = nn.Conv2d(15, 64, kernel_size=4, stride=2, padding=2)
+        self.lrelu1 = nn.LeakyReLU(0.2)
+        self.conv2 = nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1)
+        self.lrelu2 = nn.LeakyReLU(0.2)
+        self.conv3 = nn.Conv2d(128, 512, kernel_size=4, stride=2, padding=1)
+        self.lrelu3 = nn.LeakyReLU(0.2)
+
+        self.lrelu_y = nn.LeakyReLU(0.2)
+        self.linear1 = nn.Linear(18432, 2048)
+        self.lrelu4 = nn.LeakyReLU(0.2)
+        self.linear2 = nn.Linear(2048, 512)
+        self.lrelu5 = nn.LeakyReLU(0.2)
+        self.linear3 = nn.Linear(512, 20)
+        self.lrelu6 = nn.LeakyReLU(0.2)
+ 
+
+    def forward(self, x, y):
+        x = self.conv1(x)
+        x = self.lrelu1(x)
+        x = self.conv2(x)
+        x = self.lrelu2(x)
+        x = self.conv3(x)
+        x = self.lrelu3(x)
+        x = x.reshape(x.size(0), -1) # flatten
+        x = self.linear1(x)
+        x = self.lrelu4(x) # do we still need an activation here?
+        y = self.lrelu_y(y) # having activation on the skip features after.
+        x = x + y #concatenation w/ skip features
+        x = self.linear2(x)
+        x = self.lrelu5(x)
+        x = self.linear3(x)
+        x = self.lrelu6(x)
+        return x
+
+class HMResSkip2Pose(nn.Module):
+    def __init__(self):
+        super(HMResSkip2Pose, self).__init__()
+        self.conv1 = nn.Conv2d(15, 64, kernel_size=4, stride=2, padding=2)
+        self.lrelu1 = nn.LeakyReLU(0.2)
+        self.conv2 = nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1)
+        self.lrelu2 = nn.LeakyReLU(0.2)
+        self.conv3 = nn.Conv2d(128, 512, kernel_size=4, stride=2, padding=1)
+        self.lrelu3 = nn.LeakyReLU(0.2)
+
+        self.lrelu_y = nn.LeakyReLU(0.2)
+        self.linear1 = nn.Linear(18432, 2048)
+        self.lrelu4 = nn.LeakyReLU(0.2)
+        self.linear2 = nn.Linear(2048, 512)
+        self.lrelu5 = nn.LeakyReLU(0.2)
+        self.linear3 = nn.Linear(512, 48)
+ 
+
+    def forward(self, x, y):
+        x = self.conv1(x)
+        x = self.lrelu1(x)
+        x = self.conv2(x)
+        x = self.lrelu2(x)
+        x = self.conv3(x)
+        x = self.lrelu3(x)
+        x = x.reshape(x.size(0), -1) # flatten
+        x = self.linear1(x)
+        x = self.lrelu4(x) # do we still need an activation here?
+        y = self.lrelu_y(y) # having activation on the skip features after.
+        x = x + y #concatenation w/ skip features
+        x = self.linear2(x)
+        x = self.lrelu5(x)
+        x = self.linear3(x)
         x = x.reshape(x.size(0), 16, 3)
         return x
 

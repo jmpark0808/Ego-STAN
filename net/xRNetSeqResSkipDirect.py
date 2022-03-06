@@ -2,25 +2,18 @@
 
 import pytorch_lightning as pl
 import torch
-import torch.nn as nn
+import numpy as np
 from utils import evaluate
 from net.blocks import *
+from net.transformer import ResNetTransformerCls
+import matplotlib
 
-map_dict = {
-    'featuremaps' : FeatureHeatMaps(),
-    'skip' : HeatMapSkip()
+skip_dict = {
+    'concat_skip': HMSkip2Pose(),
+    'residual_skip': HMResSkip2Pose(),
 }
 
-encoder_dict = {
-    'map_concat': FeatureConcatEncoder(),
-    'branch_concat': FeatureBranchEncoder(),
-    'concat_reconstruct': FeatureReEncoder(),
-    'concat_skip': HMSkipEncoder(),
-    'residual_skip': HMResSkipEncoder(),
-}
-
-class xRNetConcat(pl.LightningModule): 
-
+class xREgoPoseSeqResSkipDirect(pl.LightningModule):
     def __init__(self, **kwargs):
         super().__init__()
 
@@ -31,20 +24,24 @@ class xRNetConcat(pl.LightningModule):
         self.decay_step = kwargs.get("decay_step")
         self.load_resnet = kwargs.get("load_resnet")
         self.hm_train_steps = kwargs.get("hm_train_steps")
-        self.encoder_type = kwargs.get("encoder_type")
+        self.seq_len = kwargs.get('seq_len')
 
         # must be defined for logging computational graph
-        self.example_input_array = torch.rand((1, 3, 368, 368))
+        self.example_input_array = torch.rand((1, self.seq_len, 3, 368, 368))
 
-        # Generator that produces the Feature and HeatMaps/Skip
-        self.feature_heatmaps = HeatMapSkip()
-        # Encoder that takes the Maps and transforms to latent vector Z
-        #self.encoder = encoder_dict[self.encoder_type]
-        self.encoder = HMSkipEncoder()
-        # Pose decoder that takes latent vector Z and transforms to 3D pose coordinates
-        self.pose_decoder = PoseDecoder()
-        # Heatmap decoder that takes latent vector Z and generates the original 2D heatmap
-        self.heatmap_decoder = HeatmapDecoder()
+        # Resnet 101 without last average pooling and fully connected layers
+        self.resnet101 = torchvision.models.resnet101(pretrained=False)
+        # Average Pooling and flattening
+        self.avgpool_flatten = nn.Sequential(nn.AvgPool2d((12,12), stride=1), nn.Flatten(start_dim = 1))
+        # First Deconvolution to obtain 2D heatmap
+        self.heatmap_deconv = nn.Sequential(*[nn.ConvTranspose2d(2048, 1024, kernel_size=3,
+                                                                 stride=2, dilation=1, padding=1),
+                                              nn.ConvTranspose2d(1024, 15, kernel_size=3,
+                                                                 stride=2, dilation=1, padding=0)])
+        # Transformer that takes sequence of heatmaps and outputs a sequence of heatmaps
+        self.resnet_transformer = ResNetTransformerCls(seq_len=self.seq_len*12*12, dim=512, depth=3, heads=8, mlp_dim=1024, dim_head=64, dropout=0.)
+        # Direct regression from heatmap and skip
+        self.hmskip2pose = HMResSkip2Pose()
 
         # Initialize the mpjpe evaluation pipeline
         self.eval_body = evaluate.EvalBody()
@@ -54,6 +51,8 @@ class xRNetConcat(pl.LightningModule):
         # Initialize total validation pose loss
         self.val_loss_3d_pose_total = torch.tensor(0., device=self.device)
         self.val_loss_hm = torch.tensor(0., device=self.device)
+        self.iteration = 0
+        self.save_hyperparameters()
 
         def weight_init(m):
             """
@@ -66,106 +65,123 @@ class xRNetConcat(pl.LightningModule):
 
         # Initialize weights
         self.apply(weight_init)
+
         if self.load_resnet:
-            self.feature_heatmaps.resnet101.load_state_dict(torch.load(self.load_resnet))
-        
-        self.feature_heatmaps.update_resnet101()
-        self.iteration = 0
-        self.save_hyperparameters()
+            self.resnet101.load_state_dict(torch.load(self.load_resnet))
+        self.avgpool_flatten = nn.Sequential(*[l for ind, l in enumerate(self.resnet101.children()) if ind == 8], 
+                                nn.Flatten(start_dim = 1))
+        self.resnet101 = nn.Sequential(*[l for ind, l in enumerate(self.resnet101.children()) if ind < 8])
+
 
     def mse(self, pred, label):
         pred = pred.reshape(pred.size(0), -1)
         label = label.reshape(label.size(0), -1)
         return torch.sum(torch.mean(torch.pow(pred-label, 2), dim=1))
 
-    def auto_encoder_loss(self, pose_pred, pose_label, hm_decoder, hm_resnet):
+    def auto_encoder_loss(self, pose_pred, pose_label):
         """
         Defining the loss funcition:
         """
         lambda_p = 0.1
         lambda_theta = -0.01
         lambda_L = 0.5
-        lambda_hm = 0.001
         pose_l2norm = torch.sqrt(torch.sum(torch.sum(torch.pow(pose_pred-pose_label, 2), dim=2), dim=1))
         cos = torch.nn.CosineSimilarity(dim=2, eps=1e-6)
         cosine_similarity_error = torch.sum(cos(pose_pred, pose_label), dim=1)
         limb_length_error = torch.sum(torch.sum(torch.abs(pose_pred-pose_label), dim=2), dim=1)
-        heatmap_error = torch.sqrt(torch.sum(torch.pow(hm_resnet.view(hm_resnet.size(0), -1) - hm_decoder.view(hm_decoder.size(0), -1), 2), dim=1))
         LAE_pose = lambda_p*(pose_l2norm + lambda_theta*cosine_similarity_error + lambda_L*limb_length_error)
-        LAE_hm = lambda_hm*heatmap_error
-        return torch.mean(LAE_pose), torch.mean(LAE_hm)
+        return torch.mean(LAE_pose)
 
     def configure_optimizers(self):
         """
         Choose what optimizers and learning-rate schedulers to use in your optimization.
         """
         
-        optimizer = torch.optim.SGD(
-        self.parameters(), lr=self.lr, momentum=0.9, nesterov=True
-        )
-        
-        return optimizer
-
+        optimizer = torch.optim.AdamW(self.parameters(), lr=self.lr)
+        scheduler = {'scheduler': torch.optim.lr_scheduler.LinearLR(optimizer, start_factor=0.00000001, end_factor=1.0, total_iters=int(self.hm_train_steps/self.batch_size)),
+                        'name': 'learning_rate',
+                        'interval':'step',
+                        'frequency': 1}
+        return [optimizer], [scheduler]
 
     def forward(self, x):
         """
         Forward pass through model
-        :param x: Input image
+
+        :param x: Input sequence of image
+
         :return: 2D heatmap, 16x3 joint inferences, 2D reconstructed heatmap
         """
-        # x = 3 x 368 x 368
+        # Flattening first two dimensions
+        dim = x.shape 
+        # shape -> batch_size x len_seq x 3 x 368 x 368
 
-        heatmap, depthmap = self.feature_heatmaps(x)
-        # heatmap = 15 x 47 x 47, depthmap = 15 x 47 x 47 or 1 x 2048 if skip
+        imgs = torch.reshape(x, (dim[0]*dim[1], dim[2], dim[3], dim[4]))
+        # imgs = # (batch_size*len_seq) x 3 x 368 x 368
+
+        resnet = self.resnet101(imgs)
+        # resnet = batch_size*len_seq x 2048 x 12 x 12
+        resnet = resnet.reshape(dim[0], dim[1], 2048, 12, 12)
+        # resnet = batch_size x len_seq x 2048 x 12 x 12
+        resnet = resnet.permute(0, 1, 3, 4, 2)
+        resnet = resnet.reshape(dim[0], -1, 2048)
+        # resnet = batch_size x len_seq*12*12 x 2048
         
-        z = self.encoder(heatmap, depthmap)
-        # z = 20
+        resnet, atts = self.resnet_transformer(resnet)
+        # resnet = batch_size x 144 x 2048
+        resnet = resnet.reshape(dim[0], 12, 12, 2048)
+        resnet = resnet.permute(0, 3, 1, 2) 
+        # resnet = batch_size x 2048 x 12 x 12
 
-        pose = self.pose_decoder(z)
-        # pose = 16 x 3
+        skip_features = self.avgpool_flatten(resnet)
+        # skip_features = batch_size x 2048
 
-        generated_heatmaps = self.heatmap_decoder(z)
-        # generated_heatmaps = 15 x 47 x 47
+        hms = self.heatmap_deconv(resnet)
+        # hms = batch_size x 15 x 47 x 47
 
-        return heatmap, pose, generated_heatmaps
+        p3d = self.hmskip2pose(hms, skip_features)
+        # p3d = batch_size x 16 x 3
+
+
+        return hms, p3d, atts
 
     def training_step(self, batch, batch_idx):
         """
         Compute and return the training loss
         logging resources:
         https://pytorch-lightning.readthedocs.io/en/latest/starter/introduction_guide.html
-        """
 
-        img, p2d, p3d, action = batch
-        img = img.cuda()
+        """
+        
+        sequence_imgs, p2d, p3d, action = batch
+        sequence_imgs = sequence_imgs.cuda()
         p2d = p2d.cuda()
+        p2d = p2d[:, -1, :, :, :]
         p3d = p3d.cuda()
+        p3d = p3d[:, -1, :, :]
 
         # forward pass
-        heatmap, pose, generated_heatmap = self.forward(img)
+        pred_hm, pred_3d, atts = self.forward(sequence_imgs)
 
 
         if self.iteration <= self.hm_train_steps:
-            heatmap = torch.sigmoid(heatmap)
-            loss = self.mse(heatmap, p2d)
+            pred_hm = torch.sigmoid(pred_hm)
+            loss = self.mse(pred_hm, p2d)
             self.log('Total HM loss', loss.item())
         else:
-            heatmap = torch.sigmoid(heatmap)
-            generated_heatmap = torch.sigmoid(generated_heatmap)
-            hm_loss = self.mse(heatmap, p2d)
-            loss_3d_pose, loss_2d_ghm = self.auto_encoder_loss(pose, p3d, generated_heatmap, heatmap)
-            ae_loss = loss_2d_ghm + loss_3d_pose
-            loss = hm_loss + ae_loss
+            pred_hm = torch.sigmoid(pred_hm)
+            hm_loss = self.mse(pred_hm, p2d)
+            loss_3d_pose = self.auto_encoder_loss(pred_3d, p3d)
+            loss = hm_loss + loss_3d_pose
             self.log('Total HM loss', hm_loss.item())
             self.log('Total 3D loss', loss_3d_pose.item())
-            self.log('Total GHM loss', loss_2d_ghm.item())
      
         # calculate mpjpe loss
-        mpjpe = torch.mean(torch.sqrt(torch.sum(torch.pow(p3d - pose, 2), dim=2)))
-        mpjpe_std = torch.std(torch.sqrt(torch.sum(torch.pow(p3d - pose, 2), dim=2)))
+        mpjpe = torch.mean(torch.sqrt(torch.sum(torch.pow(p3d - pred_3d, 2), dim=2)))
+        mpjpe_std = torch.std(torch.sqrt(torch.sum(torch.pow(p3d - pred_3d, 2), dim=2)))
         self.log("train_mpjpe_full_body", mpjpe)
         self.log("train_mpjpe_std", mpjpe_std)
-        self.iteration += img.size(0)
+        self.iteration += sequence_imgs.size(0)
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -173,20 +189,22 @@ class xRNetConcat(pl.LightningModule):
         Compute the metrics for validation batch
         validation loop: https://pytorch-lightning.readthedocs.io/en/stable/common/lightning_module.html#hooks
         """
-        tensorboard = self.logger.experiment
-        img, p2d, p3d, action = batch
-        img = img.cuda()
+        
+        sequence_imgs, p2d, p3d, action = batch
+        sequence_imgs = sequence_imgs.cuda()
         p2d = p2d.cuda()
+        p2d = p2d[:, -1, :, :, :]
         p3d = p3d.cuda()
+        p3d = p3d[:, -1, :, :]
 
         # forward pass
-        heatmap, pose, generated_heatmap = self.forward(img)
+        heatmap, pose, atts = self.forward(sequence_imgs)
         heatmap = torch.sigmoid(heatmap)
-        generated_heatmap = torch.sigmoid(generated_heatmap)
-   
+
         # calculate pose loss
         val_hm_loss = self.mse(heatmap, p2d)
-        val_loss_3d_pose, _ = self.auto_encoder_loss(pose, p3d, generated_heatmap, heatmap)
+        val_loss_3d_pose = self.auto_encoder_loss(pose, p3d)
+
         # update 3d pose loss
         self.val_loss_hm += val_hm_loss
         self.val_loss_3d_pose_total += val_loss_3d_pose
@@ -197,8 +215,7 @@ class xRNetConcat(pl.LightningModule):
         self.eval_body.eval(y_output, y_target, action)
         self.eval_upper.eval(y_output, y_target, action)
         self.eval_lower.eval(y_output, y_target, action)
-        #tensorboard.add_images('Val Ground Truth 2D Heatmap', torch.clip(torch.sum(p2d, dim=1, keepdim=True), 0, 1), self.iteration)
-        #tensorboard.add_images('Val Predicted 2D Heatmap', torch.clip(torch.sum(heatmap, dim=1, keepdim=True), 0, 1), self.iteration)
+
         return val_loss_3d_pose
 
     def on_validation_start(self):
@@ -231,24 +248,33 @@ class xRNetConcat(pl.LightningModule):
         self.eval_lower = evaluate.EvalLowerBody()
 
     def test_step(self, batch, batch_idx):
-        #tensorboard = self.logger.experiment
-        img, p2d, p3d, action = batch
-        img = img.cuda()
+        tensorboard = self.logger.experiment
+        sequence_imgs, p2d, p3d, action = batch
+        sequence_imgs = sequence_imgs.cuda()
+        p2d = p2d.cuda()
+        p2d = p2d[:, -1, :, :, :]
         p3d = p3d.cuda()
+        p3d = p3d[:, -1, :, :]
 
         # forward pass
-        heatmap, p3d_hat, _ = self.forward(img)
+        heatmap, pose, atts = self.forward(sequence_imgs)
         heatmap = torch.sigmoid(heatmap)
-        heatmap = heatmap.detach()
-
+        '''
+        for level, att in enumerate(atts):
+            for head in range(att.size(1)):
+                img = att[:, head, :, :].reshape(att.size(0), 1, att.size(2), att.size(3))
+                img = img.detach().cpu().numpy()
+                cmap = matplotlib.cm.get_cmap('gist_heat')
+                rgba = np.transpose(np.squeeze(cmap(img), axis=1), (0, 3, 1, 2))[:, :3, :, :]
+                tensorboard.add_images(f'Level {level}, head {head}, Attention Map', rgba, global_step=self.iteration)
+        '''
         # Evaluate mpjpe
-        y_output = p3d_hat.data.cpu().numpy()
+        y_output = pose.data.cpu().numpy()
         y_target = p3d.data.cpu().numpy()
         self.eval_body.eval(y_output, y_target, action)
         self.eval_upper.eval(y_output, y_target, action)
         self.eval_lower.eval(y_output, y_target, action)
-        #tensorboard.add_images('Val Ground Truth 2D Heatmap', torch.clip(torch.sum(p2d, dim=1, keepdim=True), 0, 1), self.iteration)
-        #tensorboard.add_images('Val Predicted 2D Heatmap', torch.clip(torch.sum(heatmap, dim=1, keepdim=True), 0, 1), self.iteration)
+      
 
     def test_epoch_end(self, test_step_outputs):
         test_mpjpe = self.eval_body.get_results()
@@ -259,8 +285,7 @@ class xRNetConcat(pl.LightningModule):
             "Full Body": test_mpjpe,
             "Upper Body": test_mpjpe_upper,
             "Lower Body": test_mpjpe_lower,
-        }
-                    
+        }          
 
 if __name__ == "__main__":
     pass

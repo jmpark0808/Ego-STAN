@@ -19,7 +19,7 @@ encoder_dict = {
     'residual_skip': HMResSkipEncoder(),
 }
 
-class xRNetConcat(pl.LightningModule): 
+class xRNetResConcat(pl.LightningModule): 
 
     def __init__(self, **kwargs):
         super().__init__()
@@ -38,9 +38,9 @@ class xRNetConcat(pl.LightningModule):
 
         # Generator that produces the Feature and HeatMaps/Skip
         self.feature_heatmaps = HeatMapSkip()
-        # Encoder that takes the Maps and transforms to latent vector Z
+        # Encoder that takes the Maps/skip and transforms to latent vector Z
         #self.encoder = encoder_dict[self.encoder_type]
-        self.encoder = HMSkipEncoder()
+        self.encoder = HMResSkipEncoder()
         # Pose decoder that takes latent vector Z and transforms to 3D pose coordinates
         self.pose_decoder = PoseDecoder()
         # Heatmap decoder that takes latent vector Z and generates the original 2D heatmap

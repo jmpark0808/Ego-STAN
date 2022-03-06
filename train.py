@@ -17,6 +17,7 @@ from net.DirectRegression import DirectRegression
 from net.xRNetSeq import xREgoPoseSeq
 from net.xRNetBaseLine import xREgoPose
 from net.xRNetConcat import xRNetConcat
+from net.xRNetResConcat import xRNetResConcat
 from net.xRNetHeatmap import xREgoPoseHeatMap
 from net.xRNetSeqHM import xREgoPoseSeqHM
 from net.xRNetSeqConcat import xREgoPoseSeqConcat
@@ -24,6 +25,8 @@ from net.xRNetPosterior import xREgoPosePosterior
 from net.xRNetSeqDirect import xREgoPoseSeqDirect
 from net.xRNetSeqHMDirect import xREgoPoseSeqHMDirect
 from net.xRNetSeqConcatDirect import xREgoPoseSeqConcatDirect
+from net.xRNetSeqSkipDirect import xREgoPoseSeqSkipDirect
+from net.xRNetSeqResSkipDirect import xREgoPoseSeqResSkipDirect
 from utils.evaluate import create_results_csv
 
 # Deterministic
@@ -33,12 +36,15 @@ MODEL_DIRECTORY = {
     "xregopose": xREgoPose,
     "xregopose_seq": xREgoPoseSeq,
     "xregopose_concat":xRNetConcat,
+    "xregopose_res_concat": xRNetResConcat,
     "xregopose_heatmap": xREgoPoseHeatMap,
     "xregopose_seq_hm": xREgoPoseSeqHM,
     "xregopose_seq_concat": xREgoPoseSeqConcat,
     "xregopose_posterior": xREgoPosePosterior,
     "xregopose_seq_hm_direct": xREgoPoseSeqHMDirect,
     "xregopose_seq_concat_direct": xREgoPoseSeqConcatDirect,
+    "xregopose_seq_skip_direct": xREgoPoseSeqSkipDirect,
+    "xregopose_seq_res_skip_direct": xREgoPoseSeqResSkipDirect,
     "xregopose_seq_direct": xREgoPoseSeqDirect
 }
 DATALOADER_DIRECTORY = {
