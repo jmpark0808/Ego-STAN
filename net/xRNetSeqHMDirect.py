@@ -260,8 +260,8 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
                 tensorboard.add_image(f'Level {level}, head {head}, Attention Map', rgba, global_step=self.test_iteration)
         
         tensorboard.add_images('Test Images', sequence_imgs[0], global_step=self.test_iteration)
-        tensorboard.add_image('Test GT Heatmap', p2d[0], global_step=self.test_iteration)
-        tensorboard.add_image('Test Pred Heatmap', torch.clip(torch.sum(heatmap[0], dim=0, keepdim=True), 0, 1), global_step=self.test_iteration)
+        tensorboard.add_image('Test GT Heatmap', torch.clip(torch.sum(torch.squeeze(p2d[0]), dim=0, keepdim=True), 0, 1), global_step=self.test_iteration)
+        tensorboard.add_image('Test Pred Heatmap', torch.clip(torch.sum(torch.squeeze(heatmap[0]), dim=0, keepdim=True), 0, 1), global_step=self.test_iteration)
         
         # Evaluate mpjpe
         y_output = pose.data.cpu().numpy()
