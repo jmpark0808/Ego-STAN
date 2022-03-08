@@ -47,6 +47,7 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
         self.val_loss_hm = torch.tensor(0., device=self.device)
         self.iteration = 0
         self.test_iteration = 0
+        self.image_limit = 100
         self.save_hyperparameters()
 
         def weight_init(m):
@@ -250,18 +251,26 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
         # forward pass
         heatmap, pose, atts = self.forward(sequence_imgs)
         heatmap = torch.sigmoid(heatmap)
-        
-        for level, att in enumerate(atts):
-            for head in range(att.size(1)):
-                img = att[:, head, :, :].reshape(att.size(0), 1, att.size(2), att.size(3))
-                img = img.detach().cpu().numpy()
-                cmap = matplotlib.cm.get_cmap('gist_heat')
-                rgba = np.transpose(np.squeeze(cmap(img), axis=1), (0, 3, 1, 2))[0, :3, :, :]
-                tensorboard.add_image(f'Level {level}, head {head}, Attention Map', rgba, global_step=self.test_iteration)
-        
-        tensorboard.add_images('Test Images', sequence_imgs[0], global_step=self.test_iteration)
-        tensorboard.add_image('Test GT Heatmap', torch.clip(torch.sum(torch.squeeze(p2d[0]), dim=0, keepdim=True), 0, 1), global_step=self.test_iteration)
-        tensorboard.add_image('Test Pred Heatmap', torch.clip(torch.sum(torch.squeeze(heatmap[0]), dim=0, keepdim=True), 0, 1), global_step=self.test_iteration)
+        if self.image_limit > 0 and np.random.uniform() < 0.2:
+
+            for level, att in enumerate(atts):
+                for head in range(att.size(1)):
+                    img = att[:, head, :, :].reshape(att.size(0), 1, att.size(2), att.size(3))
+                    img = img.detach().cpu().numpy()
+                    cmap = matplotlib.cm.get_cmap('gist_heat')
+                    rgba = np.transpose(np.squeeze(cmap(img), axis=1), (0, 3, 1, 2))[0, :3, :, :]
+                    tensorboard.add_image(f'Level {level}, head {head}, Attention Map', rgba, global_step=self.test_iteration)
+            
+            mean=[0.485, 0.456, 0.406]
+            std=[0.229, 0.224, 0.225]
+            first_sample = sequence_imgs[0]
+            first_sample[:, 0, :, :] = first_sample[:, 0, :, :]*std[0]+mean[0]
+            first_sample[:, 1, :, :] = first_sample[:, 1, :, :]*std[1]+mean[1]
+            first_sample[:, 2, :, :] = first_sample[:, 2, :, :]*std[2]+mean[2]
+            tensorboard.add_images('Test Images', first_sample, global_step=self.test_iteration)
+            tensorboard.add_image('Test GT Heatmap', torch.clip(torch.sum(torch.squeeze(p2d[0]), dim=0, keepdim=True), 0, 1), global_step=self.test_iteration)
+            tensorboard.add_image('Test Pred Heatmap', torch.clip(torch.sum(torch.squeeze(heatmap[0]), dim=0, keepdim=True), 0, 1), global_step=self.test_iteration)
+            self.image_limit -= 1
         
         # Evaluate mpjpe
         y_output = pose.data.cpu().numpy()
@@ -270,6 +279,7 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
         self.eval_upper.eval(y_output, y_target, action)
         self.eval_lower.eval(y_output, y_target, action)
         self.test_iteration += sequence_imgs.size(0)
+        
       
 
     def test_epoch_end(self, test_step_outputs):
