@@ -245,8 +245,8 @@ class Mocap(BaseDataset):
         p2d, p3d = self._process_points(data)
         p2d[:, 0] = p2d[:, 0]-180 # Translate p2d coordinates by 180 pixels to the left
 
-        
-        
+         
+        p2d_heatmap = None
         if self.heatmap_type == 'baseline':
             p2d_heatmap = generate_heatmap(p2d[1:, :], 3) # exclude head
         elif self.heatmap_type == 'distance':
@@ -263,7 +263,7 @@ class Mocap(BaseDataset):
             p3d = self.transform({'joints3D': p3d})['joints3D']
             p2d = self.transform({'joints2D': p2d})['joints2D']
 
-        return img, p2d_heatmap, p3d, action
+        return img, p2d_heatmap, p3d, action, img_path
 
     def __len__(self):
 

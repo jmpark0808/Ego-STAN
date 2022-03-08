@@ -203,7 +203,7 @@ class MocapTransformer(BaseDataset):
             p3d = self.transform({'joints3D': p3d})['joints3D']
             p2d = np.array([self.transform({'joints2D': p2d})['joints2D'].numpy() for p2d in all_p2d_heatmap])
 
-        return torch.tensor(imgs), torch.tensor(p2d), p3d, action
+        return torch.tensor(imgs), torch.tensor(p2d), p3d, action, img_paths
 
     def __len__(self):
 
