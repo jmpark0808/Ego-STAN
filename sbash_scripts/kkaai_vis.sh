@@ -109,7 +109,7 @@ cd ${dataset_dir}
 download_set "ValSet"
 
 # Start testing
-python ~/projects/def-pfieguth/kkaai/xREgoPose/eval.py \
+python ~/projects/def-pfieguth/kkaai/xREgoPose/vis.py \
     --model direct_regression \
     --heatmap_type baseline \
     --dataset_val $SLURM_TMPDIR/ValSet \
@@ -117,4 +117,3 @@ python ~/projects/def-pfieguth/kkaai/xREgoPose/eval.py \
     --dataloader baseline \
     --batch_size 16 \
     --num_workers 24 \
-    --model_checkpoint_file /home/kkaai/projects/def-pfieguth/kkaai/xREgoPose/ 
