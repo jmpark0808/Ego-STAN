@@ -27,24 +27,37 @@ def create_results_csv(mpjpe_dict: dict, csv_path: str):
     columns = ["Evalution Error [mm]"]
     columns.extend(action_list)
     print(f"[print] columns: {columns}")
+    joints = ['Head','Neck', 'LeftArm', 'LeftForeArm',
+     'LeftHand', 'RightArm', 'RightForeArm', 'RightHand',
+     'LeftUpLeg', 'LeftLeg','LeftFoot','LeftToeBase',
+     'RightUpLeg','RightLeg','RightFoot','RightToeBase']
 
     with open(csv_path, mode="w") as f:
         mpjpe_writer = csv.writer(f)
         mpjpe_writer.writerow(columns)
         for body_split, action_dict in mpjpe_dict.items():
-            # the first column is the body split (e.g. "Full Body")
-            row = [body_split]
-            row_std = [body_split + " Error STD"]
-            # store mpjpe in order of sorted 'action_list'
-            for action in action_list:
-                row.append(action_dict[action]["mpjpe"] * m_to_mm)
-                row_std.append(action_dict[action]["std_mpjpe"] * m_to_mm)
+            if body_split != 'Per Joint':
+                # the first column is the body split (e.g. "Full Body")
+                row = [body_split]
+                row_std = [body_split + " Error STD"]
+                # store mpjpe in order of sorted 'action_list'
+                for action in action_list:
+                    row.append(action_dict[action]["mpjpe"] * m_to_mm)
+                    row_std.append(action_dict[action]["std_mpjpe"] * m_to_mm)
 
-            mpjpe_writer.writerow(row)
-            mpjpe_writer.writerow(row_std)
+                mpjpe_writer.writerow(row)
+                mpjpe_writer.writerow(row_std)
+
+        mpjpe_writer.writerow(joints)
+        mpjpe_writer.writerow((mpjpe_dict['Per Joint']*m_to_mm).tolist())
+
+        
 
 
-def compute_error(pred, gt):
+    
+
+
+def compute_error(pred, gt, return_mean=True):
     """Compute error
 
     Arguments:
@@ -63,8 +76,10 @@ def compute_error(pred, gt):
 
     assert pred.shape == gt.shape
     error = np.sqrt(np.sum((pred - gt) ** 2, axis=1))
-
-    return np.mean(error)
+    if return_mean:
+        return np.mean(error)
+    else:
+        return error
 
 
 class EvalBody(BaseEval):
@@ -168,3 +183,31 @@ class EvalLowerBody(BaseEval):
 
     def desc(self):
         return "LowerBody_Average3DError"
+
+
+class EvalPerJoint(object):
+    """Eval MPJPE per joint body"""
+    def __init__(self):
+        super().__init__()
+        self.errors = []
+
+    def eval(self, pred, gt):
+        """Evaluate
+
+        Arguments:
+            pred {np.ndarray} -- predictions, format (N x 3)
+            gt {np.ndarray} -- ground truth, format (N x 3)
+
+        """
+
+        for (pose_in, pose_target) in zip(pred, gt):
+            err = compute_error(pose_in, pose_target, return_mean=False)
+            # err = Error per joint
+            self.errors.append(err)
+
+    def get_results(self):
+        stacked = np.array(self.errors)
+        stacked = np.mean(stacked, axis=0)
+        return stacked
+
+    

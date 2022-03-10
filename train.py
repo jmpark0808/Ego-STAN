@@ -107,7 +107,7 @@ if __name__ == "__main__":
 
     # Callback: model checkpoint strategy
     checkpoint_callback = ModelCheckpoint(
-        save_top_k=5, verbose=True, monitor="val_mpjpe_full_body", mode="min"
+        dirpath=weight_save_dir, save_top_k=5, verbose=True, monitor="val_mpjpe_full_body", mode="min"
     )
 
     # Data: load data module

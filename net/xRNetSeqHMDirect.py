@@ -41,6 +41,7 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
         self.eval_body = evaluate.EvalBody()
         self.eval_upper = evaluate.EvalUpperBody()
         self.eval_lower = evaluate.EvalLowerBody()
+        self.eval_per_joint = evaluate.EvalPerJoint()
 
         # Initialize total validation pose loss
         self.val_loss_3d_pose_total = torch.tensor(0., device=self.device)
@@ -238,6 +239,7 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
         self.eval_body = evaluate.EvalBody()
         self.eval_upper = evaluate.EvalUpperBody()
         self.eval_lower = evaluate.EvalLowerBody()
+        self.eval_per_joint = evaluate.EvalPerJoint()
 
     def test_step(self, batch, batch_idx):
         tensorboard = self.logger.experiment
@@ -278,6 +280,7 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
         self.eval_body.eval(y_output, y_target, action)
         self.eval_upper.eval(y_output, y_target, action)
         self.eval_lower.eval(y_output, y_target, action)
+        self.eval_per_joint.eval(y_output, y_target)
         self.test_iteration += sequence_imgs.size(0)
         
       
@@ -286,11 +289,13 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
         test_mpjpe = self.eval_body.get_results()
         test_mpjpe_upper = self.eval_upper.get_results()
         test_mpjpe_lower = self.eval_lower.get_results()
+        test_mpjpe_per_joint = self.eval_per_joint.get_results()
 
         self.test_results = {
             "Full Body": test_mpjpe,
             "Upper Body": test_mpjpe_upper,
             "Lower Body": test_mpjpe_lower,
+            "Per Joint": test_mpjpe_per_joint
         }          
 
 if __name__ == "__main__":
