@@ -96,6 +96,10 @@ if __name__ == "__main__":
     # Initialize logging paths
     now = datetime.datetime.now().strftime('%m%d%H%M')
     weight_save_dir = os.path.join(dict_args["logdir"], os.path.join('models', 'state_dict', now))
+    while os.path.exists(weight_save_dir):
+        now = datetime.datetime.now().strftime('%m%d%H%M')
+        weight_save_dir = os.path.join(dict_args["logdir"], os.path.join('models', 'state_dict', now))
+
     os.makedirs(weight_save_dir, exist_ok=True)
 
 
