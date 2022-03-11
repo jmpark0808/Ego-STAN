@@ -15,6 +15,6 @@ pip install --no-index --upgrade pip
 ```
 # First cd into the xREgoPose directory 
 # For example, I will have to " cd ~/projects/def-pfieguth/j97park/xREgoPose/
-pip install -r requirements.txt --no-dependencies
+pip install -r requirements.txt
 ```
 
