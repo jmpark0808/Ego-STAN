@@ -270,8 +270,8 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
             first_sample[:, 1, :, :] = first_sample[:, 1, :, :]*std[1]+mean[1]
             first_sample[:, 2, :, :] = first_sample[:, 2, :, :]*std[2]+mean[2]
             tensorboard.add_images('Test Images', first_sample, global_step=self.test_iteration)
-            tensorboard.add_image('Test GT Heatmap', torch.clip(torch.sum(torch.squeeze(p2d[0]), dim=0, keepdim=True), 0, 1), global_step=self.test_iteration)
-            tensorboard.add_image('Test Pred Heatmap', torch.clip(torch.sum(torch.squeeze(heatmap[0]), dim=0, keepdim=True), 0, 1), global_step=self.test_iteration)
+            tensorboard.add_images('Test GT Heatmap', torch.clip(p2d[0], 0, 1).reshape(15, 1, 47, 47), global_step=self.test_iteration)
+            tensorboard.add_images('Test Pred Heatmap', torch.clip(heatmap[0], 0, 1).reshape(15, 1, 47, 47), global_step=self.test_iteration)
             self.image_limit -= 1
         
         # Evaluate mpjpe
