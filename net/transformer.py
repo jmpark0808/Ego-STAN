@@ -161,7 +161,7 @@ class ResNetTransformerCls(nn.Module):
         return x, atts
 
 class GlobalPixelTransformer(nn.Module):
-    def __init__(self, *, seq_len, dim, depth, heads, mlp_dim, dim_head = 64, dropout = 0., emb_dropout = 0.):
+    def __init__(self, *, dim, depth, heads, mlp_dim, dim_head = 64, dropout = 0., emb_dropout = 0.):
         super().__init__()
   
         self.to_embedding = nn.Linear(2048, dim)
