@@ -41,11 +41,14 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
         self.eval_body = evaluate.EvalBody()
         self.eval_upper = evaluate.EvalUpperBody()
         self.eval_lower = evaluate.EvalLowerBody()
+        self.eval_per_joint = evaluate.EvalPerJoint()
 
         # Initialize total validation pose loss
         self.val_loss_3d_pose_total = torch.tensor(0., device=self.device)
         self.val_loss_hm = torch.tensor(0., device=self.device)
         self.iteration = 0
+        self.test_iteration = 0
+        self.image_limit = 100
         self.save_hyperparameters()
 
         def weight_init(m):
@@ -236,6 +239,7 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
         self.eval_body = evaluate.EvalBody()
         self.eval_upper = evaluate.EvalUpperBody()
         self.eval_lower = evaluate.EvalLowerBody()
+        self.eval_per_joint = evaluate.EvalPerJoint()
 
     def test_step(self, batch, batch_idx):
         tensorboard = self.logger.experiment
@@ -249,32 +253,49 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
         # forward pass
         heatmap, pose, atts = self.forward(sequence_imgs)
         heatmap = torch.sigmoid(heatmap)
-        '''
-        for level, att in enumerate(atts):
-            for head in range(att.size(1)):
-                img = att[:, head, :, :].reshape(att.size(0), 1, att.size(2), att.size(3))
-                img = img.detach().cpu().numpy()
-                cmap = matplotlib.cm.get_cmap('gist_heat')
-                rgba = np.transpose(np.squeeze(cmap(img), axis=1), (0, 3, 1, 2))[:, :3, :, :]
-                tensorboard.add_images(f'Level {level}, head {head}, Attention Map', rgba, global_step=self.iteration)
-        '''
+        if self.image_limit > 0 and np.random.uniform() < 0.2:
+
+            for level, att in enumerate(atts):
+                for head in range(att.size(1)):
+                    img = att[:, head, :, :].reshape(att.size(0), 1, att.size(2), att.size(3))
+                    img = img.detach().cpu().numpy()
+                    cmap = matplotlib.cm.get_cmap('gist_heat')
+                    rgba = np.transpose(np.squeeze(cmap(img), axis=1), (0, 3, 1, 2))[0, :3, :, :]
+                    tensorboard.add_image(f'Level {level}, head {head}, Attention Map', rgba, global_step=self.test_iteration)
+            
+            mean=[0.485, 0.456, 0.406]
+            std=[0.229, 0.224, 0.225]
+            first_sample = sequence_imgs[0]
+            first_sample[:, 0, :, :] = first_sample[:, 0, :, :]*std[0]+mean[0]
+            first_sample[:, 1, :, :] = first_sample[:, 1, :, :]*std[1]+mean[1]
+            first_sample[:, 2, :, :] = first_sample[:, 2, :, :]*std[2]+mean[2]
+            tensorboard.add_images('Test Images', first_sample, global_step=self.test_iteration)
+            tensorboard.add_images('Test GT Heatmap', torch.clip(p2d[0], 0, 1).reshape(15, 1, 47, 47), global_step=self.test_iteration)
+            tensorboard.add_images('Test Pred Heatmap', torch.clip(heatmap[0], 0, 1).reshape(15, 1, 47, 47), global_step=self.test_iteration)
+            self.image_limit -= 1
+        
         # Evaluate mpjpe
         y_output = pose.data.cpu().numpy()
         y_target = p3d.data.cpu().numpy()
         self.eval_body.eval(y_output, y_target, action)
         self.eval_upper.eval(y_output, y_target, action)
         self.eval_lower.eval(y_output, y_target, action)
+        self.eval_per_joint.eval(y_output, y_target)
+        self.test_iteration += sequence_imgs.size(0)
+        
       
 
     def test_epoch_end(self, test_step_outputs):
         test_mpjpe = self.eval_body.get_results()
         test_mpjpe_upper = self.eval_upper.get_results()
         test_mpjpe_lower = self.eval_lower.get_results()
+        test_mpjpe_per_joint = self.eval_per_joint.get_results()
 
         self.test_results = {
             "Full Body": test_mpjpe,
             "Upper Body": test_mpjpe_upper,
             "Lower Body": test_mpjpe_lower,
+            "Per Joint": test_mpjpe_per_joint
         }          
 
 if __name__ == "__main__":

@@ -27,6 +27,7 @@ from net.xRNetSeqHMDirect import xREgoPoseSeqHMDirect
 from net.xRNetSeqConcatDirect import xREgoPoseSeqConcatDirect
 from net.xRNetSeqSkipDirect import xREgoPoseSeqSkipDirect
 from net.xRNetSeqResSkipDirect import xREgoPoseSeqResSkipDirect
+from net.xRNetGlobalTrans import xREgoPoseGlobalTrans
 from utils.evaluate import create_results_csv
 
 # Deterministic
@@ -45,7 +46,9 @@ MODEL_DIRECTORY = {
     "xregopose_seq_concat_direct": xREgoPoseSeqConcatDirect,
     "xregopose_seq_skip_direct": xREgoPoseSeqSkipDirect,
     "xregopose_seq_res_skip_direct": xREgoPoseSeqResSkipDirect,
-    "xregopose_seq_direct": xREgoPoseSeqDirect
+    "xregopose_seq_direct": xREgoPoseSeqDirect,
+    "xregopose_seq_direct": xREgoPoseSeqDirect,
+    "xregopose_global_trans": xREgoPoseGlobalTrans
 }
 DATALOADER_DIRECTORY = {
     'baseline': MocapDataModule,
@@ -104,6 +107,10 @@ if __name__ == "__main__":
     # Initialize logging paths
     now = datetime.datetime.now().strftime('%m%d%H%M')
     weight_save_dir = os.path.join(dict_args["logdir"], os.path.join('models', 'state_dict', now))
+    while os.path.exists(weight_save_dir):
+        now = datetime.datetime.now().strftime('%m%d%H%M')
+        weight_save_dir = os.path.join(dict_args["logdir"], os.path.join('models', 'state_dict', now))
+
     os.makedirs(weight_save_dir, exist_ok=True)
 
 
@@ -117,7 +124,7 @@ if __name__ == "__main__":
 
     # Callback: model checkpoint strategy
     checkpoint_callback = ModelCheckpoint(
-        save_top_k=5, verbose=True, monitor="val_mpjpe_full_body", mode="min"
+        dirpath=weight_save_dir, save_top_k=5, verbose=True, monitor="val_mpjpe_full_body", mode="min"
     )
 
     # Data: load data module
