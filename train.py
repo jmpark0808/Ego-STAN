@@ -12,6 +12,7 @@ from pytorch_lightning.loggers import TensorBoardLogger
 
 
 from dataset.mocap import MocapDataModule
+from dataset.mocap_distance import MocapDistanceDataModule
 from dataset.mocap_transformer import MocapSeqDataModule
 from net.DirectRegression import DirectRegression
 from net.xRNetSeq import xREgoPoseSeq
@@ -20,6 +21,7 @@ from net.xRNetConcat import xRNetConcat
 from net.xRNetHeatmap import xREgoPoseHeatMap
 from net.xRNetSeqHM import xREgoPoseSeqHM
 from net.xRNetPosterior import xREgoPosePosterior
+from net.xRNetPosteriorDist import xREgoPosePosteriorDist
 from net.xRNetSeqDirect import xREgoPoseSeqDirect
 from net.xRNetSeqHMDirect import xREgoPoseSeqHMDirect
 from net.xRNetGlobalTrans import xREgoPoseGlobalTrans
@@ -35,13 +37,15 @@ MODEL_DIRECTORY = {
     "xregopose_heatmap": xREgoPoseHeatMap,
     "xregopose_seq_hm": xREgoPoseSeqHM,
     "xregopose_posterior": xREgoPosePosterior,
+    "xregopose_posterior_dist": xREgoPosePosteriorDist,
     "xregopose_seq_hm_direct": xREgoPoseSeqHMDirect,
     "xregopose_seq_direct": xREgoPoseSeqDirect,
     "xregopose_global_trans": xREgoPoseGlobalTrans
 }
 DATALOADER_DIRECTORY = {
     'baseline': MocapDataModule,
-    'sequential': MocapSeqDataModule
+    'sequential': MocapSeqDataModule,
+    'distance': MocapDistanceDataModule,
 } 
 
 if __name__ == "__main__":
