@@ -140,7 +140,7 @@ class xRNetConcat(pl.LightningModule):
         if self.iteration > self.hm_train_steps and self.update_optim_flag:
             self.trainer.accelerator_backend.setup_optimizers(self)
             self.update_optim_flag=False
-        img, p2d, p3d, action = batch
+        img, p2d, p3d, action, img_path = batch
         img = img.cuda()
         p2d = p2d.cuda()
         p3d = p3d.cuda()
@@ -178,7 +178,7 @@ class xRNetConcat(pl.LightningModule):
         Compute the metrics for validation batch
         validation loop: https://pytorch-lightning.readthedocs.io/en/stable/common/lightning_module.html#hooks
         """
-        img, p2d, p3d, action = batch
+        img, p2d, p3d, action, img_path = batch
         img = img.cuda()
         p2d = p2d.cuda()
         p3d = p3d.cuda()
