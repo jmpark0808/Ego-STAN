@@ -147,7 +147,7 @@ class xREgoPose(pl.LightningModule):
             heatmap = torch.sigmoid(heatmap)
             generated_heatmap = torch.sigmoid(generated_heatmap)
             hm_loss = self.mse(heatmap, p2d)
-            loss_3d_pose, loss_2d_ghm = self.auto_encoder_loss(pose, p3d, generated_heatmap, heatmap)
+            loss_3d_pose, loss_2d_ghm = self.auto_encoder_loss(pose, p3d, generated_heatmap, p2d)
             ae_loss = loss_2d_ghm + loss_3d_pose
             loss = hm_loss + ae_loss
             self.log('Total HM loss', hm_loss.item())
