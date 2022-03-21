@@ -74,15 +74,15 @@ class xREgoPose(pl.LightningModule):
         lambda_theta = -0.01
         lambda_L = 0.5
         lambda_hm = 0.001
-        # pose_l2norm = torch.sum(torch.sum(torch.pow(pose_pred-pose_label, 2), dim=2), dim=1)
-        pose_l2norm = torch.sqrt(torch.sum(torch.sum(torch.pow(pose_pred-pose_label, 2), dim=2), dim=1))
+        pose_l2norm = torch.sum(torch.sum(torch.pow(pose_pred-pose_label, 2), dim=2), dim=1)
+        # pose_l2norm = torch.sqrt(torch.sum(torch.sum(torch.pow(pose_pred-pose_label, 2), dim=2), dim=1))
         cos = torch.nn.CosineSimilarity(dim=2, eps=1e-6)
         cosine_similarity_error = torch.sum(cos(pose_pred, pose_label), dim=1)
-        # limb_length_error = torch.sum(torch.sqrt(torch.sum(torch.pow(pose_pred-pose_label, 2), dim=2)), dim=1)
-        # heatmap_error = torch.sum(torch.pow(hm_resnet.view(hm_resnet.size(0), -1) - hm_decoder.view(hm_decoder.size(0), -1), 2), dim=1)
-        limb_length_error = torch.sum(torch.sum(torch.abs(pose_pred-pose_label), dim=2), dim=1)
-        heatmap_error = torch.sqrt(torch.sum(torch.pow(hm_resnet.reshape(hm_resnet.size(0), -1) - hm_decoder.reshape(hm_decoder.size(0), -1), 2), dim=1))
-        LAE_pose = lambda_p*(pose_l2norm + lambda_theta*cosine_similarity_error+lambda_L*limb_length_error)
+        limb_length_error = torch.sum(torch.sqrt(torch.sum(torch.pow(pose_pred-pose_label, 2), dim=2)), dim=1)
+        heatmap_error = torch.sum(torch.pow(hm_resnet.view(hm_resnet.size(0), -1) - hm_decoder.view(hm_decoder.size(0), -1), 2), dim=1)
+        # limb_length_error = torch.sum(torch.sum(torch.abs(pose_pred-pose_label), dim=2), dim=1)
+        # heatmap_error = torch.sqrt(torch.sum(torch.pow(hm_resnet.reshape(hm_resnet.size(0), -1) - hm_decoder.reshape(hm_decoder.size(0), -1), 2), dim=1))
+        LAE_pose = lambda_p*((1+lambda_L)*pose_l2norm + lambda_theta*cosine_similarity_error)
         LAE_hm = lambda_hm*heatmap_error
         return torch.mean(LAE_pose), torch.mean(LAE_hm)
 
