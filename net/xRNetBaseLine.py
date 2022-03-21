@@ -108,7 +108,7 @@ class xREgoPose(pl.LightningModule):
         heatmap = self.heatmap(x)
         # heatmap = 15 x 47 x 47
 
-        if gt_heatmap:
+        if gt_heatmap is not None:
             z = self.encoder(gt_heatmap)
         else:
             z = self.encoder(heatmap)
