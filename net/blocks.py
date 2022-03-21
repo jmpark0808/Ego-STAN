@@ -228,15 +228,19 @@ class FeatureBranchEncoder(nn.Module):
         return x
 
 class PoseDecoder(nn.Module):
-    def __init__(self):
+    def __init__(self, initial_dim=20):
         super(PoseDecoder, self).__init__()
-        self.linear1 = nn.Linear(20, 32)
+        self.linear1 = nn.Linear(initial_dim, 32)
+        self.lrelu1 = nn.LeakyReLU(0.2)
         self.linear2 = nn.Linear(32, 32)
+        self.lrelu2 = nn.LeakyReLU(0.2)
         self.linear3 = nn.Linear(32, 48)
 
     def forward(self, x):
         x = self.linear1(x)
+        x = self.lrelu1(x)
         x = self.linear2(x)
+        x = self.lrelu2(x)
         x = self.linear3(x)
         x = x.reshape(x.size(0), 16, 3)
         return x
@@ -245,17 +249,107 @@ class HeatmapDecoder(nn.Module):
     def __init__(self):
         super(HeatmapDecoder, self).__init__()
         self.linear1 = nn.Linear(20, 512)
+        self.lrelu1 = nn.LeakyReLU(0.2)
         self.linear2 = nn.Linear(512, 2048)
+        self.lrelu2 = nn.LeakyReLU(0.2)
         self.linear3 = nn.Linear(2048, 18432)
+        self.lrelu3 = nn.LeakyReLU(0.2)
         self.deconv1 = nn.ConvTranspose2d(512, 128, kernel_size=4, stride=2, padding=1)
         self.deconv2 = nn.ConvTranspose2d(128, 64, kernel_size=4, stride=2, padding=1)
         self.deconv3 = nn.ConvTranspose2d(64, 15, kernel_size=3, stride=2, padding=1)
     def forward(self, x):
         x = self.linear1(x)
+        x = self.lrelu1(x)
         x = self.linear2(x)
+        x = self.lrelu2(x)
         x = self.linear3(x)
+        x = self.lrelu3(x)
         x = x.reshape(x.size(0), 512, 6, 6)
         x = self.deconv1(x)
         x = self.deconv2(x)
         x = self.deconv3(x)
         return x
+
+class HM2Pose(nn.Module):
+    def __init__(self):
+        super(HM2Pose, self).__init__()
+        self.conv1 = nn.Conv2d(15, 64, kernel_size=4, stride=2, padding=2)
+        self.lrelu1 = nn.LeakyReLU(0.2)
+        self.conv2 = nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1)
+        self.lrelu2 = nn.LeakyReLU(0.2)
+        self.conv3 = nn.Conv2d(128, 512, kernel_size=4, stride=2, padding=1)
+        self.lrelu3 = nn.LeakyReLU(0.2)
+
+        self.linear1 = nn.Linear(18432, 2048)
+        self.lrelu4 = nn.LeakyReLU(0.2)
+        self.linear2 = nn.Linear(2048, 512)
+        self.lrelu5 = nn.LeakyReLU(0.2)
+        self.linear3 = nn.Linear(512, 48)
+ 
+
+    def forward(self, x):
+        x = self.conv1(x)
+        x = self.lrelu1(x)
+        x = self.conv2(x)
+        x = self.lrelu2(x)
+        x = self.conv3(x)
+        x = self.lrelu3(x)
+        x = x.reshape(x.size(0), -1) # flatten
+        x = self.linear1(x)
+        x = self.lrelu4(x)
+        x = self.linear2(x)
+        x = self.lrelu5(x)
+        x = self.linear3(x)
+        x = x.reshape(x.size(0), 16, 3)
+        return x
+
+class HM2PoseDist(nn.Module):
+    def __init__(self):
+        super(HM2PoseDist, self).__init__()
+        self.conv1_2d = nn.Conv2d(16, 32, kernel_size=4, stride=2, padding=2)
+        self.relu1_2d = nn.PReLU()
+        self.conv2_2d = nn.Conv2d(32, 64, kernel_size=4, stride=2, padding=1)
+        self.relu2_2d = nn.PReLU()
+        self.conv3_2d = nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1)
+        self.relu3_2d = nn.PReLU()
+
+        self.conv1_1d = nn.Conv1d(16, 32, kernel_size=3, stride=2, padding=1)
+        self.relu1_1d = nn.PReLU()
+        self.conv2_1d = nn.Conv1d(32, 64, kernel_size=3, stride=2, padding=1)
+        self.relu2_1d = nn.PReLU()
+        self.conv3_1d = nn.Conv1d(64, 128, kernel_size=3, stride=2, padding=1)
+        self.relu3_1d = nn.PReLU()
+
+        self.linear1 = nn.Linear(5120, 2048)
+        self.relu4 = nn.PReLU()
+        self.linear2 = nn.Linear(2048, 512)
+        self.relu5 = nn.PReLU()
+        self.linear3 = nn.Linear(512, 48)
+ 
+
+    def forward(self, heatmap_2d, heatmap_1d):
+        heatmap_2d = self.conv1_2d(heatmap_2d)
+        heatmap_2d = self.relu1_2d(heatmap_2d)
+        heatmap_2d = self.conv2_2d(heatmap_2d)
+        heatmap_2d = self.relu2_2d(heatmap_2d)
+        heatmap_2d = self.conv3_2d(heatmap_2d)
+        heatmap_2d = self.relu3_2d(heatmap_2d)
+        heatmap_2d = heatmap_2d.reshape(heatmap_2d.size(0), -1) # flatten
+
+        heatmap_1d = self.conv1_1d(heatmap_1d)
+        heatmap_1d = self.relu1_1d(heatmap_1d)
+        heatmap_1d = self.conv2_1d(heatmap_1d)
+        heatmap_1d = self.relu2_1d(heatmap_1d)
+        heatmap_1d = self.conv3_1d(heatmap_1d)
+        heatmap_1d = self.relu3_1d(heatmap_1d)
+        heatmap_1d = heatmap_1d.reshape(heatmap_1d.size(0), -1) # flatten
+
+
+        heatmap = torch.cat((heatmap_2d, heatmap_1d), dim=1)
+        pose = self.linear1(heatmap)
+        pose = self.relu4(pose)
+        pose = self.linear2(pose)
+        pose = self.relu5(pose)
+        pose = self.linear3(pose)
+        pose = pose.reshape(pose.size(0), 16, 3)
+        return pose

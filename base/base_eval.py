@@ -63,7 +63,7 @@ class BaseEval(ABC):
 
         results = {}
         for k, v in self.error.items():
-            results.update({k:{"mpjpe":float(np.mean(v)),"std_mpjpe":np.std(v), "num_samples":len(v)}})
+            results.update({k:{"mpjpe":float(np.mean(v)),"std_mpjpe":float(np.std(v)), "num_samples":len(v)}})
 
         return results
 

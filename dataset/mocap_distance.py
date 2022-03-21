@@ -18,88 +18,31 @@ from base import SetType
 import dataset.transform as trsf
 from torch.utils.data import DataLoader
 from torchvision import transforms
+from dataset.mocap import generate_heatmap, generate_heatmap_distance
+import matplotlib.pyplot as plt
 
-def generate_heatmap_distance(joints, heatmap_sigma):
+def generate_heatmap_1d(distances, heatmap_sigma):
     """
-    :param joints:  [nof_joints, 2]
+    :param distances:  [nof_joints]
     :return: target, target_weight(1: visible, 0: invisible)
     """
-    heatmap_size = [47, 47]
-    num_joints = 15
+    heatmap_size = 30
+    num_joints = 16
     target = np.zeros((num_joints,
-                       heatmap_size[0],
-                       heatmap_size[1]),
-                      dtype=np.float32)
-    target_weight = np.ones((num_joints, 1), dtype=np.float32)
-    heatmap_sigma += 2
-    sigma_size = heatmap_sigma * 3
-
-    for joint_id in range(num_joints):
-        tmp_size = sigma_size[joint_id]
-        feat_stride = np.asarray([940, 800]) / np.asarray([heatmap_size[0], heatmap_size[1]])
-        mu_x = int(joints[joint_id][0] / feat_stride[0] + 0.5)
-        mu_y = int(joints[joint_id][1] / feat_stride[1] + 0.5)
-        if mu_x < 0 or mu_y < 0:
-            target_weight[joint_id] = 0
-            continue
-        # Check that any part of the gaussian is in-bounds
-        ul = [int(mu_x - tmp_size), int(mu_y - tmp_size)]
-        br = [int(mu_x + tmp_size + 1), int(mu_y + tmp_size + 1)]
-        if ul[0] >= heatmap_size[0] or ul[1] >= heatmap_size[1] \
-                or br[0] < 0 or br[1] < 0:
-            # If not, just return the image as is
-            target_weight[joint_id] = 0
-            continue
-
-        # # Generate gaussian
-        size = 2 * tmp_size + 1
-        x = np.arange(0, size, 1, np.float32)
-        y = x[:, np.newaxis]
-        x0 = y0 = size // 2
-        # The gaussian is not normalized, we want the center value to equal 1
-        g = np.exp(- ((x - x0) ** 2 + (y - y0) ** 2) / (2 * heatmap_sigma[joint_id] ** 2))
-
-        # Usable gaussian range
-        g_x = max(0, -ul[0]), min(br[0], heatmap_size[0]) - ul[0]
-        g_y = max(0, -ul[1]), min(br[1], heatmap_size[1]) - ul[1]
-        # Image range
-        img_x = max(0, ul[0]), min(br[0], heatmap_size[0])
-        img_y = max(0, ul[1]), min(br[1], heatmap_size[1])
-
-        v = target_weight[joint_id]
-        if v > 0.5:
-            target[joint_id][img_y[0]:img_y[1], img_x[0]:img_x[1]] = \
-                g[g_y[0]:g_y[1], g_x[0]:g_x[1]]
-
-
-    return target
-
-def generate_heatmap(joints, heatmap_sigma):
-    """
-    :param joints:  [nof_joints, 2]
-    :return: target, target_weight(1: visible, 0: invisible)
-    """
-    heatmap_size = [47, 47]
-    num_joints = joints.shape[0]
-    target = np.zeros((num_joints,
-                       heatmap_size[0],
-                       heatmap_size[1]),
+                       heatmap_size),
                       dtype=np.float32)
     target_weight = np.ones((num_joints, 1), dtype=np.float32)
     tmp_size = heatmap_sigma * 3
 
     for joint_id in range(num_joints):
-        feat_stride = np.asarray([940, 800]) / np.asarray([heatmap_size[0], heatmap_size[1]])
-        mu_x = int(joints[joint_id][0] / feat_stride[0] + 0.5)
-        mu_y = int(joints[joint_id][1] / feat_stride[1] + 0.5)
-        if mu_x < 0 or mu_y < 0:
+        mu_x = int(distances[joint_id])
+        if mu_x < 0:
             target_weight[joint_id] = 0
             continue
         # Check that any part of the gaussian is in-bounds
-        ul = [int(mu_x - tmp_size), int(mu_y - tmp_size)]
-        br = [int(mu_x + tmp_size + 1), int(mu_y + tmp_size + 1)]
-        if ul[0] >= heatmap_size[0] or ul[1] >= heatmap_size[1] \
-                or br[0] < 0 or br[1] < 0:
+        l = int(mu_x - tmp_size)
+        r = int(mu_x + tmp_size + 1)
+        if l >= heatmap_size or r < 0:
             # If not, just return the image as is
             target_weight[joint_id] = 0
             continue
@@ -107,28 +50,28 @@ def generate_heatmap(joints, heatmap_sigma):
         # # Generate gaussian
         size = 2 * tmp_size + 1
         x = np.arange(0, size, 1, np.float32)
-        y = x[:, np.newaxis]
-        x0 = y0 = size // 2
+        x0 = size // 2
         # The gaussian is not normalized, we want the center value to equal 1
-        g = np.exp(- ((x - x0) ** 2 + (y - y0) ** 2) / (2 * heatmap_sigma ** 2))
+        g = np.exp(- ((x - x0) ** 2) / (2 * heatmap_sigma ** 2))
 
         # Usable gaussian range
-        g_x = max(0, -ul[0]), min(br[0], heatmap_size[0]) - ul[0]
-        g_y = max(0, -ul[1]), min(br[1], heatmap_size[1]) - ul[1]
+        g_x = max(0, -l), min(r, heatmap_size) - l
+
         # Image range
-        img_x = max(0, ul[0]), min(br[0], heatmap_size[0])
-        img_y = max(0, ul[1]), min(br[1], heatmap_size[1])
+        img_x = max(0, l), min(r, heatmap_size)
+
 
         v = target_weight[joint_id]
         if v > 0.5:
-            target[joint_id][img_y[0]:img_y[1], img_x[0]:img_x[1]] = \
-                g[g_y[0]:g_y[1], g_x[0]:g_x[1]]
+            target[joint_id][img_x[0]:img_x[1]] = \
+                g[g_x[0]:g_x[1]]
 
 
     return target
 
 
-class Mocap(BaseDataset):
+
+class MocapDistance(BaseDataset):
     """Mocap Dataset loader"""
 
     ROOT_DIRS = ['rgba', 'json']
@@ -245,10 +188,11 @@ class Mocap(BaseDataset):
         p2d, p3d = self._process_points(data)
         p2d[:, 0] = p2d[:, 0]-180 # Translate p2d coordinates by 180 pixels to the left
 
-        
+        dist = np.sum(np.power(p3d, 2), axis=1)*10
+        p2d_dist = generate_heatmap_1d(dist, 3)
         
         if self.heatmap_type == 'baseline':
-            p2d_heatmap = generate_heatmap(p2d[1:, :], 3) # exclude head
+            p2d_heatmap = generate_heatmap(p2d, 3) # exclude head
         elif self.heatmap_type == 'distance':
             distances = np.sqrt(np.sum(p3d**2, axis=1))[1:]
             p2d_heatmap = generate_heatmap_distance(p2d[1:, :], distances) # exclude head
@@ -262,14 +206,15 @@ class Mocap(BaseDataset):
             img = self.transform({'image': img})['image']
             p3d = self.transform({'joints3D': p3d})['joints3D']
             p2d = self.transform({'joints2D': p2d})['joints2D']
+            p2d_dist = self.transform({'joints2D_dist': p2d_dist})['joints2D_dist']
 
-        return img, p2d_heatmap, p3d, action
+        return img, p2d_heatmap, p2d_dist, p3d, action
 
     def __len__(self):
 
         return len(self.index[self.ROOT_DIRS[0]])
 
-class MocapDataModule(pl.LightningDataModule):
+class MocapDistanceDataModule(pl.LightningDataModule):
 
     def __init__(self, **kwargs):
         super().__init__()
@@ -287,19 +232,19 @@ class MocapDataModule(pl.LightningDataModule):
         )
         
     def train_dataloader(self):
-        data_train = Mocap(self.train_dir, SetType.TRAIN, transform=self.data_transform, heatmap_type=self.heatmap_type)
+        data_train = MocapDistance(self.train_dir, SetType.TRAIN, transform=self.data_transform, heatmap_type=self.heatmap_type)
         return DataLoader(
                 data_train, batch_size=self.batch_size, 
                 num_workers=self.num_workers, shuffle=True, pin_memory=True)
 
     def val_dataloader(self):
-        data_val = Mocap(self.val_dir, SetType.VAL, transform=self.data_transform, heatmap_type=self.heatmap_type)
+        data_val = MocapDistance(self.val_dir, SetType.VAL, transform=self.data_transform, heatmap_type=self.heatmap_type)
         return DataLoader(
                 data_val, batch_size=self.batch_size, 
                 num_workers=self.num_workers, pin_memory=True)
 
     def test_dataloader(self):
-        data_test = Mocap(self.test_dir, SetType.TEST, transform=self.data_transform, heatmap_type=self.heatmap_type)
+        data_test = MocapDistance(self.test_dir, SetType.TEST, transform=self.data_transform, heatmap_type=self.heatmap_type)
         return DataLoader(
                 data_test, batch_size=self.batch_size, 
                 num_workers=self.num_workers, pin_memory=True)

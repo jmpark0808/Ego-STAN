@@ -1,6 +1,7 @@
 import argparse
 import datetime
 import os
+from re import X
 
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import ModelCheckpoint
@@ -8,12 +9,10 @@ from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from pytorch_lightning.callbacks.lr_monitor import LearningRateMonitor
 from pytorch_lightning.profiler import SimpleProfiler
 from pytorch_lightning.loggers import TensorBoardLogger
-from torch.utils.data import DataLoader
-from torchvision import transforms
 
-import dataset.transform as trsf
-from base import SetType
+
 from dataset.mocap import MocapDataModule
+from dataset.mocap_distance import MocapDistanceDataModule
 from dataset.mocap_transformer import MocapSeqDataModule
 from net.DirectRegression import DirectRegression
 from net.xRNetSeq import xREgoPoseSeq
@@ -21,6 +20,11 @@ from net.xRNetBaseLine import xREgoPose
 from net.xRNetConcat import xRNetConcat
 from net.xRNetHeatmap import xREgoPoseHeatMap
 from net.xRNetSeqHM import xREgoPoseSeqHM
+from net.xRNetPosterior import xREgoPosePosterior
+from net.xRNetPosteriorDist import xREgoPosePosteriorDist
+from net.xRNetSeqDirect import xREgoPoseSeqDirect
+from net.xRNetSeqHMDirect import xREgoPoseSeqHMDirect
+from net.xRNetGlobalTrans import xREgoPoseGlobalTrans
 from utils.evaluate import create_results_csv
 
 # Deterministic
@@ -31,11 +35,17 @@ MODEL_DIRECTORY = {
     "xregopose_seq": xREgoPoseSeq,
     "xregopose_concat":xRNetConcat,
     "xregopose_heatmap": xREgoPoseHeatMap,
-    "xregopose_seq_hm": xREgoPoseSeqHM
+    "xregopose_seq_hm": xREgoPoseSeqHM,
+    "xregopose_posterior": xREgoPosePosterior,
+    "xregopose_posterior_dist": xREgoPosePosteriorDist,
+    "xregopose_seq_hm_direct": xREgoPoseSeqHMDirect,
+    "xregopose_seq_direct": xREgoPoseSeqDirect,
+    "xregopose_global_trans": xREgoPoseGlobalTrans
 }
 DATALOADER_DIRECTORY = {
     'baseline': MocapDataModule,
-    'sequential': MocapSeqDataModule
+    'sequential': MocapSeqDataModule,
+    'distance': MocapDistanceDataModule,
 } 
 
 if __name__ == "__main__":
@@ -90,6 +100,10 @@ if __name__ == "__main__":
     # Initialize logging paths
     now = datetime.datetime.now().strftime('%m%d%H%M')
     weight_save_dir = os.path.join(dict_args["logdir"], os.path.join('models', 'state_dict', now))
+    while os.path.exists(weight_save_dir):
+        now = datetime.datetime.now().strftime('%m%d%H%M')
+        weight_save_dir = os.path.join(dict_args["logdir"], os.path.join('models', 'state_dict', now))
+
     os.makedirs(weight_save_dir, exist_ok=True)
 
 
@@ -112,9 +126,10 @@ if __name__ == "__main__":
 
     # Trainer: initialize training behaviour
     profiler = SimpleProfiler()
+    lr_monitor = LearningRateMonitor(logging_interval='step')
     logger = TensorBoardLogger(save_dir=dict_args['logdir'], version=now, name='lightning_logs', log_graph=True)
     trainer = pl.Trainer(
-        callbacks=[early_stopping_callback, checkpoint_callback],
+        callbacks=[early_stopping_callback, checkpoint_callback, lr_monitor],
         val_check_interval=dict_args['val_freq'],
         deterministic=True,
         gpus=dict_args['gpus'],
