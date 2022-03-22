@@ -36,8 +36,8 @@ class HeatMapDist(nn.Module):
     def __init__(self):
         super(HeatMapDist, self).__init__()
         # Resnet 101 without last average pooling and fully connected layers
-        self.resnet_2d_heatmap = torchvision.models.resnet50(pretrained=True)
-        self.resnet_1d_heatmap = torchvision.models.resnet50(pretrained=True)
+        self.resnet_2d_heatmap = torchvision.models.resnet50(pretrained=False)
+        self.resnet_1d_heatmap = torchvision.models.resnet50(pretrained=False)
         # First Deconvolution to obtain 2D heatmap
         self.heatmap_deconv = nn.Sequential(*[nn.ConvTranspose2d(2048, 1024, kernel_size=3,
                                                                  stride=2, dilation=1, padding=1),
