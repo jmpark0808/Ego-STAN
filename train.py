@@ -26,6 +26,7 @@ from net.xRNetSeqDirect import xREgoPoseSeqDirect
 from net.xRNetSeqHMDirect import xREgoPoseSeqHMDirect
 from net.xRNetGlobalTrans import xREgoPoseGlobalTrans
 from net.xRNetDist import xREgoPoseDist
+from net.xRNetUNet import xREgoPoseUNet
 from utils.evaluate import create_results_csv
 
 # Deterministic
@@ -42,7 +43,8 @@ MODEL_DIRECTORY = {
     "xregopose_seq_hm_direct": xREgoPoseSeqHMDirect,
     "xregopose_seq_direct": xREgoPoseSeqDirect,
     "xregopose_global_trans": xREgoPoseGlobalTrans,
-    "xregopose_dist": xREgoPoseDist
+    "xregopose_dist": xREgoPoseDist,
+    "xregopose_unet": xREgoPoseUNet
 }
 DATALOADER_DIRECTORY = {
     'baseline': MocapDataModule,
@@ -88,6 +90,7 @@ if __name__ == "__main__":
                         default= 'branch_concat')
     parser.add_argument('--heatmap_type', help='Type of 2D ground truth heatmap, Defaults to "baseline"', 
                         default= 'baseline')
+    parser.add_argument("--heatmap_resolution",  help='2D heatmap resolution', nargs="*", type=int, default=[47, 47])
     parser.add_argument('--seed', help='Seed for reproduceability', 
                         default=42, type=int)
 
