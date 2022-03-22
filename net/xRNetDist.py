@@ -50,7 +50,7 @@ class xREgoPoseDist(pl.LightningModule):
             self.heatmap.resnet_2d_heatmap.load_state_dict(torch.load(self.load_resnet))
             self.heatmap.resnet_1d_heatmap.load_state_dict(torch.load(self.load_resnet))
 
-        self.heatmap.update_resnet50()
+        self.heatmap.update_resnet101()
         self.iteration = 0
         self.save_hyperparameters()
         self.test_results = {}
