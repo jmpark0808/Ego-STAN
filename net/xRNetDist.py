@@ -47,7 +47,8 @@ class xREgoPoseDist(pl.LightningModule):
         # Initialize weights
         self.apply(weight_init)
         if self.load_resnet:
-            self.heatmap.resnet101.load_state_dict(torch.load(self.load_resnet))
+            self.heatmap.resnet_2d_heatmap.load_state_dict(torch.load(self.load_resnet))
+            self.heatmap.resnet_1d_heatmap.load_state_dict(torch.load(self.load_resnet))
 
         self.heatmap.update_resnet50()
         self.iteration = 0
