@@ -126,6 +126,7 @@ class xREgoPoseDist(pl.LightningModule):
         if self.iteration <= self.hm_train_steps:
             heatmap, distance_heatmap, pose = self.forward(img)
             heatmap = torch.sigmoid(heatmap)
+            distance_heatmap = torch.sigmoid(distance_heatmap)
             hm_2d_loss = self.mse(heatmap, p2d)
             hm_1d_loss = self.mse(distance_heatmap, p1d)
             loss = hm_2d_loss + hm_1d_loss
@@ -135,6 +136,7 @@ class xREgoPoseDist(pl.LightningModule):
         else:
             heatmap, distance_heatmap, pose = self.forward(img)
             heatmap = torch.sigmoid(heatmap)
+            distance_heatmap = torch.sigmoid(distance_heatmap)
             hm_2d_loss = self.mse(heatmap, p2d)
             hm_1d_loss = self.mse(distance_heatmap, p1d)
             loss_3d_pose = self.auto_encoder_loss(pose, p3d)
@@ -167,7 +169,7 @@ class xREgoPoseDist(pl.LightningModule):
         # forward pass
         heatmap, distance_heatmap, pose = self.forward(img)
         heatmap = torch.sigmoid(heatmap)
-   
+        distance_heatmap = torch.sigmoid(distance_heatmap)
         # calculate pose loss
         val_hm_2d_loss = self.mse(heatmap, p2d)
         val_hm_1d_loss = self.mse(distance_heatmap, p1d)
