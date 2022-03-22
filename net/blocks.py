@@ -31,6 +31,45 @@ class HeatMap(nn.Module):
 
         return heatmap
 
+
+class HeatMapDist(nn.Module):
+    def __init__(self):
+        super(HeatMapDist, self).__init__()
+        # Resnet 101 without last average pooling and fully connected layers
+        self.resnet_2d_heatmap = torchvision.models.resnet50(pretrained=True)
+        self.resnet_1d_heatmap = torchvision.models.resnet50(pretrained=True)
+        # First Deconvolution to obtain 2D heatmap
+        self.heatmap_deconv = nn.Sequential(*[nn.ConvTranspose2d(2048, 1024, kernel_size=3,
+                                                                 stride=2, dilation=1, padding=1),
+                                              nn.ConvTranspose2d(1024, 16, kernel_size=3,
+                                                                 stride=2, dilation=1, padding=0)])
+        self.heatmap_linear = nn.Linear(2048, 480)
+
+
+
+    def update_resnet50(self):
+        self.resnet_2d_heatmap = nn.Sequential(*[l for ind, l in enumerate(self.resnet_2d_heatmap.children()) if ind < 8])
+        self.resnet_1d_heatmap = nn.Sequential(*[l for ind, l in enumerate(self.resnet_1d_heatmap.children()) if ind < 9])
+
+    def forward(self, x):
+        # x = 3 x 368 x 368
+
+        x_2d = self.resnet_2d_heatmap(x)
+        # x_2d = 2048 x 12 x 12
+        
+        x_1d = self.resnet_1d_heatmap(x)
+        x_1d = x_1d.reshape(x_1d.size(0), -1)
+        # x_1d = 2048
+ 
+        heatmap_2d = self.heatmap_deconv(x_2d)
+        # heatmap_2d = 16 x 47 x 47
+        heatmap_1d = self.heatmap_linear(x_1d)
+        heatmap_1d = heatmap_1d.reshape(heatmap_1d.size(0), 16, 30)
+        # heatmap_1d = 16 x 30
+
+
+        return heatmap_2d, heatmap_1d
+
 # -> Edit of HeatMap class, except returns a feature map as well -> Why is it in net and not in blocks?
 
 class FeatureHeatMaps(nn.Module):
