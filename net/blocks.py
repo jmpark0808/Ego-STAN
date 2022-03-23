@@ -15,7 +15,7 @@ class HeatMap(nn.Module):
         # First Deconvolution to obtain 2D heatmap
         self.heatmap_deconv = nn.Sequential(*[nn.ConvTranspose2d(2048, 1024, kernel_size=3,
                                                                  stride=2, dilation=1, padding=1),
-                                              nn.ConvTranspose2d(1024, 15, kernel_size=3,
+                                              nn.ConvTranspose2d(1024, 16, kernel_size=3,
                                                                  stride=2, dilation=1, padding=0)])
 
     def update_resnet101(self):
@@ -106,7 +106,7 @@ class FeatureHeatMaps(nn.Module):
 class Encoder(nn.Module):
     def __init__(self):
         super(Encoder, self).__init__()
-        self.conv1 = nn.Conv2d(15, 64, kernel_size=4, stride=2, padding=2)
+        self.conv1 = nn.Conv2d(16, 64, kernel_size=4, stride=2, padding=2)
         self.lrelu1 = nn.LeakyReLU(0.2)
         self.conv2 = nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1)
         self.lrelu2 = nn.LeakyReLU(0.2)
@@ -291,7 +291,7 @@ class HeatmapDecoder(nn.Module):
         self.lrelu3 = nn.LeakyReLU(0.2)
         self.deconv1 = nn.ConvTranspose2d(512, 128, kernel_size=4, stride=2, padding=1)
         self.deconv2 = nn.ConvTranspose2d(128, 64, kernel_size=4, stride=2, padding=1)
-        self.deconv3 = nn.ConvTranspose2d(64, 15, kernel_size=3, stride=2, padding=1)
+        self.deconv3 = nn.ConvTranspose2d(64, 16, kernel_size=3, stride=2, padding=1)
     def forward(self, x):
         x = self.linear1(x)
         x = self.lrelu1(x)
