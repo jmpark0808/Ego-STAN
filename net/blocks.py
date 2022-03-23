@@ -402,8 +402,8 @@ class UNet(nn.Module):
         self.encoder4 = nn.Sequential(*[l for ind, l in enumerate(self.resnet18.children()) if ind == 6])
         self.encoder5 = nn.Sequential(*[l for ind, l in enumerate(self.resnet18.children()) if ind == 7])
 
-        self.up1 = Up(512, 256 , False)
-        self.up2 = Up(256, 128 , False)
+        self.up1 = Up(512, 256, False)
+        self.up2 = Up(256, 128, False )
         self.up3 = Up(128, 64, False)
         self.up4 = Up(64, 64, False)
         self.outc = nn.Conv2d(64, 16, 1)
@@ -411,13 +411,13 @@ class UNet(nn.Module):
     def forward(self, x):
 
         encoder1 = self.encoder1(x)
-        # 64 x 184 x 184
+        # 64 x 192 x 192
         encoder2 = self.encoder2(encoder1)
-        # 64 x 92 x 92
+        # 64 x 96 x 96
         encoder3 = self.encoder3(encoder2)
-        # 128 x 46 x 46
+        # 128 x 48 x 48
         encoder4 = self.encoder4(encoder3)
-        # 256 x 23 x 23
+        # 256 x 24 x 24
         encoder5 = self.encoder5(encoder4)
         # 512 x 12 x 12
         x = self.up1(encoder5, encoder4)
@@ -459,7 +459,7 @@ class Up(nn.Module):
             self.conv = DoubleConv(in_channels, out_channels, in_channels // 2)
         else:
             self.up = nn.ConvTranspose2d(in_channels, in_channels // 2, kernel_size=2, stride=2)
-            self.conv = DoubleConv(in_channels//2+out_channels, out_channels)
+            self.conv = DoubleConv(in_channels//2 + out_channels, out_channels)
 
     def forward(self, x1, x2):
         x1 = self.up(x1)

@@ -21,7 +21,7 @@ class xREgoPoseUNet(pl.LightningModule):
         self.hm_train_steps = kwargs.get("hm_train_steps")
 
         # must be defined for logging computational graph
-        self.example_input_array = torch.rand((1, 3, 368, 368))
+        self.example_input_array = torch.rand((1, 3, 384, 384))
 
         # Generator that produces the HeatMap
         self.heatmap = UNet(self.load_resnet)

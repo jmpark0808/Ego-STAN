@@ -91,6 +91,7 @@ if __name__ == "__main__":
     parser.add_argument('--heatmap_type', help='Type of 2D ground truth heatmap, Defaults to "baseline"', 
                         default= 'baseline')
     parser.add_argument("--heatmap_resolution",  help='2D heatmap resolution', nargs="*", type=int, default=[47, 47])
+    parser.add_argument("--image_resolution",  help='Image resolution', nargs="*", type=int, default=[368, 368])
     parser.add_argument('--seed', help='Seed for reproduceability', 
                         default=42, type=int)
 
