@@ -99,7 +99,8 @@ class xREgoPoseDist(pl.LightningModule):
         heatmap_2d, heatmap_1d = self.heatmap(x)
         # heatmap_2d = 16 x 47 x 47
         # heatmap_1d = 16 x 30
-
+        heatmap_2d = torch.sigmoid(heatmap_2d)
+        heatmap_1d = torch.sigmoid(heatmap_1d)
         pose = self.pose(heatmap_2d, heatmap_1d)
 
 
@@ -125,8 +126,6 @@ class xREgoPoseDist(pl.LightningModule):
 
         if self.iteration <= self.hm_train_steps:
             heatmap, distance_heatmap, pose = self.forward(img)
-            heatmap = torch.sigmoid(heatmap)
-            distance_heatmap = torch.sigmoid(distance_heatmap)
             hm_2d_loss = self.mse(heatmap, p2d)
             hm_1d_loss = self.mse(distance_heatmap, p1d)
             loss = hm_2d_loss + hm_1d_loss
@@ -135,8 +134,6 @@ class xREgoPoseDist(pl.LightningModule):
 
         else:
             heatmap, distance_heatmap, pose = self.forward(img)
-            heatmap = torch.sigmoid(heatmap)
-            distance_heatmap = torch.sigmoid(distance_heatmap)
             hm_2d_loss = self.mse(heatmap, p2d)
             hm_1d_loss = self.mse(distance_heatmap, p1d)
             loss_3d_pose = self.auto_encoder_loss(pose, p3d)
@@ -168,8 +165,6 @@ class xREgoPoseDist(pl.LightningModule):
 
         # forward pass
         heatmap, distance_heatmap, pose = self.forward(img)
-        heatmap = torch.sigmoid(heatmap)
-        distance_heatmap = torch.sigmoid(distance_heatmap)
         # calculate pose loss
         val_hm_2d_loss = self.mse(heatmap, p2d)
         val_hm_1d_loss = self.mse(distance_heatmap, p1d)
@@ -222,6 +217,7 @@ class xREgoPoseDist(pl.LightningModule):
         self.eval_per_joint = evaluate.EvalPerJoint()
 
     def test_step(self, batch, batch_idx):
+        tensorboard = self.logger.experiment
         img, p2d, p1d, p3d, action = batch
         img = img.cuda()
         p2d = p2d.cuda()
@@ -230,7 +226,7 @@ class xREgoPoseDist(pl.LightningModule):
 
         # forward pass
         heatmap, distance_heatmap, pose = self.forward(img)
-   
+        
         # Evaluate mpjpe
         y_output = pose.data.cpu().numpy()
         y_target = p3d.data.cpu().numpy()
