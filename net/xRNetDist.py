@@ -156,7 +156,7 @@ class xREgoPoseDist(pl.LightningModule):
         Compute the metrics for validation batch
         validation loop: https://pytorch-lightning.readthedocs.io/en/stable/common/lightning_module.html#hooks
         """
-        
+        tensorboard = self.logger.experiment
         img, p2d, p1d, p3d, action = batch
         img = img.cuda()
         p2d = p2d.cuda()
@@ -165,6 +165,7 @@ class xREgoPoseDist(pl.LightningModule):
 
         # forward pass
         heatmap, distance_heatmap, pose = self.forward(img)
+        tensorboard.add_images(f'Distance Heatmap', distance_heatmap.reshape(distance_heatmap.size(0), 1, distance_heatmap.size(1), distance_heatmap.size(2)), global_step=self.iteration)
         # calculate pose loss
         val_hm_2d_loss = self.mse(heatmap, p2d)
         val_hm_1d_loss = self.mse(distance_heatmap, p1d)
@@ -217,7 +218,6 @@ class xREgoPoseDist(pl.LightningModule):
         self.eval_per_joint = evaluate.EvalPerJoint()
 
     def test_step(self, batch, batch_idx):
-        tensorboard = self.logger.experiment
         img, p2d, p1d, p3d, action = batch
         img = img.cuda()
         p2d = p2d.cuda()
@@ -226,7 +226,7 @@ class xREgoPoseDist(pl.LightningModule):
 
         # forward pass
         heatmap, distance_heatmap, pose = self.forward(img)
-        
+
         # Evaluate mpjpe
         y_output = pose.data.cpu().numpy()
         y_target = p3d.data.cpu().numpy()

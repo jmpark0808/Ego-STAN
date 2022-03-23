@@ -9,4 +9,3 @@ __pycache__/
 /read_hdf5.py
 /validation/
 /lightning_logs/
-/utils/config.py
