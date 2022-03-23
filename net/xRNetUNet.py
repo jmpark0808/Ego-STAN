@@ -155,7 +155,7 @@ class xREgoPoseUNet(pl.LightningModule):
         Compute the metrics for validation batch
         validation loop: https://pytorch-lightning.readthedocs.io/en/stable/common/lightning_module.html#hooks
         """
-        
+        tensorboard = self.logger.experiment
         img, p2d, p3d, action = batch
         img = img.cuda()
         p2d = p2d.cuda()
@@ -164,7 +164,7 @@ class xREgoPoseUNet(pl.LightningModule):
         # forward pass
         heatmap, pose = self.forward(img)
         heatmap = torch.sigmoid(heatmap)
-
+        tensorboard.add_images(f'Heatmap', torch.clip(torch.sum(heatmap, dim=1, keepdim=True), 0, 1), global_step=self.iteration)
         # calculate pose loss
         val_hm_loss = self.mse(heatmap, p2d)
         val_loss_3d_pose = self.auto_encoder_loss(pose, p3d)
