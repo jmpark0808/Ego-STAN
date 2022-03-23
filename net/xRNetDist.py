@@ -113,7 +113,7 @@ class xREgoPoseDist(pl.LightningModule):
         https://pytorch-lightning.readthedocs.io/en/latest/starter/introduction_guide.html
 
         """
-        
+
         img, p2d, p1d, p3d, action = batch
         img = img.cuda()
         p2d = p2d.cuda()
@@ -142,7 +142,6 @@ class xREgoPoseDist(pl.LightningModule):
             self.log('Total 1D HM loss', hm_1d_loss.item())
             self.log('Total 3D loss', loss_3d_pose.item())
 
-     
         # calculate mpjpe loss
         mpjpe = torch.mean(torch.sqrt(torch.sum(torch.pow(p3d - pose, 2), dim=2)))
         mpjpe_std = torch.std(torch.sqrt(torch.sum(torch.pow(p3d - pose, 2), dim=2)))
