@@ -12,6 +12,7 @@ import pytorch_lightning as pl
 from skimage import io as sio
 from skimage.transform import resize
 import numpy as np
+import torch
 from base import BaseDataset
 from utils import io, config
 from base import SetType
@@ -26,7 +27,7 @@ def generate_heatmap_1d(distances, heatmap_sigma):
     :param distances:  [nof_joints]
     :return: target, target_weight(1: visible, 0: invisible)
     """
-    heatmap_size = 30
+    heatmap_size = 200
     num_joints = 16
     target = np.zeros((num_joints,
                        heatmap_size),
@@ -188,9 +189,7 @@ class MocapDistance(BaseDataset):
         p2d, p3d = self._process_points(data)
         p2d[:, 0] = p2d[:, 0]-180 # Translate p2d coordinates by 180 pixels to the left
 
-        dist = np.sqrt(np.sum(np.power(p3d, 2), axis=1))*10
-        print(dist)
-        p2d_dist = generate_heatmap_1d(dist, 3)
+        
         
         if self.heatmap_type == 'baseline':
             p2d_heatmap = generate_heatmap(p2d, 3) # exclude head
@@ -207,7 +206,11 @@ class MocapDistance(BaseDataset):
             img = self.transform({'image': img})['image']
             p3d = self.transform({'joints3D': p3d})['joints3D']
             p2d = self.transform({'joints2D': p2d})['joints2D']
-            p2d_dist = self.transform({'joints2D_dist': p2d_dist})['joints2D_dist']
+
+        dist = torch.sqrt(torch.sum(torch.pow(p3d, 2), dim=1)).cpu().numpy()*100
+        p2d_dist = generate_heatmap_1d(dist, 21) 
+        if self.transform:
+            p2d_dist = self.transform({'joints2d_dist': p2d_dist})['joints2d_dist']
 
         return img, p2d_heatmap, p2d_dist, p3d, action
 

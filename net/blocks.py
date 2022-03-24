@@ -43,7 +43,7 @@ class HeatMapDist(nn.Module):
                                                                  stride=2, dilation=1, padding=1),
                                               nn.ConvTranspose2d(1024, 16, kernel_size=3,
                                                                  stride=2, dilation=1, padding=0)])
-        self.heatmap_spatial_linear = nn.Linear(12*12, 30)
+        self.heatmap_spatial_linear = nn.Linear(12*12, 200)
         self.heatmap_channel_linear = nn.Conv1d(2048, 16, 1)
 
     def update_resnet101(self):
@@ -355,7 +355,7 @@ class HM2PoseDist(nn.Module):
         self.conv3_1d = nn.Conv1d(64, 128, kernel_size=3, stride=2, padding=1)
         self.relu3_1d = nn.PReLU()
 
-        self.linear1 = nn.Linear(5120, 2048)
+        self.linear1 = nn.Linear(7808, 2048)
         self.relu4 = nn.PReLU()
         self.linear2 = nn.Linear(2048, 512)
         self.relu5 = nn.PReLU()
