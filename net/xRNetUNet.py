@@ -117,7 +117,7 @@ class xREgoPoseUNet(pl.LightningModule):
         https://pytorch-lightning.readthedocs.io/en/latest/starter/introduction_guide.html
 
         """
-        tensorboard = self.logger.experiment
+
         img, p2d, p3d, action = batch
         img = img.cuda()
         p2d = p2d.cuda()
@@ -143,8 +143,7 @@ class xREgoPoseUNet(pl.LightningModule):
             self.log('Total 3D loss', loss_3d_pose.item())
      
         # calculate mpjpe loss
-        tensorboard.add_images(f'Train Pred Heatmap', torch.clip(torch.sum(heatmap, dim=1, keepdim=True), 0, 1), global_step=self.iteration)
-        tensorboard.add_images(f'Train GT Heatmap', torch.clip(torch.sum(p2d, dim=1, keepdim=True), 0, 1), global_step=self.iteration)
+
         mpjpe = torch.mean(torch.sqrt(torch.sum(torch.pow(p3d - pose, 2), dim=2)))
         mpjpe_std = torch.std(torch.sqrt(torch.sum(torch.pow(p3d - pose, 2), dim=2)))
         self.log("train_mpjpe_full_body", mpjpe)
