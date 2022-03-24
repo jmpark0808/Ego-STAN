@@ -188,7 +188,8 @@ class MocapDistance(BaseDataset):
         p2d, p3d = self._process_points(data)
         p2d[:, 0] = p2d[:, 0]-180 # Translate p2d coordinates by 180 pixels to the left
 
-        dist = np.sum(np.power(p3d, 2), axis=1)*10
+        dist = np.sqrt(np.sum(np.power(p3d, 2), axis=1))*10
+        print(dist)
         p2d_dist = generate_heatmap_1d(dist, 3)
         
         if self.heatmap_type == 'baseline':
