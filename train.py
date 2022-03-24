@@ -15,6 +15,7 @@ from dataset.mocap import MocapDataModule
 from dataset.mocap_distance import MocapDistanceDataModule
 from dataset.mocap_transformer import MocapSeqDataModule
 from net.DirectRegression import DirectRegression
+from net.xRNetDirect import xREgoPoseDirect
 from net.xRNetSeq import xREgoPoseSeq
 from net.xRNetBaseLine import xREgoPose
 from net.xRNetConcat import xRNetConcat
@@ -44,7 +45,8 @@ MODEL_DIRECTORY = {
     "xregopose_seq_direct": xREgoPoseSeqDirect,
     "xregopose_global_trans": xREgoPoseGlobalTrans,
     "xregopose_dist": xREgoPoseDist,
-    "xregopose_unet": xREgoPoseUNet
+    "xregopose_unet": xREgoPoseUNet,
+    "xregopose_direct": xREgoPoseDirect
 }
 DATALOADER_DIRECTORY = {
     'baseline': MocapDataModule,
