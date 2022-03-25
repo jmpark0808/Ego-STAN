@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+from mimetypes import init
 import pytorch_lightning as pl
 import torch
 import numpy as np
@@ -14,13 +15,13 @@ class xREgoPoseSeq(pl.LightningModule):
         super().__init__()
 
         # parameters
-        self.batch_size = kwargs["batch_size"]
-        self.lr = kwargs["lr"]
-        self.lr_decay = kwargs["lr_decay"]
-        self.decay_step = kwargs["decay_step"]
-        self.load_resnet = kwargs["load_resnet"]
-        self.hm_train_steps = kwargs["hm_train_steps"]
-        self.seq_len = kwargs['seq_len']
+        self.batch_size = kwargs.get("batch_size")
+        self.lr = kwargs.get("lr")
+        self.lr_decay = kwargs.get("lr_decay")
+        self.decay_step = kwargs.get("decay_step")
+        self.load_resnet = kwargs.get("load_resnet")
+        self.hm_train_steps = kwargs.get("hm_train_steps")
+        self.seq_len = kwargs.get('seq_len')
 
         # must be defined for logging computational graph
         self.example_input_array = torch.rand((1, self.seq_len, 3, 368, 368))
@@ -32,7 +33,7 @@ class xREgoPoseSeq(pl.LightningModule):
         # Transformer that takes sequence of latent vector Z and outputs a single Z vector
         self.seq_transformer = PoseTransformer(seq_len=self.seq_len, dim=20, depth=1, heads=1, mlp_dim=40)
         # Pose decoder that takes latent vector Z and transforms to 3D pose coordinates
-        self.pose_decoder = PoseDecoder()
+        self.pose_decoder = PoseDecoder(initial_dim=20*self.seq_len)
         # Heatmap decoder that takes latent vector Z and generates the original 2D heatmap
         self.heatmap_decoder = HeatmapDecoder()
 
@@ -124,7 +125,7 @@ class xREgoPoseSeq(pl.LightningModule):
         # zs = batch_size x len_seq x 20
 
         z, atts = self.seq_transformer(zs)
-        # z = batch_size x 20
+        # z = batch_size x len_seq*20
 
         p3d = self.pose_decoder(z)
         # p3d = batch_size x 16 x 3
@@ -147,7 +148,8 @@ class xREgoPoseSeq(pl.LightningModule):
         p2d = p2d.cuda()
         p2d = p2d.reshape(-1, 15, 47, 47)
         p3d = p3d.cuda()
-
+        p3d = p3d[:, -1, :, :]
+        
         # forward pass
         pred_hm, pred_3d, gen_hm, atts = self.forward(sequence_imgs)
 
@@ -186,6 +188,7 @@ class xREgoPoseSeq(pl.LightningModule):
         p2d = p2d.cuda()
         p2d = p2d.reshape(-1, 15, 47, 47)
         p3d = p3d.cuda()
+        p3d = p3d[:, -1, :, :]
 
         # forward pass
         heatmap, pose, generated_heatmap, atts = self.forward(sequence_imgs)
@@ -242,6 +245,44 @@ class xREgoPoseSeq(pl.LightningModule):
         else:
             self.log("val_mpjpe_full_body", 0.3-0.01*(self.iteration/self.hm_train_steps))
                     
+    def on_test_start(self):
+        # Initialize the mpjpe evaluation pipeline
+        self.eval_body = evaluate.EvalBody()
+        self.eval_upper = evaluate.EvalUpperBody()
+        self.eval_lower = evaluate.EvalLowerBody()
+
+    def test_step(self, batch, batch_idx):
+        sequence_imgs, p2d, p3d, action = batch
+        sequence_imgs = sequence_imgs.cuda()
+        p2d = p2d.cuda()
+        p2d = p2d.reshape(-1, 15, 47, 47)
+        p3d = p3d.cuda()
+        p3d = p3d[:, -1, :, :]
+
+        # forward pass
+        heatmap, pose, generated_heatmap, atts = self.forward(sequence_imgs)
+        heatmap = torch.sigmoid(heatmap)
+        generated_heatmap = torch.sigmoid(generated_heatmap)
+
+        # Evaluate mpjpe
+        y_output = pose.data.cpu().numpy()
+        y_target = p3d.data.cpu().numpy()
+        self.eval_body.eval(y_output, y_target, action)
+        self.eval_upper.eval(y_output, y_target, action)
+        self.eval_lower.eval(y_output, y_target, action)
+      
+
+    def test_epoch_end(self, test_step_outputs):
+        test_mpjpe = self.eval_body.get_results()
+        test_mpjpe_upper = self.eval_upper.get_results()
+        test_mpjpe_lower = self.eval_lower.get_results()
+
+        self.test_results = {
+            "Full Body": test_mpjpe,
+            "Upper Body": test_mpjpe_upper,
+            "Lower Body": test_mpjpe_lower,
+        }
+
 
 if __name__ == "__main__":
     pass
