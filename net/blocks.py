@@ -37,7 +37,8 @@ class HeatMapDist(nn.Module):
     def __init__(self):
         super(HeatMapDist, self).__init__()
         # Resnet 101 without last average pooling and fully connected layers
-        self.resnet101 = torchvision.models.resnet101(pretrained=False)
+        self.resnet50_2d = torchvision.models.resnet50(pretrained=False)
+        self.resnet50_1d = torchvision.models.resnet50(pretrained=False)
         # First Deconvolution to obtain 2D heatmap
         self.heatmap_deconv = nn.Sequential(*[nn.ConvTranspose2d(2048, 1024, kernel_size=3,
                                                                  stride=2, dilation=1, padding=1),
@@ -46,20 +47,22 @@ class HeatMapDist(nn.Module):
         self.heatmap_spatial_linear = nn.Linear(12*12, 200)
         self.heatmap_channel_linear = nn.Conv1d(2048, 16, 1)
 
-    def update_resnet101(self):
-        self.resnet101 = nn.Sequential(*[l for ind, l in enumerate(self.resnet101.children()) if ind < 8])
+    def update_resnet50(self):
+        self.resnet50_2d = nn.Sequential(*[l for ind, l in enumerate(self.resnet50_2d.children()) if ind < 8])
+        self.resnet50_1d = nn.Sequential(*[l for ind, l in enumerate(self.resnet50_1d.children()) if ind < 8])
 
     def forward(self, x):
         # x = 3 x 368 x 368
 
-        x = self.resnet101(x)
+        x_2d = self.resnet50_2d(x)
+        x_1d = self.resnet50_1d(x)
         # x = 2048 x 12 x 12
         
-        heatmap_2d = self.heatmap_deconv(x)
+        heatmap_2d = self.heatmap_deconv(x_2d)
         # heatmap_2d = 16 x 47 x 47
 
-        x = x.reshape(x.size(0), x.size(1), -1)
-        heatmap_1d = self.heatmap_spatial_linear(x)
+        x_1d = x_1d.reshape(x_1d.size(0), x_1d.size(1), -1)
+        heatmap_1d = self.heatmap_spatial_linear(x_1d)
         heatmap_1d = self.heatmap_channel_linear(heatmap_1d)
         # heatmap_1d = 16 x 30
 
