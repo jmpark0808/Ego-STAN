@@ -21,10 +21,10 @@ class xREgoPosePosterior(pl.LightningModule):
         self.hm_train_steps = kwargs.get("hm_train_steps")
 
         # must be defined for logging computational graph
-        self.example_input_array = torch.rand((1, 15, 47, 47))
+        self.example_input_array = torch.rand((1, 16, 384, 384))
 
         # Generator that produces the HeatMap
-        self.hm2pose = HM2Pose()
+        self.hm2pose = HM2PoseUNet()
 
         # Initialize the mpjpe evaluation pipeline
         self.eval_body = evaluate.EvalBody()
