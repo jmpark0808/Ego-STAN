@@ -86,7 +86,7 @@ class xREgoPoseUNet(pl.LightningModule):
         """
         
         optimizer = torch.optim.AdamW(
-        self.parameters(), lr=self.lr
+        self.parameters(), lr=self.lr, weight_decay=1e-4
         )
         
         return optimizer
