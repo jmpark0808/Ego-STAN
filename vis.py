@@ -2,11 +2,11 @@ import argparse
 import glob
 import os
 import pathlib
-from tqdm import tqdm
 
 import cv2
 import matplotlib.pyplot as plt
 import numpy as np
+from tqdm import tqdm
 
 from train import DATALOADER_DIRECTORY, MODEL_DIRECTORY
 
@@ -25,7 +25,10 @@ def main():
     dict_args = vars(parser.parse_args())
 
     # Create output directory
-    os.makedirs(dict_args["output_directory"], exist_ok=True)
+    img_dir = os.path.join(dict_args["output_directory"], "frames")
+    vid_dir = os.path.join(dict_args["output_directory"], "videos")
+    os.makedirs(img_dir, exist_ok=True)
+    os.makedirs(vid_dir, exist_ok=True)
 
     # Data: load validation dataloader
     print("[p] getting val_dataloader")
@@ -51,10 +54,10 @@ def main():
                 pose[idx],
                 filename,
                 action[idx],
-                dict_args["output_directory"],
+                img_dir,
             )
 
-    create_videos(dict_args["output_directory"])
+    create_videos(input_frame_dir=img_dir, output_video_dir=vid_dir)
 
 
 def save_skeleton(
@@ -129,10 +132,10 @@ def save_skeleton(
     VIDEO_LIST.add(video_name)
 
 
-def create_videos(frame_dir):
+def create_videos(input_frame_dir, output_video_dir):
     for count, video_name in enumerate(VIDEO_LIST):
         img_array = []
-        file_pattern = os.path.join(frame_dir, f"{video_name}*.png")
+        file_pattern = os.path.join(input_frame_dir, f"{video_name}*.png")
         file_list = sorted(glob.glob(file_pattern))
         print(
             f"[p][{count+1}/{len(VIDEO_LIST)}] creating '{video_name}' video with {len(file_list)} files"
@@ -146,7 +149,7 @@ def create_videos(frame_dir):
             img_array.append(img)
 
         # create video object
-        video_path = os.path.join(frame_dir, f"{video_name}.avi")
+        video_path = os.path.join(output_video_dir, f"{video_name}.avi")
         out = cv2.VideoWriter(video_path, cv2.VideoWriter_fourcc(*"DIVX"), 15, size)
 
         # write frames to video
