@@ -21,6 +21,7 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
         self.load_resnet = kwargs.get("load_resnet")
         self.hm_train_steps = kwargs.get("hm_train_steps")
         self.seq_len = kwargs.get('seq_len')
+        self.es_patience = kwargs.get('es_patience')
 
         # must be defined for logging computational graph
         self.example_input_array = torch.rand((1, self.seq_len, 3, 368, 368))
@@ -102,6 +103,7 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
             min_lr=1e-8,
             verbose=True
         ),
+        'monitor': 'val_mpjpe_full_body',
         'name': 'learning_rate',
         'interval': 'step',
         'frequency': 1}

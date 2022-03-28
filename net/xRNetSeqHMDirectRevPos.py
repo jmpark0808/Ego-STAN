@@ -103,6 +103,7 @@ class xREgoPoseSeqHMDirectRevPos(pl.LightningModule):
             min_lr=1e-8,
             verbose=True
         ),
+        'monitor': 'val_mpjpe_full_body',
         'name': 'learning_rate',
         'interval': 'step',
         'frequency': 1}
