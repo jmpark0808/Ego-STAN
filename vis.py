@@ -123,7 +123,7 @@ def save_skeleton(
         output_directory, f"{video_name}_{frame_count}_3d.png"
     )
     fig.savefig(frame_file_path)
-    fig.clf()
+    plt.close()
 
     # update video name set for later video creation
     VIDEO_LIST.add(video_name)
