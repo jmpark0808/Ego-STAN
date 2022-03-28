@@ -95,23 +95,19 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
         """
         
         optimizer = torch.optim.AdamW(self.parameters(), lr=self.lr)
-        scheduler = {'scheduler': torch.optim.lr_scheduler.ReduceLROnPlateau(
+        self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
             optimizer,
             mode='min',
             factor=0.1,
             patience=self.es_patience-3,
             min_lr=1e-8,
-            verbose=True
-        ),
-        'monitor': 'val_mpjpe_full_body',
-        'name': 'learning_rate',
-        'interval': 'step',
-        'frequency': 1}
+            verbose=True)
+        
         # scheduler = {'scheduler': torch.optim.lr_scheduler.LinearLR(optimizer, start_factor=0.00000001, end_factor=1.0, total_iters=int(self.hm_train_steps/self.batch_size)),
         #                 'name': 'learning_rate',
         #                 'interval':'step',
         #                 'frequency': 1}
-        return [optimizer], [scheduler]
+        return optimizer
 
     # learning rate warm-up
     def optimizer_step(
@@ -133,6 +129,7 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
 
         # update params
         optimizer.step(closure=optimizer_closure)
+        optimizer.zero_grad()
 
     def forward(self, x):
         """
@@ -265,8 +262,10 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
             self.log("val_mpjpe_upper_body", val_mpjpe_upper["All"]["mpjpe"])
             self.log("val_mpjpe_lower_body", val_mpjpe_lower["All"]["mpjpe"])
             self.log("val_loss", self.val_loss_3d_pose_total)
+            self.scheduler.step(val_mpjpe["All"]["mpjpe"])
         else:
             self.log("val_mpjpe_full_body", 0.3-0.01*(self.iteration/self.hm_train_steps))
+            self.scheduler.step(0.3-0.01*(self.iteration/self.hm_train_steps))
 
     def on_test_start(self):
         # Initialize the mpjpe evaluation pipeline
