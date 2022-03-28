@@ -5,11 +5,11 @@ import torch
 import numpy as np
 from utils import evaluate
 from net.blocks import *
-from net.transformer import ResNetTransformerCls
+from net.transformer import ResNetTransformerClsRevPos
 import matplotlib
 
 
-class xREgoPoseSeqHM(pl.LightningModule):
+class xREgoPoseSeqHMDirectRevPos(pl.LightningModule):
     def __init__(self, **kwargs):
         super().__init__()
 
@@ -33,24 +33,23 @@ class xREgoPoseSeqHM(pl.LightningModule):
                                                                  stride=2, dilation=1, padding=1),
                                               nn.ConvTranspose2d(1024, 15, kernel_size=3,
                                                                  stride=2, dilation=1, padding=0)])
-        # Encoder that takes 2D heatmap and transforms to latent vector Z
-        self.encoder = Encoder()
         # Transformer that takes sequence of heatmaps and outputs a sequence of heatmaps
-        self.resnet_transformer = ResNetTransformerCls(seq_len=self.seq_len*12*12, dim=512, depth=3, heads=8, mlp_dim=1024, dim_head=64, dropout=0.)
-        # Pose decoder that takes latent vector Z and transforms to 3D pose coordinates
-        self.pose_decoder = PoseDecoder()
-        # Heatmap decoder that takes latent vector Z and generates the original 2D heatmap
-        self.heatmap_decoder = HeatmapDecoder()
+        self.resnet_transformer = ResNetTransformerClsRevPos(seq_len=self.seq_len*12*12, dim=512, depth=3, heads=8, mlp_dim=1024, dim_head=64, dropout=0.)
+        # Direct regression from heatmap
+        self.hm2pose = HM2Pose()
 
         # Initialize the mpjpe evaluation pipeline
         self.eval_body = evaluate.EvalBody()
         self.eval_upper = evaluate.EvalUpperBody()
         self.eval_lower = evaluate.EvalLowerBody()
+        self.eval_per_joint = evaluate.EvalPerJoint()
 
         # Initialize total validation pose loss
         self.val_loss_3d_pose_total = torch.tensor(0., device=self.device)
         self.val_loss_hm = torch.tensor(0., device=self.device)
         self.iteration = 0
+        self.test_iteration = 0
+        self.image_limit = 100
         self.save_hyperparameters()
 
         def weight_init(m):
@@ -76,22 +75,19 @@ class xREgoPoseSeqHM(pl.LightningModule):
         label = label.reshape(label.size(0), -1)
         return torch.sum(torch.mean(torch.pow(pred-label, 2), dim=1))
 
-    def auto_encoder_loss(self, pose_pred, pose_label, hm_decoder, hm_resnet):
+    def auto_encoder_loss(self, pose_pred, pose_label):
         """
         Defining the loss funcition:
         """
         lambda_p = 0.1
         lambda_theta = -0.01
         lambda_L = 0.5
-        lambda_hm = 0.001
         pose_l2norm = torch.sqrt(torch.sum(torch.sum(torch.pow(pose_pred-pose_label, 2), dim=2), dim=1))
         cos = torch.nn.CosineSimilarity(dim=2, eps=1e-6)
         cosine_similarity_error = torch.sum(cos(pose_pred, pose_label), dim=1)
         limb_length_error = torch.sum(torch.sum(torch.abs(pose_pred-pose_label), dim=2), dim=1)
-        heatmap_error = torch.sqrt(torch.sum(torch.pow(hm_resnet.reshape(hm_resnet.size(0), -1) - hm_decoder.reshape(hm_decoder.size(0), -1), 2), dim=1))
         LAE_pose = lambda_p*(pose_l2norm + lambda_theta*cosine_similarity_error + lambda_L*limb_length_error)
-        LAE_hm = lambda_hm*heatmap_error
-        return torch.mean(LAE_pose), torch.mean(LAE_hm)
+        return torch.mean(LAE_pose)
 
     def configure_optimizers(self):
         """
@@ -161,24 +157,19 @@ class xREgoPoseSeqHM(pl.LightningModule):
         # resnet = batch_size x len_seq*12*12 x 2048
         
         resnet, atts = self.resnet_transformer(resnet)
-        # resnet = batch_size x 12*12 x 2048
+        # resnet = batch_size x 144 x 2048
         resnet = resnet.reshape(dim[0], 12, 12, 2048)
-        resnet = resnet.permute(0, 3, 1 ,2) 
+        resnet = resnet.permute(0, 3, 1, 2) 
         # resnet = batch_size x 2048 x 12 x 12
- 
+
         hms = self.heatmap_deconv(resnet)
         # hms = batch_size x 15 x 47 x 47
 
-        z = self.encoder(hms)
-        # z = batch_size x 20
-
-        p3d = self.pose_decoder(z)
+        p3d = self.hm2pose(hms)
         # p3d = batch_size x 16 x 3
 
-        p2d = self.heatmap_decoder(z)
-        # p2d = batch_size x 15 x 47 x 47
 
-        return hms, p3d, p2d, atts
+        return hms, p3d, atts
 
     def training_step(self, batch, batch_idx):
         """
@@ -196,7 +187,7 @@ class xREgoPoseSeqHM(pl.LightningModule):
         p3d = p3d[:, -1, :, :]
 
         # forward pass
-        pred_hm, pred_3d, gen_hm, atts = self.forward(sequence_imgs)
+        pred_hm, pred_3d, atts = self.forward(sequence_imgs)
 
 
         if self.iteration <= self.hm_train_steps:
@@ -205,14 +196,11 @@ class xREgoPoseSeqHM(pl.LightningModule):
             self.log('Total HM loss', loss.item())
         else:
             pred_hm = torch.sigmoid(pred_hm)
-            gen_hm = torch.sigmoid(gen_hm)
             hm_loss = self.mse(pred_hm, p2d)
-            loss_3d_pose, loss_2d_ghm = self.auto_encoder_loss(pred_3d, p3d, gen_hm, pred_hm)
-            ae_loss = loss_2d_ghm + loss_3d_pose
-            loss = hm_loss + ae_loss
+            loss_3d_pose = self.auto_encoder_loss(pred_3d, p3d)
+            loss = hm_loss + loss_3d_pose
             self.log('Total HM loss', hm_loss.item())
             self.log('Total 3D loss', loss_3d_pose.item())
-            self.log('Total GHM loss', loss_2d_ghm.item())
      
         # calculate mpjpe loss
         mpjpe = torch.mean(torch.sqrt(torch.sum(torch.pow(p3d - pred_3d, 2), dim=2)))
@@ -236,13 +224,12 @@ class xREgoPoseSeqHM(pl.LightningModule):
         p3d = p3d[:, -1, :, :]
 
         # forward pass
-        heatmap, pose, generated_heatmap, atts = self.forward(sequence_imgs)
+        heatmap, pose, atts = self.forward(sequence_imgs)
         heatmap = torch.sigmoid(heatmap)
-        generated_heatmap = torch.sigmoid(generated_heatmap)
 
         # calculate pose loss
         val_hm_loss = self.mse(heatmap, p2d)
-        val_loss_3d_pose, _ = self.auto_encoder_loss(pose, p3d, generated_heatmap, heatmap)
+        val_loss_3d_pose = self.auto_encoder_loss(pose, p3d)
 
         # update 3d pose loss
         self.val_loss_hm += val_hm_loss
@@ -285,6 +272,7 @@ class xREgoPoseSeqHM(pl.LightningModule):
         self.eval_body = evaluate.EvalBody()
         self.eval_upper = evaluate.EvalUpperBody()
         self.eval_lower = evaluate.EvalLowerBody()
+        self.eval_per_joint = evaluate.EvalPerJoint()
 
     def test_step(self, batch, batch_idx):
         tensorboard = self.logger.experiment
@@ -296,35 +284,51 @@ class xREgoPoseSeqHM(pl.LightningModule):
         p3d = p3d[:, -1, :, :]
 
         # forward pass
-        heatmap, pose, generated_heatmap, atts = self.forward(sequence_imgs)
+        heatmap, pose, atts = self.forward(sequence_imgs)
         heatmap = torch.sigmoid(heatmap)
-        generated_heatmap = torch.sigmoid(generated_heatmap)
-        '''
-        for level, att in enumerate(atts):
-            for head in range(att.size(1)):
-                img = att[:, head, :, :].reshape(att.size(0), 1, att.size(2), att.size(3))
-                img = img.detach().cpu().numpy()
-                cmap = matplotlib.cm.get_cmap('gist_heat')
-                rgba = np.transpose(np.squeeze(cmap(img), axis=1), (0, 3, 1, 2))[:, :3, :, :]
-                tensorboard.add_images(f'Level {level}, head {head}, Attention Map', rgba, global_step=self.iteration)
-        '''
+        if self.image_limit > 0 and np.random.uniform() < 0.2:
+
+            for level, att in enumerate(atts):
+                for head in range(att.size(1)):
+                    img = att[:, head, :, :].reshape(att.size(0), 1, att.size(2), att.size(3))
+                    img = img.detach().cpu().numpy()
+                    cmap = matplotlib.cm.get_cmap('gist_heat')
+                    rgba = np.transpose(np.squeeze(cmap(img), axis=1), (0, 3, 1, 2))[0, :3, :, :]
+                    tensorboard.add_image(f'Level {level}, head {head}, Attention Map', rgba, global_step=self.test_iteration)
+            
+            mean=[0.485, 0.456, 0.406]
+            std=[0.229, 0.224, 0.225]
+            first_sample = sequence_imgs[0]
+            first_sample[:, 0, :, :] = first_sample[:, 0, :, :]*std[0]+mean[0]
+            first_sample[:, 1, :, :] = first_sample[:, 1, :, :]*std[1]+mean[1]
+            first_sample[:, 2, :, :] = first_sample[:, 2, :, :]*std[2]+mean[2]
+            tensorboard.add_images('Test Images', first_sample, global_step=self.test_iteration)
+            tensorboard.add_images('Test GT Heatmap', torch.clip(p2d[0], 0, 1).reshape(15, 1, 47, 47), global_step=self.test_iteration)
+            tensorboard.add_images('Test Pred Heatmap', torch.clip(heatmap[0], 0, 1).reshape(15, 1, 47, 47), global_step=self.test_iteration)
+            self.image_limit -= 1
+        
         # Evaluate mpjpe
         y_output = pose.data.cpu().numpy()
         y_target = p3d.data.cpu().numpy()
         self.eval_body.eval(y_output, y_target, action)
         self.eval_upper.eval(y_output, y_target, action)
         self.eval_lower.eval(y_output, y_target, action)
+        self.eval_per_joint.eval(y_output, y_target)
+        self.test_iteration += sequence_imgs.size(0)
+        
       
 
     def test_epoch_end(self, test_step_outputs):
         test_mpjpe = self.eval_body.get_results()
         test_mpjpe_upper = self.eval_upper.get_results()
         test_mpjpe_lower = self.eval_lower.get_results()
+        test_mpjpe_per_joint = self.eval_per_joint.get_results()
 
         self.test_results = {
             "Full Body": test_mpjpe,
             "Upper Body": test_mpjpe_upper,
             "Lower Body": test_mpjpe_lower,
+            "Per Joint": test_mpjpe_per_joint
         }          
 
 if __name__ == "__main__":

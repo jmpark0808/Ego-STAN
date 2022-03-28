@@ -94,11 +94,43 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
         """
         
         optimizer = torch.optim.AdamW(self.parameters(), lr=self.lr)
-        scheduler = {'scheduler': torch.optim.lr_scheduler.LinearLR(optimizer, start_factor=0.00000001, end_factor=1.0, total_iters=int(self.hm_train_steps/self.batch_size)),
-                        'name': 'learning_rate',
-                        'interval':'step',
-                        'frequency': 1}
+        scheduler = {'scheduler': torch.optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer,
+            mode='min',
+            factor=0.1,
+            patience=self.es_patience-3,
+            min_lr=1e-8,
+            verbose=True
+        ),
+        'name': 'learning_rate',
+        'interval': 'step',
+        'frequency': 1}
+        # scheduler = {'scheduler': torch.optim.lr_scheduler.LinearLR(optimizer, start_factor=0.00000001, end_factor=1.0, total_iters=int(self.hm_train_steps/self.batch_size)),
+        #                 'name': 'learning_rate',
+        #                 'interval':'step',
+        #                 'frequency': 1}
         return [optimizer], [scheduler]
+
+    # learning rate warm-up
+    def optimizer_step(
+        self,
+        epoch,
+        batch_idx,
+        optimizer,
+        optimizer_idx,
+        optimizer_closure,
+        on_tpu=False,
+        using_native_amp=False,
+        using_lbfgs=False,
+    ):
+        # skip the first 500 steps
+        if self.trainer.global_step < int(self.hm_train_steps/self.batch_size):
+            lr_scale = min(1.0, float(self.trainer.global_step + 1) / int(self.hm_train_steps/self.batch_size))
+            for pg in optimizer.param_groups:
+                pg["lr"] = lr_scale * self.hparams.learning_rate
+
+        # update params
+        optimizer.step(closure=optimizer_closure)
 
     def forward(self, x):
         """
