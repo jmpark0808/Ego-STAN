@@ -166,14 +166,14 @@ class ResNetTransformerClsRevPos(nn.Module):
   
         self.to_embedding = nn.Linear(2048, dim)
 
-        self.pos_embedding = nn.Parameter(torch.randn(1, seq_len, dim))
+        self.pos_embedding = nn.Parameter(torch.randn(1, (seq_len//(12*12))+1, dim))
         self.cls_token = nn.Parameter(torch.randn(1, 12*12, dim))
         self.dropout = nn.Dropout(emb_dropout)
 
         self.transformer = Transformer(dim, depth, heads, dim_head, mlp_dim, dropout)
         self.linear = nn.Linear(dim, 2048)
 
-    def forward(self, x): # x = (batch, seq_len, 20)
+    def forward(self, x): # x = (batch, seq_len, 2048)
         x = self.to_embedding(x) # x = (batch, seq_len, dim)
 
         cls_tokens = repeat(self.cls_token, '() n d -> b n d', b = x.size(0))
