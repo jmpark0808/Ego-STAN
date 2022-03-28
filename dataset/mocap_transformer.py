@@ -222,10 +222,10 @@ class MocapTransformer(BaseDataset):
             p2d[:, 0] = p2d[:, 0]-180 # Translate p2d coordinates by 180 pixels to the left
 
             if self.heatmap_type == 'baseline':
-                p2d_heatmap = generate_heatmap(p2d[1:, :], 3) # exclude head
+                p2d_heatmap = generate_heatmap(p2d, 3) # exclude head
             elif self.heatmap_type == 'distance':
-                distances = np.sqrt(np.sum(p3d**2, axis=1))[1:]
-                p2d_heatmap = generate_heatmap_distance(p2d[1:, :], distances) # exclude head
+                distances = np.sqrt(np.sum(p3d**2, axis=1))
+                p2d_heatmap = generate_heatmap_distance(p2d, distances) # exclude head
             else:
                 self.logger.error('Unrecognized heatmap type')
 

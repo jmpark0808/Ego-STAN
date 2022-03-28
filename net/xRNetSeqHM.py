@@ -133,7 +133,7 @@ class xREgoPoseSeqHM(pl.LightningModule):
         if self.trainer.global_step < int(self.hm_train_steps/self.batch_size):
             lr_scale = min(1.0, float(self.trainer.global_step + 1) / int(self.hm_train_steps/self.batch_size))
             for pg in optimizer.param_groups:
-                pg["lr"] = lr_scale * self.hparams.learning_rate
+                pg["lr"] = lr_scale * self.lr
 
         # update params
         optimizer.step(closure=optimizer_closure)

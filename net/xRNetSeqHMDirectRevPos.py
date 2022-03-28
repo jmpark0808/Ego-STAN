@@ -31,7 +31,7 @@ class xREgoPoseSeqHMDirectRevPos(pl.LightningModule):
         # First Deconvolution to obtain 2D heatmap
         self.heatmap_deconv = nn.Sequential(*[nn.ConvTranspose2d(2048, 1024, kernel_size=3,
                                                                  stride=2, dilation=1, padding=1),
-                                              nn.ConvTranspose2d(1024, 15, kernel_size=3,
+                                              nn.ConvTranspose2d(1024, 16, kernel_size=3,
                                                                  stride=2, dilation=1, padding=0)])
         # Transformer that takes sequence of heatmaps and outputs a sequence of heatmaps
         self.resnet_transformer = ResNetTransformerClsRevPos(seq_len=self.seq_len*12*12, dim=512, depth=3, heads=8, mlp_dim=1024, dim_head=64, dropout=0.)
@@ -129,7 +129,7 @@ class xREgoPoseSeqHMDirectRevPos(pl.LightningModule):
         if self.trainer.global_step < int(self.hm_train_steps/self.batch_size):
             lr_scale = min(1.0, float(self.trainer.global_step + 1) / int(self.hm_train_steps/self.batch_size))
             for pg in optimizer.param_groups:
-                pg["lr"] = lr_scale * self.hparams.learning_rate
+                pg["lr"] = lr_scale * self.lr
 
         # update params
         optimizer.step(closure=optimizer_closure)
