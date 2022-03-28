@@ -8,10 +8,10 @@
 #SBATCH --account=rrg-pfieguth
 # export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
 
-module load python/3.9 cuda cudnn
+module load python/3.8 cuda cudnn
 
 # Prepare virtualenv
-source ~/torch/bin/activate
+source ~/torch_38/bin/activate
 
 
 # Prepare data
@@ -110,7 +110,6 @@ download_set "ValSet"
 
 # Start testing
 python ~/projects/def-pfieguth/kkaai/xREgoPose/vis.py \
-    --model direct_regression \
     --heatmap_type baseline \
     --dataset_val $SLURM_TMPDIR/ValSet \
     --output_directory /home/kkaai/scratch/3d_plots \

@@ -20,7 +20,7 @@ def main():
     parser.add_argument("--batch_size", default=16, type=int)
     parser.add_argument("--output_directory", required=True, type=str)
     parser.add_argument("--heatmap_type", required=True)
-    parser.add_argument("--num_workers", required=True)
+    parser.add_argument("--num_workers", type=int, required=True)
 
     dict_args = vars(parser.parse_args())
 
