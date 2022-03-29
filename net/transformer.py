@@ -178,7 +178,7 @@ class ResNetTransformerClsRevPos(nn.Module):
 
         cls_tokens = repeat(self.cls_token, '() n d -> b n d', b = x.size(0))
         x = torch.cat((cls_tokens, x), dim=1)
-        x += self.pos_embedding.repeat(1, 12*12, 1) # x = (batch, seq_len+144, dim)
+        x += torch.repeat_interleave(self.pos_embedding, 12*12, dim=1) # x = (batch, seq_len+144, dim)
         x = self.dropout(x) # x = (batch, seq_len+144, dim)
 
         x, atts = self.transformer(x) # x = (batch, seq_len+144, dim)
