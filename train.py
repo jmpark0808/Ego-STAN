@@ -27,6 +27,7 @@ from net.xRNetSeqDirect import xREgoPoseSeqDirect
 from net.xRNetSeqHMDirect import xREgoPoseSeqHMDirect
 from net.xRNetGlobalTrans import xREgoPoseGlobalTrans
 from net.xRNetDist import xREgoPoseDist
+from net.xRNetSeqHMDirectAvg import xREgoPoseSeqHMDirectAvg
 from net.xRNetSeqHMDirectRevPos import xREgoPoseSeqHMDirectRevPos
 from net.xRNetUNet import xREgoPoseUNet
 from utils.evaluate import create_results_csv
@@ -48,7 +49,8 @@ MODEL_DIRECTORY = {
     "xregopose_dist": xREgoPoseDist,
     "xregopose_unet": xREgoPoseUNet,
     "xregopose_direct": xREgoPoseDirect,
-    "xregopose_seq_hm_direct_rev_pos": xREgoPoseSeqHMDirectRevPos
+    "xregopose_seq_hm_direct_rev_pos": xREgoPoseSeqHMDirectRevPos,
+    "xregopose_seq_hm_direct_avg": xREgoPoseSeqHMDirectAvg
 }
 DATALOADER_DIRECTORY = {
     'baseline': MocapDataModule,
