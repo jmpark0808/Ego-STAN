@@ -1,5 +1,6 @@
 import os
 import h5py
+import torch
 import pytorch_lightning as pl
 from skimage import io as sio
 from skimage.transform import resize
@@ -45,14 +46,19 @@ class Mo2Cap2(BaseDataset):
         chunk_path = img_track[:-12]
         frame_num = img_track[-5:]
 
-        with h5py.File(os.path.join(self.path, chunk_path), "r") as chunk:
-            img = chunk["Images"][int(frame_num)]
-            p2d = chunk["Annot2D"][int(frame_num)]
-            p2d[:, 0] = p2d[:, 0]-180 # Translate p2d coordinates by 180 pixels to the left
-            p2d_heatmap = generate_heatmap(p2d, 3) # no head in mocap dataset
-            p3d = chunk["Annot3D"][int(frame_num)]
-            p3d = np.insert(p3d, 0, np.array([0,0,0]), 0)
-            action = "unknown" #placeholder for now
+        chunk = h5py.File(os.path.join(self.path, chunk_path), "r")
+        img = chunk["Images"][int(frame_num)]
+        img = resize(img, (3, 368, 368))
+        img = torch.Tensor(img).type(torch.FloatTensor)
+        p2d = chunk["Annot2D"][int(frame_num)]
+        p2d[:, 0] = p2d[:, 0] # Translate p2d coordinates by 180 pixels to the left
+        p2d_heatmap = generate_heatmap(p2d, 3) # no head in mocap dataset
+        p2d_heatmap = torch.Tensor(p2d_heatmap).type(torch.FloatTensor)
+        p3d = chunk["Annot3D"][int(frame_num)]
+        p3d = np.insert(p3d, 0, np.array([0.0,0.0,0.0]), 0)
+        p3d = torch.Tensor(p3d).type(torch.FloatTensor)
+        action = "unknown" #placeholder for now
+        chunk.close()
 
         return img, p2d_heatmap, p3d, action
 

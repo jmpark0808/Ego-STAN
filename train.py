@@ -12,6 +12,7 @@ from pytorch_lightning.loggers import TensorBoardLogger
 
 
 from dataset.mocap import MocapDataModule
+from dataset.mo2cap2 import Mo2Cap2DataModule
 from dataset.mocap_distance import MocapDistanceDataModule
 from dataset.mocap_transformer import MocapSeqDataModule
 from net.DirectRegression import DirectRegression
@@ -46,6 +47,7 @@ DATALOADER_DIRECTORY = {
     'baseline': MocapDataModule,
     'sequential': MocapSeqDataModule,
     'distance': MocapDistanceDataModule,
+    'mo2cap2': Mo2Cap2DataModule,
 } 
 
 if __name__ == "__main__":
