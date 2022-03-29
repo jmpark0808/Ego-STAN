@@ -140,7 +140,7 @@ class xREgoPoseGlobalTrans(pl.LightningModule):
 
         """
         
-        imgs, p2d, p3d, action = batch
+        imgs, p2d, p3d, action, img_path = batch
         imgs = imgs.cuda()
         p2d = p2d.cuda()
         p3d = p3d.cuda()
@@ -175,7 +175,7 @@ class xREgoPoseGlobalTrans(pl.LightningModule):
         validation loop: https://pytorch-lightning.readthedocs.io/en/stable/common/lightning_module.html#hooks
         """
         
-        imgs, p2d, p3d, action = batch
+        imgs, p2d, p3d, action, img_path = batch
         imgs = imgs.cuda()
         p2d = p2d.cuda()
         p3d = p3d.cuda()
@@ -235,7 +235,7 @@ class xREgoPoseGlobalTrans(pl.LightningModule):
 
     def test_step(self, batch, batch_idx):
         tensorboard = self.logger.experiment
-        imgs, p2d, p3d, action = batch
+        imgs, p2d, p3d, action, img_path = batch
         imgs = imgs.cuda()
         p2d = p2d.cuda()
         p3d = p3d.cuda()

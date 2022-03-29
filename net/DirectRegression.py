@@ -117,7 +117,7 @@ class DirectRegression(pl.LightningModule):
         https://pytorch-lightning.readthedocs.io/en/latest/starter/introduction_guide.html
 
         """
-        img, p2d, p3d, action = batch
+        img, p2d, p3d, action, img_path = batch
         img = img.cuda()
         p2d = p2d.cuda()
         p3d = p3d.cuda()
@@ -142,7 +142,7 @@ class DirectRegression(pl.LightningModule):
         Compute the metrics for validation batch
         validation loop: https://pytorch-lightning.readthedocs.io/en/stable/common/lightning_module.html#hooks
         """
-        img, p2d, p3d, action = batch
+        img, p2d, p3d, action, img_path = batch
         img = img.cuda()
         p2d = p2d.cuda()
         p3d = p3d.cuda()
@@ -191,7 +191,7 @@ class DirectRegression(pl.LightningModule):
         self.eval_lower = evaluate.EvalLowerBody()
 
     def test_step(self, batch, batch_idx):
-        img, p2d, p3d, action = batch
+        img, p2d, p3d, action, img_path = batch
         img = img.cuda()
         p3d = p3d.cuda()
 
