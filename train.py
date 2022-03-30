@@ -1,6 +1,8 @@
 import argparse
 import datetime
 import os
+import random
+import time
 from re import X
 
 import pytorch_lightning as pl
@@ -112,10 +114,14 @@ if __name__ == "__main__":
     model = MODEL_DIRECTORY[dict_args['model']](**dict_args)
 
     # Initialize logging paths
-    now = datetime.datetime.now().strftime('%m%d%H%M')
+    random_sec = random.randint(1, 20)
+    time.sleep(random_sec)
+    now = datetime.datetime.now().strftime('%m%d%H%M%S')
     weight_save_dir = os.path.join(dict_args["logdir"], os.path.join('models', 'state_dict', now))
     while os.path.exists(weight_save_dir):
-        now = datetime.datetime.now().strftime('%m%d%H%M')
+        random_sec = random.randint(1, 20)
+        time.sleep(random_sec)
+        now = datetime.datetime.now().strftime('%m%d%H%M%S')
         weight_save_dir = os.path.join(dict_args["logdir"], os.path.join('models', 'state_dict', now))
 
     os.makedirs(weight_save_dir, exist_ok=True)
