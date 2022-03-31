@@ -104,6 +104,8 @@ if __name__ == "__main__":
     parser.add_argument("--image_resolution",  help='Image resolution', nargs="*", type=int, default=[368, 368])
     parser.add_argument('--seed', help='Seed for reproduceability', 
                         default=42, type=int)
+    parser.add_argument('--clip_grad_norm', help='Clipping gradient norm, 0 means no clipping', 
+                        default=0, type=float)
 
     args = parser.parse_args()
     dict_args = vars(args)
@@ -156,7 +158,8 @@ if __name__ == "__main__":
         profiler=profiler,
         logger=logger,
         max_epochs=dict_args["epoch"],
-        log_every_n_steps=10
+        log_every_n_steps=10,
+        gradient_clip_val=dict_args['clip_grad_norm']
     )
 
     # Trainer: train model
