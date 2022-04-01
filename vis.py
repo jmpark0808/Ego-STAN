@@ -18,7 +18,7 @@ def main():
     parser.add_argument("--model", required=True, type=str)
     parser.add_argument("--model_checkpoint_file", required=True, type=str)
     parser.add_argument("--dataloader", required=True)
-    parser.add_argument("--dataset_test", required=True, type=str)
+    parser.add_argument("--dataset_val", required=True, type=str)
     parser.add_argument("--batch_size", default=16, type=int)
     parser.add_argument("--output_directory", required=True, type=str)
     parser.add_argument("--cuda", default="cuda", choices=["cuda", "cpu"], type=str)
