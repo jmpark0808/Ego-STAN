@@ -31,12 +31,16 @@ if __name__ == "__main__":
         print("DataSet directory not in options")
         quit()
 
-    os.mkdir(destination_dir)
+    if(not os.path.exists(destination_dir)):
+        os.mkdir(destination_dir)
 
     for chunk_path in os.listdir(dataset_dir):
-        os.mkdir(os.path.join(destination_dir, chunk_path[:-5]))
-        os.mkdir(os.path.join(destination_dir, chunk_path[:-5], 'rgba'))
-        os.mkdir(os.path.join(destination_dir, chunk_path[:-5], 'json'))
+        if(not os.path.exists(os.path.join(destination_dir, chunk_path[:-5]))):
+            os.mkdir(os.path.join(destination_dir, chunk_path[:-5]))
+        if(not os.path.exists(os.path.join(destination_dir, chunk_path[:-5], 'rgba'))):
+            os.mkdir(os.path.join(destination_dir, chunk_path[:-5], 'rgba'))
+        if(not os.path.exists(os.path.join(destination_dir, chunk_path[:-5], 'json'))):
+            os.mkdir(os.path.join(destination_dir, chunk_path[:-5], 'json'))
         with h5py.File(os.path.join(dataset_dir, chunk_path), 'r') as chunk:
             for i in range(len(chunk['Images'])):
                 img = Image.fromarray(chunk['Images'][i].transpose(1, 2, 0))
@@ -60,7 +64,9 @@ if __name__ == "__main__":
                     'RightFoot': {'2d': list(p2d[13]), '3d': list(p3d[13])},
                     'RightToeBase': {'2d': list(p2d[14]), '3d': list(p3d[14])},
                 }
-                img.save(os.path.join(destination_dir, chunk_path[:-5], 'rgba', '{0}_{1:06}.png'.format(chunk_path[:-5], i)))
-                print(os.path.join(destination_dir, chunk_path[:-5], 'rgba', '{0}_{1:06}.png'.format(chunk_path[:-5], i)))
-                io.write_json(os.path.join(destination_dir, chunk_path[:-5], 'json', '{0}_{1:06}.json'.format(chunk_path[:-5], i)), dict_json_info)
-                print(os.path.join(destination_dir, chunk_path[:-5], 'json', '{0}_{1:06}.json'.format(chunk_path[:-5], i)))
+                if(not os.path.exists(os.path.join(destination_dir, chunk_path[:-5], 'rgba', '{0}_{1:06}.png'.format(chunk_path[:-5], i)))):
+                    img.save(os.path.join(destination_dir, chunk_path[:-5], 'rgba', '{0}_{1:06}.png'.format(chunk_path[:-5], i)))
+                    print(os.path.join(destination_dir, chunk_path[:-5], 'rgba', '{0}_{1:06}.png'.format(chunk_path[:-5], i)))
+                if(not os.path.exists(os.path.join(destination_dir, chunk_path[:-5], 'json', '{0}_{1:06}.json'.format(chunk_path[:-5], i)))):
+                    io.write_json(os.path.join(destination_dir, chunk_path[:-5], 'json', '{0}_{1:06}.json'.format(chunk_path[:-5], i)), dict_json_info)
+                    print(os.path.join(destination_dir, chunk_path[:-5], 'json', '{0}_{1:06}.json'.format(chunk_path[:-5], i)))
