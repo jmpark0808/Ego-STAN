@@ -29,13 +29,13 @@ def main():
     parser.add_argument(
         "--skip",
         help="# of images/frames to skip in between frames",
-        default="0",
+        default=0,
         type=int,
     )
     parser.add_argument(
         "--seq_len",
         help="# of images/frames input into sequential model",
-        default="5",
+        default=5,
         type=int,
     )
     parser.add_argument('--heatmap_type', help='Type of 2D ground truth heatmap, Defaults to "baseline"', 
