@@ -91,8 +91,8 @@ class xREgoPose(pl.LightningModule):
         Choose what optimizers and learning-rate schedulers to use in your optimization.
         """
         
-        optimizer = torch.optim.SGD(
-        self.parameters(), lr=self.lr, momentum=0.9, nesterov=True
+        optimizer = torch.optim.AdamW(
+        self.parameters(), lr=self.lr
         )
         self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
             optimizer,

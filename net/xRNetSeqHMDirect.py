@@ -290,7 +290,7 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
 
             for level, att in enumerate(atts):
                 for head in range(att.size(1)):
-                    img = att[:, head, :, :].reshape(att.size(0), 1, att.size(2), att.size(3))
+                    img = att[:, head, :, :].reshape(att.size(0), 1, att.size(2), att.size(3)) # batch, 1, (T+1)*12*12, (T+1)*12*12
                     img = img.detach().cpu().numpy()
                     cmap = matplotlib.cm.get_cmap('gist_heat')
                     rgba = np.transpose(np.squeeze(cmap(img), axis=1), (0, 3, 1, 2))[0, :3, :, :]
