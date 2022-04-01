@@ -66,7 +66,7 @@ def main():
         img, p2d, p3d, action, img_path = batch
 
         p3d = p3d.cpu().numpy()
-        pose = model(img)
+        pose = model(img).cpu().numpy()
 
         print("[p] rendering skeletons")
         for idx in range(p3d.shape[0]):
