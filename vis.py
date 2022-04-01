@@ -15,12 +15,27 @@ VIDEO_LIST = set()
 
 def main():
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
+    parser.add_argument("--model", required=True, type=str)
+    parser.add_argument("--model_checkpoint_file", required=True, type=str)
     parser.add_argument("--dataloader", required=True)
-    parser.add_argument("--dataset_val", required=True, type=str)
+    parser.add_argument("--dataset_test", required=True, type=str)
     parser.add_argument("--batch_size", default=16, type=int)
     parser.add_argument("--output_directory", required=True, type=str)
+    parser.add_argument("--cuda", default="cuda", choices=["cuda", "cpu"], type=str)
     parser.add_argument("--heatmap_type", required=True)
     parser.add_argument("--num_workers", type=int, required=True)
+    parser.add_argument(
+        "--skip",
+        help="# of images/frames to skip in between frames",
+        default=0,
+        type=int,
+    )
+    parser.add_argument(
+        "--seq_len",
+        help="# of images/frames input into sequential model",
+        default=5,
+        type=int,
+    )
 
     dict_args = vars(parser.parse_args())
 
@@ -36,13 +51,22 @@ def main():
     data_module = DATALOADER_DIRECTORY[dict_args["dataloader"]](**dict_args)
     val_dataloader = data_module.val_dataloader()
 
+    # Initialize model to test
+    assert dict_args["model"] in MODEL_DIRECTORY
+    model = MODEL_DIRECTORY[dict_args["model"]](**dict_args)
+    model = model.load_from_checkpoint(
+        checkpoint_path=dict_args["model_checkpoint_file"],
+        map_location=dict_args["cuda"],
+    )
+    model.eval()
+
     # Iterate through each batch to generate visuals
     print("[p] processing batches")
     for batch in tqdm(val_dataloader):
         img, p2d, p3d, action, img_path = batch
 
         p3d = p3d.cpu().numpy()
-        pose = p3d
+        pose = model(img)
 
         print("[p] rendering skeletons")
         for idx in range(p3d.shape[0]):

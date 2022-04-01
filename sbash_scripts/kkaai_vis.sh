@@ -110,9 +110,11 @@ download_set "ValSet"
 
 # Start testing
 python ~/projects/def-pfieguth/kkaai/xREgoPose/vis.py \
+    --model direct_regression \
+    --model_checkpoint_file /home/kkaai/workspace/lightning_logs/03041131/checkpoints/epoch=7-step=94077.ckpt \
     --heatmap_type baseline \
     --dataset_val $SLURM_TMPDIR/ValSet \
     --output_directory /home/kkaai/scratch/3d_plots \
     --dataloader baseline \
     --batch_size 16 \
-    --num_workers 24 \
+    --num_workers 24 
