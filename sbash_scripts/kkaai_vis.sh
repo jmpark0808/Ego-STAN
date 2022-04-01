@@ -111,7 +111,7 @@ download_set "ValSet"
 # Start testing
 python ~/projects/def-pfieguth/kkaai/xREgoPose/vis.py \
     --model direct_regression \
-    --model_checkpoint_file /home/kkaai/workspace/lightning_logs/03041131/checkpoints/epoch=7-step=94077.ckpt \
+    --model_checkpoint_file /home/kkaai/workspace/models/state_dict/02251123/epoch=11-step=146693.ckpt \
     --heatmap_type baseline \
     --dataset_val $SLURM_TMPDIR/ValSet \
     --output_directory /home/kkaai/scratch/3d_plots \
