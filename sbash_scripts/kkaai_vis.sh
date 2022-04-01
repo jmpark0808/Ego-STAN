@@ -111,11 +111,11 @@ download_set "TestSet"
 # Start testing
 python ~/projects/def-pfieguth/kkaai/xREgoPose/vis.py \
     --model direct_regression \
-    --model_checkpoint_file /home/kkaai/projects/def-pfieguth/kkaai/xREgoPose/ 
+    --model_checkpoint_file /home/kkaai/projects/def-pfieguth/kkaai/xREgoPose/ \
     --output_directory /home/kkaai/scratch/3d_plots \
     --dataloader baseline \
     --dataset_test $SLURM_TMPDIR/TestSet \
     --batch_size 16 \
     --num_workers 24 \
-    --heatmap_type baseline
+    --heatmap_type baseline \
     --cuda cuda
