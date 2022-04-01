@@ -3,6 +3,7 @@
 import pytorch_lightning as pl
 import torch
 import numpy as np
+import os
 from utils import evaluate
 from net.blocks import *
 from net.transformer import ResNetTransformerCls
@@ -275,6 +276,7 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
         self.eval_per_joint = evaluate.EvalPerJoint()
 
     def test_step(self, batch, batch_idx):
+        logdir = self.logger.log_dir
         tensorboard = self.logger.experiment
         sequence_imgs, p2d, p3d, action = batch
         sequence_imgs = sequence_imgs.cuda()
@@ -292,6 +294,7 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
                 for head in range(att.size(1)):
                     img = att[:, head, :, :].reshape(att.size(0), 1, att.size(2), att.size(3)) # batch, 1, (T+1)*12*12, (T+1)*12*12
                     img = img.detach().cpu().numpy()
+                    np.save(os.path.join(logdir, f'{batch_idx}_{level}_{head}_att'), img[0, :, :, :])
                     cmap = matplotlib.cm.get_cmap('gist_heat')
                     rgba = np.transpose(np.squeeze(cmap(img), axis=1), (0, 3, 1, 2))[0, :3, :, :]
                     tensorboard.add_image(f'Level {level}, head {head}, Attention Map', rgba, global_step=self.test_iteration)
@@ -302,6 +305,8 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
             first_sample[:, 0, :, :] = first_sample[:, 0, :, :]*std[0]+mean[0]
             first_sample[:, 1, :, :] = first_sample[:, 1, :, :]*std[1]+mean[1]
             first_sample[:, 2, :, :] = first_sample[:, 2, :, :]*std[2]+mean[2]
+            first_sample_numpy = first_sample.detach().cpu().numpy()
+            np.save(os.path.join(logdir, f'{batch_idx}_images'), first_sample_numpy)
             tensorboard.add_images('Test Images', first_sample, global_step=self.test_iteration)
             tensorboard.add_images('Test GT Heatmap', torch.clip(p2d[0], 0, 1).reshape(16, 1, 47, 47), global_step=self.test_iteration)
             tensorboard.add_images('Test Pred Heatmap', torch.clip(heatmap[0], 0, 1).reshape(16, 1, 47, 47), global_step=self.test_iteration)
