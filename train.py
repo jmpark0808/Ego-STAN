@@ -11,6 +11,7 @@ from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from pytorch_lightning.callbacks.lr_monitor import LearningRateMonitor
 from pytorch_lightning.profiler import SimpleProfiler
 from pytorch_lightning.loggers import TensorBoardLogger
+from dataset.mo2cap2 import Mo2Cap2DataModule
 
 
 from dataset.mocap import MocapDataModule
@@ -60,6 +61,7 @@ DATALOADER_DIRECTORY = {
     'baseline': MocapDataModule,
     'sequential': MocapSeqDataModule,
     'distance': MocapDistanceDataModule,
+    'mo2cap2': Mo2Cap2DataModule
 } 
 
 if __name__ == "__main__":
@@ -104,7 +106,8 @@ if __name__ == "__main__":
     parser.add_argument("--image_resolution",  help='Image resolution', nargs="*", type=int, default=[368, 368])
     parser.add_argument('--seed', help='Seed for reproduceability', 
                         default=42, type=int)
-    parser.add_argument('--clip_grad_norm', help='Clipping gradient norm', type=float)
+    parser.add_argument('--clip_grad_norm', help='Clipping gradient norm, 0 means no clipping', type=float, default=0.)
+    parser.add_argument('--dropout', help='Dropout for transformer', type=float, default=0.)
 
     args = parser.parse_args()
     dict_args = vars(args)
