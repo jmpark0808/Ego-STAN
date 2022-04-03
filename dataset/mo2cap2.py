@@ -1,3 +1,4 @@
+from ntpath import join
 import os
 import h5py
 import torch
@@ -168,7 +169,12 @@ class Mo2Cap2(BaseDataset):
         p2d = np.zeros((16, 2))
         p3d = np.zeros((16, 3))
 
-        for jid, joint_name in enumerate(data.keys()):
+        joint_names = []
+        for key in data.keys():
+            if key not in ['action']:
+                joint_names.append(key)
+
+        for jid, joint_name in enumerate(joint_names):
             p2d[jid][0] = data[joint_name]['2d'][0]
             p2d[jid][1] = data[joint_name]['2d'][1]
             p3d[jid][0] = data[joint_name]['3d'][0]
@@ -202,7 +208,10 @@ class Mo2Cap2(BaseDataset):
         else:
             self.logger.error('Unrecognized heatmap type')
 
-        action = "unknown"
+        if 'action' not in data.keys():
+            action = "unknown"
+        else:
+            action = data['action']
 
         if self.transform:
             img = self.transform({'image': img})['image']
