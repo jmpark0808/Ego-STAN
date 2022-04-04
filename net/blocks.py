@@ -8,14 +8,14 @@ import math
 import torchvision
 
 class HeatMap(nn.Module):
-    def __init__(self):
+    def __init__(self, num_classes=16):
         super(HeatMap, self).__init__()
         # Resnet 101 without last average pooling and fully connected layers
         self.resnet101 = torchvision.models.resnet101(pretrained=False)
         # First Deconvolution to obtain 2D heatmap
         self.heatmap_deconv = nn.Sequential(*[nn.ConvTranspose2d(2048, 1024, kernel_size=3,
                                                                  stride=2, dilation=1, padding=1),
-                                              nn.ConvTranspose2d(1024, 16, kernel_size=3,
+                                              nn.ConvTranspose2d(1024, num_classes, kernel_size=3,
                                                                  stride=2, dilation=1, padding=0)])
 
     def update_resnet101(self):
@@ -107,9 +107,9 @@ class FeatureHeatMaps(nn.Module):
 
 
 class Encoder(nn.Module):
-    def __init__(self):
+    def __init__(self, num_classes=16):
         super(Encoder, self).__init__()
-        self.conv1 = nn.Conv2d(16, 64, kernel_size=4, stride=2, padding=2)
+        self.conv1 = nn.Conv2d(num_classes, 64, kernel_size=4, stride=2, padding=2)
         self.lrelu1 = nn.LeakyReLU(0.2)
         self.conv2 = nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1)
         self.lrelu2 = nn.LeakyReLU(0.2)
@@ -266,13 +266,14 @@ class FeatureBranchEncoder(nn.Module):
         return x
 
 class PoseDecoder(nn.Module):
-    def __init__(self, initial_dim=20):
+    def __init__(self, initial_dim=20, num_classes=16):
         super(PoseDecoder, self).__init__()
         self.linear1 = nn.Linear(initial_dim, 32)
         self.lrelu1 = nn.LeakyReLU(0.2)
         self.linear2 = nn.Linear(32, 32)
         self.lrelu2 = nn.LeakyReLU(0.2)
-        self.linear3 = nn.Linear(32, 48)
+        self.linear3 = nn.Linear(32, num_classes*3)
+        self.num_classes = num_classes
 
     def forward(self, x):
         x = self.linear1(x)
@@ -280,11 +281,11 @@ class PoseDecoder(nn.Module):
         x = self.linear2(x)
         x = self.lrelu2(x)
         x = self.linear3(x)
-        x = x.reshape(x.size(0), 16, 3)
+        x = x.reshape(x.size(0), self.num_classes, 3)
         return x
 
 class HeatmapDecoder(nn.Module):
-    def __init__(self):
+    def __init__(self, num_classes=16):
         super(HeatmapDecoder, self).__init__()
         self.linear1 = nn.Linear(20, 512)
         self.lrelu1 = nn.LeakyReLU(0.2)
@@ -294,7 +295,7 @@ class HeatmapDecoder(nn.Module):
         self.lrelu3 = nn.LeakyReLU(0.2)
         self.deconv1 = nn.ConvTranspose2d(512, 128, kernel_size=4, stride=2, padding=1)
         self.deconv2 = nn.ConvTranspose2d(128, 64, kernel_size=4, stride=2, padding=1)
-        self.deconv3 = nn.ConvTranspose2d(64, 16, kernel_size=3, stride=2, padding=1)
+        self.deconv3 = nn.ConvTranspose2d(64, num_classes, kernel_size=3, stride=2, padding=1)
     def forward(self, x):
         x = self.linear1(x)
         x = self.lrelu1(x)

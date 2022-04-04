@@ -20,17 +20,25 @@ class xREgoPose(pl.LightningModule):
         self.load_resnet = kwargs.get("load_resnet")
         self.hm_train_steps = kwargs.get("hm_train_steps")
         self.es_patience = kwargs.get("es_patience")
+        self.which_data = kwargs.get('dataloader')
+        if self.which_data == 'baseline':
+            num_class = 16
+        elif self.which_data == 'sequential':
+            num_class = 16
+        elif self.which_data == 'mo2cap2':
+            num_class = 15
+
         # must be defined for logging computational graph
         self.example_input_array = torch.rand((1, 3, 368, 368))
 
         # Generator that produces the HeatMap
-        self.heatmap = HeatMap()
+        self.heatmap = HeatMap(num_class)
         # Encoder that takes 2D heatmap and transforms to latent vector Z
-        self.encoder = Encoder()
+        self.encoder = Encoder(num_class)
         # Pose decoder that takes latent vector Z and transforms to 3D pose coordinates
-        self.pose_decoder = PoseDecoder()
+        self.pose_decoder = PoseDecoder(num_classes = num_class)
         # Heatmap decoder that takes latent vector Z and generates the original 2D heatmap
-        self.heatmap_decoder = HeatmapDecoder()
+        self.heatmap_decoder = HeatmapDecoder(num_class)
 
         # Initialize the mpjpe evaluation pipeline
         self.eval_body = evaluate.EvalBody()
@@ -193,7 +201,7 @@ class xREgoPose(pl.LightningModule):
         p2d = p2d.cuda()
         p3d = p3d.cuda()
 
-        # forward pass
+        # forward pass  
         heatmap, pose, generated_heatmap = self.forward(img)
         heatmap = torch.sigmoid(heatmap)
         generated_heatmap = torch.sigmoid(generated_heatmap)

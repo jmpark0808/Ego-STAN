@@ -20,6 +20,7 @@ class xREgoPoseGlobalTrans(pl.LightningModule):
         self.decay_step = kwargs.get("decay_step")
         self.load_resnet = kwargs.get("load_resnet")
         self.hm_train_steps = kwargs.get("hm_train_steps")
+        self.dropout = kwargs.get("dropout")
 
         # must be defined for logging computational graph
         self.example_input_array = torch.rand((1, 3, 368, 368))
@@ -29,10 +30,10 @@ class xREgoPoseGlobalTrans(pl.LightningModule):
         # First Deconvolution to obtain 2D heatmap
         self.heatmap_deconv = nn.Sequential(*[nn.ConvTranspose2d(2048, 1024, kernel_size=3,
                                                                  stride=2, dilation=1, padding=1),
-                                              nn.ConvTranspose2d(1024, 15, kernel_size=3,
+                                              nn.ConvTranspose2d(1024, 16, kernel_size=3,
                                                                  stride=2, dilation=1, padding=0)])
         # Transformer that takes sequence of heatmaps and outputs a sequence of heatmaps
-        self.resnet_transformer = GlobalPixelTransformer(dim=512, depth=3, heads=8, mlp_dim=1024, dim_head=64, dropout=0.)
+        self.resnet_transformer = GlobalPixelTransformer(dim=512, depth=3, heads=8, mlp_dim=1024, dim_head=64, dropout=self.dropout, emb_dropout=self.dropout)
         # Direct regression from heatmap
         self.hm2pose = HM2Pose()
 
