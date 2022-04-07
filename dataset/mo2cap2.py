@@ -166,12 +166,12 @@ class Mo2Cap2(BaseDataset):
             np.ndarray -- 3D joint positions, format (J x 3)
         """
 
-        p2d = np.zeros((16, 2))
-        p3d = np.zeros((16, 3))
+        p2d = np.zeros((15, 2))
+        p3d = np.zeros((15, 3))
 
         joint_names = []
         for key in data.keys():
-            if key not in ['action']:
+            if key not in ['action', 'Head']: # keys to skip from json
                 joint_names.append(key)
 
         for jid, joint_name in enumerate(joint_names):
@@ -181,7 +181,7 @@ class Mo2Cap2(BaseDataset):
             p3d[jid][1] = data[joint_name]['3d'][1]
             p3d[jid][2] = data[joint_name]['3d'][2]
 
-        p3d[0, :] = p3d[1, :] # Set artifical head value to neck value
+        #p3d[0, :] = p3d[1, :] # Set artifical head value to neck value
         p3d /= self.MM_TO_M
 
         return p2d, p3d
@@ -199,8 +199,6 @@ class Mo2Cap2(BaseDataset):
         json_path = self.index['json'][index].decode('utf8')
         data = io.read_json(json_path)
         p2d, p3d = self._process_points(data)
-        p3d = p3d[1:, :] # Remove artificial head
-        p2d = p2d[1:, :] # Remove artificial head
         p2d[:, 0] = p2d[:, 0]-33 # Translate p2d coordinates by 33 pixels to the left
 
         if self.heatmap_type == 'baseline':
