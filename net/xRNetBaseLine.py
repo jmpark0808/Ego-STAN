@@ -149,7 +149,7 @@ class xREgoPose(pl.LightningModule):
         https://pytorch-lightning.readthedocs.io/en/latest/starter/introduction_guide.html
 
         """
-        
+        tensorboard = self.logger.experiment
         img, p2d, p3d, action = batch
         img = img.cuda()
         p2d = p2d.cuda()
@@ -188,6 +188,8 @@ class xREgoPose(pl.LightningModule):
         self.log("train_mpjpe_full_body", mpjpe)
         self.log("train_mpjpe_std", mpjpe_std)
         self.iteration += img.size(0)
+        tensorboard.add_images('TR Ground Truth 2D Heatmap', torch.clip(torch.sum(p2d, dim=1, keepdim=True), 0, 1), self.iteration)
+        tensorboard.add_images('TR Predicted 2D Heatmap', torch.clip(torch.sum(heatmap, dim=1, keepdim=True), 0, 1), self.iteration)
         return loss
 
     def validation_step(self, batch, batch_idx):
