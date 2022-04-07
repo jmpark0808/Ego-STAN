@@ -12,7 +12,7 @@ from base import BaseEval
 __all__ = ["EvalBody", "EvalUpperBody", "EvalLowerBody"]
 
 
-def create_results_csv(mpjpe_dict: dict, csv_path: str):
+def create_results_csv(mpjpe_dict: dict, csv_path: str, mode: str = 'baseline'):
     """
     Save a csv of mpjpe evalutions stored in a dict.
     Refer to the `test_results` dict in DirectRegression.test_epoch_end
@@ -27,10 +27,18 @@ def create_results_csv(mpjpe_dict: dict, csv_path: str):
     columns = ["Evalution Error [mm]"]
     columns.extend(action_list)
     print(f"[print] columns: {columns}")
-    joints = ['Head','Neck', 'LeftArm', 'LeftForeArm',
+    if mode == 'baseline' or mode == 'sequential':
+        joints = ['Head','Neck', 'LeftArm', 'LeftForeArm',
      'LeftHand', 'RightArm', 'RightForeArm', 'RightHand',
      'LeftUpLeg', 'LeftLeg','LeftFoot','LeftToeBase',
      'RightUpLeg','RightLeg','RightFoot','RightToeBase']
+    elif mode == 'mo2cap2':
+        joints = ['Neck', 'LeftArm', 'LeftForeArm',
+     'LeftHand', 'RightArm', 'RightForeArm', 'RightHand',
+     'LeftUpLeg', 'LeftLeg','LeftFoot','LeftToeBase',
+     'RightUpLeg','RightLeg','RightFoot','RightToeBase']
+    else:
+        raise('Not a valid mode')
 
     with open(csv_path, mode="w") as f:
         mpjpe_writer = csv.writer(f)
@@ -117,8 +125,15 @@ class EvalBody(BaseEval):
 
 class EvalUpperBody(BaseEval):
     """Eval upper body"""
-
-    _SEL = [0, 1, 2, 3, 4, 5, 6, 7]
+    def __init__(self, mode='baseline'):
+        super().__init__()
+        self.errors = []
+        if mode == 'baseline' or mode == 'sequential':
+            self._SEL = [0, 1, 2, 3, 4, 5, 6, 7]
+        elif mode == 'mo2cap2':
+            self._SEL = [0, 1, 2, 3, 4, 5, 6]
+        else:
+            raise('Not a valid mode')
 
     def eval(self, pred, gt, actions=None):
         """Evaluate
@@ -153,7 +168,15 @@ class EvalUpperBody(BaseEval):
 class EvalLowerBody(BaseEval):
     """Eval lower body"""
 
-    _SEL = [8, 9, 10, 11, 12, 13, 14, 15]
+    def __init__(self, mode='baseline'):
+        super().__init__()
+        self.errors = []
+        if mode == 'baseline' or mode == 'sequential':
+            self._SEL = [8, 9, 10, 11, 12, 13, 14, 15]
+        elif mode == 'mo2cap2':
+            self._SEL = [7, 8, 9, 10, 11, 12, 13, 14]
+        else:
+            raise('Not a valid mode')
 
     def eval(self, pred, gt, actions=None):
         """Evaluate

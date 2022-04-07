@@ -174,6 +174,6 @@ if __name__ == "__main__":
         test_mpjpe_dict = model.test_results
         mpjpe_csv_path = os.path.join(weight_save_dir, f'{now}_eval.csv')
         # Store mpjpe test results as a csv
-        create_results_csv(test_mpjpe_dict, mpjpe_csv_path)
+        create_results_csv(test_mpjpe_dict, mpjpe_csv_path, dict_args['dataloader'])
     else:
         print("Evaluation skipped")
