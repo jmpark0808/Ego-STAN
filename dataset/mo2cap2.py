@@ -199,15 +199,15 @@ class Mo2Cap2(BaseDataset):
         json_path = self.index['json'][index].decode('utf8')
         data = io.read_json(json_path)
         p2d, p3d = self._process_points(data)
-        #p3d = p3d[1:, :] # Remove artificial head
-        #p2d = p2d[1:, :] # Remove artificial head
+        p3d = p3d[1:, :] # Remove artificial head
+        p2d = p2d[1:, :] # Remove artificial head
         p2d[:, 0] = p2d[:, 0]-33 # Translate p2d coordinates by 33 pixels to the left
 
         if self.heatmap_type == 'baseline':
-            p2d_heatmap = generate_heatmap(p2d[1:, :], 3) # exclude head
+            p2d_heatmap = generate_heatmap(p2d, 3) # exclude head
         elif self.heatmap_type == 'distance':
-            distances = np.sqrt(np.sum(p3d**2, axis=1))[1:]
-            p2d_heatmap = generate_heatmap_distance(p2d[1:, :], distances) # exclude head
+            distances = np.sqrt(np.sum(p3d**2, axis=1))
+            p2d_heatmap = generate_heatmap_distance(p2d, distances) # exclude head
         else:
             self.logger.error('Unrecognized heatmap type')
 
@@ -242,7 +242,7 @@ class Mo2Cap2DataModule(pl.LightningDataModule):
 
         # Data: data transformation strategy
         self.data_transform = transforms.Compose(
-            [trsf.ImageTrsf(), trsf.Joints3DTrsf(), trsf.ToTensor()]
+            [trsf.ImageTrsf(), trsf.Joints3DTrsf(jid_to_zero = 0), trsf.ToTensor()]
         )
         
     def train_dataloader(self):

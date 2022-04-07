@@ -137,7 +137,7 @@ if __name__ == "__main__":
                 shutil.copy(os.path.join(olek_dir_path, fpath), olek_rgba_path)
                 p3d = oleks_p3d[frame_idx-158] # Frame offset when reading from the .mat file
                 dict_json_info = {
-                    'Head': {'2d': list(np.array([0.0, 0.0], np.float64)), '3d': list(np.array([0.0, 0.0, 0.0], np.float64))},
+                    #'Head': {'2d': list(np.array([0.0, 0.0], np.float64)), '3d': list(np.array([0.0, 0.0, 0.0], np.float64))},
                     'Neck': {'2d': list(np.array([0.0, 0.0], np.float64)), '3d': list(p3d[0])},
                     'LeftArm': {'2d': list(np.array([0.0, 0.0], np.float64)), '3d': list(p3d[1])},
                     'LeftForeArm': {'2d': list(np.array([0.0, 0.0], np.float64)), '3d': list(p3d[2])},
@@ -164,7 +164,7 @@ if __name__ == "__main__":
                 shutil.copy(os.path.join(weipeng_dir_path, fpath), weipeng_rgba_path)
                 p3d = weipengs_p3d[frame_idx-387] # Frame offset when reading from the .mat file
                 dict_json_info = {
-                    'Head': {'2d': list(np.array([0.0, 0.0], np.float64)), '3d': list(np.array([0.0, 0.0, 0.0], np.float64))},
+                    #'Head': {'2d': list(np.array([0.0, 0.0], np.float64)), '3d': list(np.array([0.0, 0.0, 0.0], np.float64))},
                     'Neck': {'2d': list(np.array([0.0, 0.0], np.float64)), '3d': list(p3d[0])},
                     'LeftArm': {'2d': list(np.array([0.0, 0.0], np.float64)), '3d': list(p3d[1])},
                     'LeftForeArm': {'2d': list(np.array([0.0, 0.0], np.float64)), '3d': list(p3d[2])},
@@ -218,7 +218,7 @@ if __name__ == "__main__":
                             p2d = chunk["Annot2D"][i]
                             p3d = chunk["Annot3D"][i]
                             dict_json_info = {
-                                'Head': {'2d': list(np.array([0.0, 0.0], np.float64)), '3d': list(np.array([0.0, 0.0, 0.0], np.float64))},
+                                #'Head': {'2d': list(np.array([0.0, 0.0], np.float64)), '3d': list(np.array([0.0, 0.0, 0.0], np.float64))},
                                 'Neck': {'2d': list(p2d[0]), '3d': list(p3d[0])},
                                 'LeftArm': {'2d': list(p2d[1]), '3d': list(p3d[1])},
                                 'LeftForeArm': {'2d': list(p2d[2]), '3d': list(p3d[2])},

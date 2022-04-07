@@ -78,8 +78,6 @@ class Joints3DTrsf(BaseTransform):
 
         p3d = data['joints3D']
         joint_zeroed = p3d[self.jid_zeroed][np.newaxis]
-        print(self.jid_zeroed)
-        print(joint_zeroed)
 
         # update p3d
         p3d -= joint_zeroed
