@@ -43,7 +43,7 @@ class xREgoPose(pl.LightningModule):
         # Initialize the mpjpe evaluation pipeline
         self.eval_body = evaluate.EvalBody()
         self.eval_upper = evaluate.EvalUpperBody(mode=self.which_data)
-        self.eval_lower = evaluate.EvalLowerBody(mode=self.which_data))
+        self.eval_lower = evaluate.EvalLowerBody(mode=self.which_data)
         self.eval_per_joint = evaluate.EvalPerJoint()
 
         # Initialize total validation pose loss
@@ -225,8 +225,8 @@ class xREgoPose(pl.LightningModule):
     def on_validation_start(self):
         # Initialize the mpjpe evaluation pipeline
         self.eval_body = evaluate.EvalBody()
-        self.eval_upper = evaluate.EvalUpperBody(mode=self.which_data))
-        self.eval_lower = evaluate.EvalLowerBody(mode=self.which_data))
+        self.eval_upper = evaluate.EvalUpperBody(mode=self.which_data)
+        self.eval_lower = evaluate.EvalLowerBody(mode=self.which_data)
 
         # Initialize total validation pose loss
         self.val_loss_3d_pose_total = torch.tensor(0., device=self.device)
@@ -249,8 +249,8 @@ class xREgoPose(pl.LightningModule):
     def on_test_start(self):
         # Initialize the mpjpe evaluation pipeline
         self.eval_body = evaluate.EvalBody()
-        self.eval_upper = evaluate.EvalUpperBody(mode=self.which_data))
-        self.eval_lower = evaluate.EvalLowerBody(mode=self.which_data))
+        self.eval_upper = evaluate.EvalUpperBody(mode=self.which_data)
+        self.eval_lower = evaluate.EvalLowerBody(mode=self.which_data)
         self.eval_per_joint = evaluate.EvalPerJoint()
 
     def test_step(self, batch, batch_idx):
