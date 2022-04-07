@@ -54,7 +54,9 @@ def set_action():
     _NAMES = [
         'Gesticuling', 'Reacting', 'Greeting',
         'Talking', 'UpperStretching', 'Gaming',
-        'LowerStretching', 'Patting', 'Walking', 'All'
+        'LowerStretching', 'Patting', 'Walking', 
+        'Sitting', 'Crawling', 'Crouching', 'Boxing',
+        'Dancing', 'Stretching', 'Waving', 'All'
     ]
 
     _ACTION = {
@@ -76,7 +78,9 @@ def set_action():
         'Pain_Gesture': 1, 'Fist_Pump': 0, 'Terrified': 1, 'Surprised': 1,
         'Clapping': 1, 'Rallying': 1, 'Hand_Raising': 0, 'Sitting_Disapproval': 6,
         'Quick_Formal_Bow': 2, 'Counting__1_': 0, 'Tpose_Take_001': 4,
-        'upper_stretching': 4, 'lower_stretching': 6, 'walking': 8
+        'upper_stretching': 4, 'lower_stretching': 6, 'walking': 8,
+        'sitting' : 9, 'crawling' : 10, 'crouching' : 11, 'boxing' : 12, 
+        'dancing' : 13, 'stretching' : 14, 'waving' : 15
     }
 
     action_map = {}
