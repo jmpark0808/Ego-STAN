@@ -53,13 +53,18 @@ class ImageTrsf(BaseTransform):
 class Joints3DTrsf(BaseTransform):
     """Joint Transform"""
 
-    def __init__(self):
+    def __init__(self, jid_to_zero = None):
 
         super().__init__()
         joint_zeroed = config.transforms.norm
 
-        assert joint_zeroed in config.skel.keys()
-        self.jid_zeroed = config.skel[joint_zeroed].jid
+        # Added a parameter to manually specify which joint to subtract from p3d
+
+        if jid_to_zero is None:
+            assert joint_zeroed in config.skel.keys()
+            self.jid_zeroed = config.skel[joint_zeroed].jid
+        else:
+            self.jid_zeroed = jid_to_zero
 
     def __call__(self, data):
         """Perform transformation
@@ -73,6 +78,8 @@ class Joints3DTrsf(BaseTransform):
 
         p3d = data['joints3D']
         joint_zeroed = p3d[self.jid_zeroed][np.newaxis]
+        print(self.jid_zeroed)
+        print(joint_zeroed)
 
         # update p3d
         p3d -= joint_zeroed

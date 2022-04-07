@@ -181,6 +181,7 @@ class Mo2Cap2(BaseDataset):
             p3d[jid][1] = data[joint_name]['3d'][1]
             p3d[jid][2] = data[joint_name]['3d'][2]
 
+        p3d[0, :] = p3d[1, :] # Set artifical head value to neck value
         p3d /= self.MM_TO_M
 
         return p2d, p3d
@@ -198,6 +199,8 @@ class Mo2Cap2(BaseDataset):
         json_path = self.index['json'][index].decode('utf8')
         data = io.read_json(json_path)
         p2d, p3d = self._process_points(data)
+        #p3d = p3d[1:, :] # Remove artificial head
+        #p2d = p2d[1:, :] # Remove artificial head
         p2d[:, 0] = p2d[:, 0]-33 # Translate p2d coordinates by 33 pixels to the left
 
         if self.heatmap_type == 'baseline':
