@@ -38,11 +38,11 @@ class ImageTrsf(BaseTransform):
         img = np.transpose(img, [2, 0, 1])
 
         # normalization
-        mean=[0.485, 0.456, 0.406]
-        std=[0.229, 0.224, 0.225]
-        img[0, :, :] = (img[0, :, :]-mean[0])/std[0]
-        img[1, :, :] = (img[1, :, :]-mean[1])/std[1]
-        img[2, :, :] = (img[2, :, :]-mean[2])/std[2]
+        # mean=[0.485, 0.456, 0.406]
+        # std=[0.229, 0.224, 0.225]
+        # img[0, :, :] = (img[0, :, :]-mean[0])/std[0]
+        # img[1, :, :] = (img[1, :, :]-mean[1])/std[1]
+        # img[2, :, :] = (img[2, :, :]-mean[2])/std[2]
         # img -= self.mean
         # img /= self.std
         data.update({'image': img})
