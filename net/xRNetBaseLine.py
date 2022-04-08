@@ -160,16 +160,11 @@ class xREgoPose(pl.LightningModule):
 
 
         if self.iteration <= self.hm_train_steps:
-            heatmap, pose, generated_heatmap = self.forward(img, p2d)
+            heatmap, pose, generated_heatmap = self.forward(img)
             heatmap = torch.sigmoid(heatmap)
-            generated_heatmap = torch.sigmoid(generated_heatmap)
             hm_loss = self.mse(heatmap, p2d)
-            loss_3d_pose, loss_2d_ghm = self.auto_encoder_loss(pose, p3d, generated_heatmap, p2d)
-            ae_loss = loss_2d_ghm + loss_3d_pose
-            loss = hm_loss + ae_loss
+            loss = hm_loss
             self.log('Total HM loss', hm_loss.item())
-            self.log('Total 3D loss', loss_3d_pose.item())
-            self.log('Total GHM loss', loss_2d_ghm.item())
         else:
             heatmap, pose, generated_heatmap = self.forward(img)
             heatmap = torch.sigmoid(heatmap)
@@ -190,11 +185,12 @@ class xREgoPose(pl.LightningModule):
         self.iteration += img.size(0)
         mean=[0.485, 0.456, 0.406]
         std=[0.229, 0.224, 0.225]
-        img[:, 0, :, :] = img[:, 0, :, :]*std[0]+mean[0]
-        img[:, 1, :, :] = img[:, 1, :, :]*std[1]+mean[2]
-        img[:, 2, :, :] = img[:, 2, :, :]*std[1]+mean[2]
+        img_plot = img.clone().detach()
+        img_plot[:, 0, :, :] = img_plot[:, 0, :, :]*std[0]+mean[0]
+        img_plot[:, 1, :, :] = img_plot[:, 1, :, :]*std[1]+mean[2]
+        img_plot[:, 2, :, :] = img_plot[:, 2, :, :]*std[1]+mean[2]
 
-        tensorboard.add_images('TR Images', img, self.iteration)
+        tensorboard.add_images('TR Images', img_plot, self.iteration)
         tensorboard.add_images('TR Ground Truth 2D Heatmap', torch.clip(torch.sum(p2d, dim=1, keepdim=True), 0, 1), self.iteration)
         tensorboard.add_images('TR Predicted 2D Heatmap', torch.clip(torch.sum(heatmap, dim=1, keepdim=True), 0, 1), self.iteration)
         return loss
