@@ -19,8 +19,9 @@ from dataset.mo2cap2 import Mo2Cap2DataModule
 from dataset.mocap_distance import MocapDistanceDataModule
 from dataset.mocap_transformer import MocapSeqDataModule
 from net.DirectRegression import DirectRegression
+from net.Mo2Cap2Direct import Mo2Cap2Direct
 from net.xRNetDirect import xREgoPoseDirect
-from net.xRNetMo2Cap2Baseline import Mo2Cap2Baseline
+from net.Mo2Cap2Baseline import Mo2Cap2Baseline
 from net.xRNetSeq import xREgoPoseSeq
 from net.xRNetBaseLine import xREgoPose
 from net.xRNetConcat import xRNetConcat
@@ -59,6 +60,7 @@ MODEL_DIRECTORY = {
     "xregopose_seq_hm_direct_avg": xREgoPoseSeqHMDirectAvg,
     "xregopose_seq_hm_direct_slice": xREgoPoseSeqHMDirectSlice,
     "mo2cap2": Mo2Cap2Baseline,
+    "mo2cap2_direct": Mo2Cap2Direct
 }
 DATALOADER_DIRECTORY = {
     'baseline': MocapDataModule,
