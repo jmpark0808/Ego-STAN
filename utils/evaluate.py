@@ -14,7 +14,8 @@ import os
 
 __all__ = ["EvalBody", "EvalUpperBody", "EvalLowerBody"]
 
-mean3D = scipy.io.loadmat(os.path.join(os.path.expanduser('~'), 'projects/def-pfieguth/mo2cap/code/util/mean3D.mat'))['mean3D'] # 3x15 shape
+# mean3D = scipy.io.loadmat(os.path.join(os.path.expanduser('~'), 'projects/def-pfieguth/mo2cap/code/util/mean3D.mat'))['mean3D'] # 3x15 shape
+mean3D = scipy.io.loadmat('/home/eddie/scripts/code/util/mean3D.mat')['mean3D']
 kinematic_parents = [ 0, 0, 1, 2, 0, 4, 5, 1, 7, 8, 9, 4, 11, 12, 13]
 bones_mean = mean3D - mean3D[:,kinematic_parents]
 bone_length = np.sqrt(np.sum(np.power(bones_mean, 2), axis=0)) # 15 shape
@@ -22,7 +23,7 @@ bone_length = np.sqrt(np.sum(np.power(bones_mean, 2), axis=0)) # 15 shape
 
 def skeleton_rescale(joints, bone_length, kinematic_parents):
     bones = joints[:, 1:] - joints[:,kinematic_parents[1:]] # 3 x 14 
-    bones_rescale = bones * bone_length/np.sqrt(np.sum(np.power(bones, 2), dim=0)) # 3 x 14
+    bones_rescale = bones * bone_length/np.sqrt(np.sum(np.power(bones, 2), axis=0)) # 3 x 14
     #bones_rescale = bsxfun(@times, bones, bone_length./sqrt(sum(bones.^2,1))) 
 
     joints_rescaled = joints
@@ -230,7 +231,7 @@ def compute_error(pred, gt, return_mean=True, mode='baseline'):
         pred = skeleton_rescale(pred, bone_length[1:], kinematic_parents)
         _, gt_rot, _ = procrustes(np.transpose(pred), np.transpose(gt), True, False)
         error = pred - np.transpose(gt_rot)
-        joint_error = np.sqrt(np.sum(np.power(error, 2), axis=0))
+        joint_error = np.sqrt(np.sum(np.power(error, 2), axis=0)) 
         if return_mean:
             return np.mean(joint_error)
         else:
@@ -286,6 +287,7 @@ class EvalUpperBody(BaseEval):
             self._SEL = [0, 1, 2, 3, 4, 5, 6]
         else:
             raise('Not a valid mode')
+        self.mode = mode
 
     def eval(self, pred, gt, actions=None):
         """Evaluate
@@ -299,7 +301,12 @@ class EvalUpperBody(BaseEval):
         """
 
         for pid, (pose_in, pose_target) in enumerate(zip(pred, gt)):
-            err = compute_error(pose_in[self._SEL], pose_target[self._SEL], mode=self.mode)
+            if self.mode == 'baseline' or self.mode =='sequential':
+                err = compute_error(pose_in[self._SEL], pose_target[self._SEL], mode=self.mode)
+            elif self.mode == 'mo2cap2':
+                err = compute_error(pose_in, pose_target, return_mean=False, mode=self.mode)
+                err = np.mean(err[self._SEL])
+                
 
             if actions:
                 act_name = self._map_action_name(actions[pid])
@@ -329,6 +336,7 @@ class EvalLowerBody(BaseEval):
             self._SEL = [7, 8, 9, 10, 11, 12, 13, 14]
         else:
             raise('Not a valid mode')
+        self.mode = mode
 
     def eval(self, pred, gt, actions=None):
         """Evaluate
@@ -342,7 +350,11 @@ class EvalLowerBody(BaseEval):
         """
 
         for pid, (pose_in, pose_target) in enumerate(zip(pred, gt)):
-            err = compute_error(pose_in[self._SEL], pose_target[self._SEL], mode=self.mode)
+            if self.mode == 'baseline' or self.mode =='sequential':
+                err = compute_error(pose_in[self._SEL], pose_target[self._SEL], mode=self.mode)
+            elif self.mode == 'mo2cap2':
+                err = compute_error(pose_in, pose_target, return_mean=False, mode=self.mode)
+                err = np.mean(err[self._SEL])
 
             if actions:
                 act_name = self._map_action_name(actions[pid])
