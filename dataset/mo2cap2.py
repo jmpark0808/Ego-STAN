@@ -202,7 +202,7 @@ class Mo2Cap2(BaseDataset):
         p2d[:, 0] = p2d[:, 0]-33 # Translate p2d coordinates by 33 pixels to the left
 
         if self.heatmap_type == 'baseline':
-            p2d_heatmap = generate_heatmap(p2d, 3) # exclude head
+            p2d_heatmap = generate_heatmap(p2d, 1.3) 
         elif self.heatmap_type == 'distance':
             distances = np.sqrt(np.sum(p3d**2, axis=1))
             p2d_heatmap = generate_heatmap_distance(p2d, distances) # exclude head
