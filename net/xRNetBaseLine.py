@@ -184,7 +184,7 @@ class xREgoPose(pl.LightningModule):
         self.log("train_mpjpe_std", mpjpe_std)
         self.iteration += img.size(0)
    
-        tensorboard.add_images('TR Images', img_plot, self.iteration)
+        tensorboard.add_images('TR Images', img, self.iteration)
         tensorboard.add_images('TR Ground Truth 2D Heatmap', torch.clip(torch.sum(p2d, dim=1, keepdim=True), 0, 1), self.iteration)
         tensorboard.add_images('TR Predicted 2D Heatmap', torch.clip(torch.sum(heatmap, dim=1, keepdim=True), 0, 1), self.iteration)
         return loss
