@@ -48,12 +48,12 @@ def get_p3ds_t(p3d_preds, p3d_gts):
         pred = skeleton_rescale(pred, bone_length[1:], kinematic_parents)
         _, gt_rot, _ = procrustes(np.transpose(pred), np.transpose(gt), True, False)
 
-        gt_rots_t[i] = np.transpose(gt_rot)
-        preds_t[i] = pred
+        gt_rots_t[i] = gt_rot
+        preds_t[i] = np.transpose(pred)
 
     return preds_t, gt_rots_t
 
-def plot_skels(p3ds):
+def plot_skels(p3ds, savepath=None):
 
     """
     Returns matplotlib figure based on inputted 3D-Pose co-ordinates.
@@ -65,6 +65,14 @@ def plot_skels(p3ds):
 
     fig = plt.figure(figsize=(6*len(p3ds)//2, 2*4))
     fig.tight_layout()
+   
+    # Check if there are any p3ds, return the fig as is if none
+    if p3ds is None or len(p3ds) == 0:
+        return fig
+
+    if len(p3ds)%2 == 1:
+        print("WARNING: Function cannot deal with odd batch-size")
+        return fig
 
     for i, p3d in enumerate(p3ds):
 
@@ -118,8 +126,11 @@ def plot_skels(p3ds):
             )
         # draw joints
         ax.scatter(xs, ys, zs, color = 'r')
+    
+    if savepath is not None:
+        fig.savefig(savepath)
 
-        return fig
+    return fig
 
 
 def skeleton_rescale(joints, bone_length, kinematic_parents):
