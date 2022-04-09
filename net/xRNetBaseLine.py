@@ -219,17 +219,19 @@ class xREgoPose(pl.LightningModule):
         self.eval_lower.eval(y_output, y_target, action)
 
         # Get the procrustes aligned 3D Pose and log
-        p3d_gt_rot = evaluate.get_p3d_gt_rot(pose, p3d)
-        fig_p3d_pred = evaluate.plot_skel(pose)
-        fig_p3d_gt = evaluate.plot_skel(p3d)
-        fig_p3d_gt_rot = evaluate.plot_skel(p3d_gt_rot)
+        p3d_pred_t, p3d_gt_rot_t = evaluate.get_p3ds_t(pose, p3d)
+        fig_p3d_pred = evaluate.plot_skels(pose)
+        fig_p3d_pred_t = evaluate.plot_skels(p3d_pred_t)
+        fig_p3d_gt = evaluate.plot_skels(p3d)
+        fig_p3d_gt_rot = evaluate.plot_skels(p3d_gt_rot_t)
 
         # Tensorboard log images
         tensorboard.add_images('Val Ground Truth 2D Heatmap', torch.clip(torch.sum(p2d, dim=1, keepdim=True), 0, 1), self.iteration)
         tensorboard.add_figure('Val Ground Truth 3D Skeleton', fig_p3d_gt)
-        tensorboard.add_figure('Val Aligned Ground Truth 3D Skeleton', fig_p3d_gt_rot)
+        tensorboard.add_figure('Val Aligned Ground Truth 3D Skeleton + Rescaling', fig_p3d_gt_rot)
         tensorboard.add_images('Val Predicted 2D Heatmap', torch.clip(torch.sum(heatmap, dim=1, keepdim=True), 0, 1), self.iteration)
         tensorboard.add_figure('Val Predicted 3D Skeleton', fig_p3d_pred)
+        tensorboard.add_figure('Val Predicted 3D Skeleton + Rescaling', fig_p3d_pred_t)
         return val_loss_3d_pose
 
     def on_validation_start(self):

@@ -21,94 +21,105 @@ kinematic_parents = [ 0, 0, 1, 2, 0, 4, 5, 1, 7, 8, 9, 4, 11, 12, 13]
 bones_mean = mean3D - mean3D[:,kinematic_parents]
 bone_length = np.sqrt(np.sum(np.power(bones_mean, 2), axis=0)) # 15 shape
 
-def get_p3d_gt_rot(p3d_pred, p3d_gt):
+def get_p3ds_t(p3d_preds, p3d_gts):
     """
     Retrieve the 3D Poses, Predicted, Ground Truth and Procrustes Aligned
     Ground Truth.
 
-    :param p3d_pred: Predicted 3D joints
-    :param p3d_gt: Ground Truth 3D joints
-    :return p3d_gt_rot: Procrustes Aligned Ground Truth 3D joints
+    :param p3d_preds: Predicted 3D joints [batch_size x N x 3]
+    :param p3d_gts: Ground Truth 3D joints [batch_size x N x 3]
+    :return p3d_preds_t, p3d_gt_rot_t: [batch_size x N x 3], [batch_size x N x 3]
+        Rescaled Predicted 3D joints, 
+        Rescaled Procrustes Aligned Ground Truth 3D joints 
     """
 
-    if p3d_pred.shape[0] != 3:
-        pred = np.transpose(p3d_pred, [1, 0])
+    gt_rots_t = np.zeros((p3d_gts.shape[0], p3d_gts.shape[1], p3d_gts.shape[2]))
+    preds_t = np.zeros((p3d_gts.shape[0], p3d_gts.shape[1], p3d_gts.shape[2]))
 
-    if p3d_gt.shape[0] != 3:
-        gt = np.transpose(p3d_gt, [1, 0])
-    assert pred.shape == gt.shape
+    for i, (p3d_pred, p3d_gt) in enumerate(zip(p3d_preds, p3d_gts)):
+        if p3d_pred.shape[0] != 3:
+            pred = np.transpose(p3d_pred, [1, 0])
 
-    gt = skeleton_rescale(gt, bone_length[1:], kinematic_parents)
-    pred = skeleton_rescale(pred, bone_length[1:], kinematic_parents)
-    _, gt_rot, _ = procrustes(np.transpose(pred), np.transpose(gt), True, False)
+        if p3d_gt.shape[0] != 3:
+            gt = np.transpose(p3d_gt, [1, 0])
+        assert pred.shape == gt.shape
 
-    return np.transpose(gt_rot)
+        gt = skeleton_rescale(gt, bone_length[1:], kinematic_parents)
+        pred = skeleton_rescale(pred, bone_length[1:], kinematic_parents)
+        _, gt_rot, _ = procrustes(np.transpose(pred), np.transpose(gt), True, False)
 
-def plot_skel(p3d):
+        gt_rots_t[i] = np.transpose(gt_rot)
+        preds_t[i] = pred
+
+    return preds_t, gt_rots_t
+
+def plot_skels(p3ds):
 
     """
     Returns matplotlib figure based on inputted 3D-Pose co-ordinates.
-    Currently only supports 16 or 15 joints.
+    Currently only supports 16 or 15 joints and even batch sizes.
 
-    :param p3d: 3D Pose in num_joints x 3
+    :param p3d: 3D Pose in batch_size x N x 3
     :return fig: matplotlib figure
     """
 
-    if p3d.shape[0] == 15:
-        p3d_a = np.zeros((16, 3))
-        p3d_a[1:, :] = p3d
-    else:
-        p3d_a = p3d
-
-    fig = plt.figure(figsize=(6, 4))
-    ax = plt.axes(projection='3d')
-
-    ax.set_xlim(-1, 1)
-    ax.set_ylim(-1, 1)
-    ax.set_zlim(-1, 1)
-    ax.title.set_text(f"Plot Skel")
-    plt.axis("off")
-
+    fig = plt.figure(figsize=(6*len(p3ds)//2, 2*4))
     fig.tight_layout()
-    ax.view_init(elev=27.0, azim=41.0)
 
-    bone_links = [
-        #    [0, 1],
-            [1, 2],
-            [1, 5],
-            [2, 3],
-            [3, 4],
-            [2, 8],
-            [8, 9],
-            [9, 10],
-            [10, 11],
-            [8, 12],
-            [5, 12],
-            [5, 6],
-            [6, 7],
-            [12, 13],
-            [13, 14],
-            [14, 15],
-        ]
-    
-    pose = p3d_a
-    xs = pose[:, 0]
-    ys = pose[:, 1]
-    zs = -pose[:, 2]
-    
-    # draw bones
-    for bone in bone_links:
-        index1, index2 = bone[0], bone[1]
-        ax.plot3D(
-            [xs[index1], xs[index2]],
-            [ys[index1], ys[index2]],
-            [zs[index1], zs[index2]],
-            linewidth=1, color = 'r'
-        )
-    # draw joints
-    ax.scatter(xs, ys, zs, color = 'r')
+    for i, p3d in enumerate(p3ds):
 
-    return fig
+        ax = fig.add_subplot(2, len(p3ds)//2, i+1, projection='3d')
+
+        if p3d.shape[0] == 15:
+            p3d_a = np.zeros((16, 3))
+            p3d_a[1:, :] = p3d
+        else:
+            p3d_a = p3d
+
+        ax.set_xlim(-1, 1)
+        ax.set_ylim(-1, 1)
+        ax.set_zlim(-1, 1)
+        plt.axis("off")
+
+        ax.view_init(elev=27.0, azim=41.0)
+
+        bone_links = [
+            #    [0, 1],
+                [1, 2],
+                [1, 5],
+                [2, 3],
+                [3, 4],
+                [2, 8],
+                [8, 9],
+                [9, 10],
+                [10, 11],
+                [8, 12],
+                [5, 12],
+                [5, 6],
+                [6, 7],
+                [12, 13],
+                [13, 14],
+                [14, 15],
+            ]
+
+        pose = p3d_a
+        xs = pose[:, 0]
+        ys = pose[:, 1]
+        zs = -pose[:, 2]
+
+        # draw bones
+        for bone in bone_links:
+            index1, index2 = bone[0], bone[1]
+            ax.plot3D(
+                [xs[index1], xs[index2]],
+                [ys[index1], ys[index2]],
+                [zs[index1], zs[index2]],
+                linewidth=1, color = 'r'
+            )
+        # draw joints
+        ax.scatter(xs, ys, zs, color = 'r')
+
+        return fig
 
 
 def skeleton_rescale(joints, bone_length, kinematic_parents):
