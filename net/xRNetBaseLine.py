@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 
-import os
 import pytorch_lightning as pl
 import torch
 import torch.nn as nn
@@ -117,9 +116,7 @@ class xREgoPose(pl.LightningModule):
     def forward(self, x, gt_heatmap=None):
         """
         Forward pass through model
-
         :param x: Input image
-
         :return: 2D heatmap, 16x3 joint inferences, 2D reconstructed heatmap
         """
         # x = 3 x 368 x 368
@@ -148,7 +145,6 @@ class xREgoPose(pl.LightningModule):
         Compute and return the training loss
         logging resources:
         https://pytorch-lightning.readthedocs.io/en/latest/starter/introduction_guide.html
-
         """
         tensorboard = self.logger.experiment
         img, p2d, p3d, action = batch
@@ -185,9 +181,9 @@ class xREgoPose(pl.LightningModule):
         self.log("train_mpjpe_std", mpjpe_std)
         self.iteration += img.size(0)
    
-        #tensorboard.add_images('TR Images', img, self.iteration)
-        #tensorboard.add_images('TR Ground Truth 2D Heatmap', torch.clip(torch.sum(p2d, dim=1, keepdim=True), 0, 1), self.iteration)
-        #tensorboard.add_images('TR Predicted 2D Heatmap', torch.clip(torch.sum(heatmap, dim=1, keepdim=True), 0, 1), self.iteration)
+        tensorboard.add_images('TR Images', img, self.iteration)
+        tensorboard.add_images('TR Ground Truth 2D Heatmap', torch.clip(torch.sum(p2d, dim=1, keepdim=True), 0, 1), self.iteration)
+        tensorboard.add_images('TR Predicted 2D Heatmap', torch.clip(torch.sum(heatmap, dim=1, keepdim=True), 0, 1), self.iteration)
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -218,25 +214,8 @@ class xREgoPose(pl.LightningModule):
         self.eval_body.eval(y_output, y_target, action)
         self.eval_upper.eval(y_output, y_target, action)
         self.eval_lower.eval(y_output, y_target, action)
-        
-        skel_dir = os.path.join(self.logger.log_dir, 'skel_plots')
-        if not os.path.exists(skel_dir):
-            os.mkdir(skel_dir)
-
-        # Get the procrustes aligned 3D Pose and log
-        p3d_pred_t, p3d_gt_rot_t = evaluate.get_p3ds_t(y_output, y_target)
-        fig_p3d_pred = evaluate.plot_skels(y_output, os.path.join(skel_dir, 'p3d_pred.png'))
-        fig_p3d_pred_t = evaluate.plot_skels(p3d_pred_t, os.path.join(skel_dir, 'p3d_pred_t.png'))
-        fig_p3d_gt = evaluate.plot_skels(y_target, os.path.join(skel_dir, 'p3d_gt.png'))
-        fig_p3d_gt_rot = evaluate.plot_skels(p3d_gt_rot_t, os.path.join(skel_dir, 'p3d_gt_rot.png'))
-
-        # Tensorboard log images
         tensorboard.add_images('Val Ground Truth 2D Heatmap', torch.clip(torch.sum(p2d, dim=1, keepdim=True), 0, 1), self.iteration)
-        tensorboard.add_figure('Val Ground Truth 3D Skeleton', fig_p3d_gt)
-        tensorboard.add_figure('Val Aligned Ground Truth 3D Skeleton + Rescaling', fig_p3d_gt_rot)
         tensorboard.add_images('Val Predicted 2D Heatmap', torch.clip(torch.sum(heatmap, dim=1, keepdim=True), 0, 1), self.iteration)
-        tensorboard.add_figure('Val Predicted 3D Skeleton', fig_p3d_pred)
-        tensorboard.add_figure('Val Predicted 3D Skeleton + Rescaling', fig_p3d_pred_t)
         return val_loss_3d_pose
 
     def on_validation_start(self):
