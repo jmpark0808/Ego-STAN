@@ -157,9 +157,13 @@ class Mo2Cap2Direct(pl.LightningModule):
             y_target = p3d.data.cpu().numpy()
             fig_p3d_pred = evaluate.plot_skels(y_output, os.path.join(skel_dir, 'train_p3d_pred.png'))
             fig_p3d_gt = evaluate.plot_skels(y_target, os.path.join(skel_dir, 'train_p3d_gt.png'))
+            fig_compare = evaluate.plot_skels_compare( p3ds_1 = y_target, p3ds_2 = y_output,
+                                            label_1 = 'GT', label_2 = 'Pred', 
+                                            savepath = os.path.join(skel_dir, 'train_gt_vs_pred.png'))
 
-            tensorboard.add_figure('Train Ground Truth 3D Skeleton', fig_p3d_gt)
-            tensorboard.add_figure('Train Predicted 3D Skeleton', fig_p3d_pred)
+            tensorboard.add_figure('TR Ground Truth 3D Skeleton', fig_p3d_gt)
+            tensorboard.add_figure('TR Predicted 3D Skeleton', fig_p3d_pred)
+            tensorboard.add_figure('TR Pred vs GT 3D Skeleton', fig_compare)
 
         return loss
 
@@ -194,7 +198,7 @@ class Mo2Cap2Direct(pl.LightningModule):
         self.eval_upper.eval(y_output, y_target, action)
         self.eval_lower.eval(y_output, y_target, action)
 
-        if batch_idx%70 == 0:
+        if batch_idx%100 == 0:
 
             skel_dir = os.path.join(self.logger.log_dir, 'skel_plots')
             if not os.path.exists(skel_dir):
@@ -206,6 +210,12 @@ class Mo2Cap2Direct(pl.LightningModule):
             fig_p3d_pred_t = evaluate.plot_skels(p3d_pred_t, os.path.join(skel_dir, 'val_p3d_pred_t.png'))
             fig_p3d_gt = evaluate.plot_skels(y_target, os.path.join(skel_dir, 'val_p3d_gt.png'))
             fig_p3d_gt_rot = evaluate.plot_skels(p3d_gt_rot_t, os.path.join(skel_dir, 'val_p3d_gt_rot.png'))
+            fig_compare_rescale = evaluate.plot_skels_compare( p3ds_1 = p3d_gt_rot_t, p3ds_2 = p3d_pred_t,
+                                label_1 = 'GT Rot + Rescale', label_2 = 'Pred Rescale', 
+                                savepath = os.path.join(skel_dir, 'val_gt_rescale_vs_pred_rescale.png'))
+            fig_compare_preds = evaluate.plot_skels_compare( p3ds_1 = y_output, p3ds_2 = p3d_pred_t,
+                                label_1 = 'Pred Raw', label_2 = 'Pred Rescale', 
+                                savepath = os.path.join(skel_dir, 'val_pred_vs_pred_rescale.png'))
 
             # Tensorboard log images
             tensorboard.add_images('Val Ground Truth 2D Heatmap', torch.clip(torch.sum(p2d, dim=1, keepdim=True), 0, 1), self.iteration)
@@ -214,6 +224,8 @@ class Mo2Cap2Direct(pl.LightningModule):
             tensorboard.add_images('Val Predicted 2D Heatmap', torch.clip(torch.sum(heatmap, dim=1, keepdim=True), 0, 1), self.iteration)
             tensorboard.add_figure('Val Predicted 3D Skeleton', fig_p3d_pred)
             tensorboard.add_figure('Val Predicted 3D Skeleton + Rescaling', fig_p3d_pred_t)
+            tensorboard.add_figure('Val GT 3D Skeleton vs Predicted 3D Skeleton (Rescaled)', fig_compare_rescale)
+            tensorboard.add_figure('Val Comparing Predicted 3D Skeleton (Raw vs Rescaled)', fig_compare_preds)
 
         return val_loss_3d_pose
 

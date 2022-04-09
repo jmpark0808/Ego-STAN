@@ -88,7 +88,6 @@ def plot_skels(p3ds, savepath=None):
         #ax.set_xlim(-1, 1)
         #ax.set_ylim(-1, 1)
         #ax.set_zlim(-1, 1)
-        ax.set_title(f"X: {ax.get_xlim()}, Y: {ax.get_ylim()}, Z: {ax.get_zlim()}")
         plt.axis("off")
 
         ax.view_init(elev=27.0, azim=41.0)
@@ -128,6 +127,118 @@ def plot_skels(p3ds, savepath=None):
             )
         # draw joints
         ax.scatter(xs, ys, zs, color = 'r')
+        
+        ax.set_title("X: {0}, Y: {1}, Z: {2}".format(
+                                    [round(lim, 2) for lim in ax.get_xlim()], 
+                                    [round(lim, 2) for lim in ax.get_ylim()], 
+                                    [round(lim, 2) for lim in ax.get_zlim()]))
+    
+    if savepath is not None:
+        fig.savefig(savepath)
+
+    return fig
+
+def plot_skels_compare(p3ds_1, p3ds_2, label_1, label_2, savepath=None):
+
+    """
+    Returns matplotlib figure based on inputted 3D-Pose co-ordinates.
+    Currently only supports 16 or 15 joints and even batch sizes.
+
+    :param p3d: 3D Pose in batch_size x N x 3
+    :return fig: matplotlib figure
+    """
+
+    fig = plt.figure(figsize=(6*len(p3ds_1)//2, 2*4))
+    fig.tight_layout()
+   
+    # Check if there are any p3ds, return the fig as is if none
+    if p3ds_1 is None or len(p3ds_1) == 0:
+        return fig
+
+    if len(p3ds_1)%2 == 1:
+        print("WARNING: Function cannot deal with odd batch-size")
+        return fig
+
+    for i, (p3d, p3dx) in enumerate(zip(p3ds_1, p3ds_2)):
+
+        ax = fig.add_subplot(2, len(p3ds_1)//2, i+1, projection='3d')
+
+        if p3d.shape[0] == 15:
+            p3d_a = np.zeros((16, 3))
+            p3d_a[1:, :] = p3d
+            p3d_b = np.zeros((16,3))
+            p3d_b[1:, :] = p3dx
+        else:
+            p3d_a = p3d
+            p3d_b = p3dx
+
+        #ax.set_xlim(-1, 1)
+        #ax.set_ylim(-1, 1)
+        #ax.set_zlim(-1, 1)
+        plt.axis("off")
+
+        ax.view_init(elev=27.0, azim=41.0)
+
+        bone_links = [
+            #    [0, 1],
+                [1, 2],
+                [1, 5],
+                [2, 3],
+                [3, 4],
+                [2, 8],
+                [8, 9],
+                [9, 10],
+                [10, 11],
+                [8, 12],
+                [5, 12],
+                [5, 6],
+                [6, 7],
+                [12, 13],
+                [13, 14],
+                [14, 15],
+            ]
+
+        pose_a = p3d_a
+        xs_a = pose_a[:, 0]
+        ys_a = pose_a[:, 1]
+        zs_a = -pose_a[:, 2]
+
+        pose_b = p3d_b
+        xs_b = pose_b[:, 0]
+        ys_b = pose_b[:, 1]
+        zs_b = -pose_b[:, 2]
+
+        # draw bones A
+        for bone in bone_links:
+            index1, index2 = bone[0], bone[1]
+            ax.plot3D(
+                [xs_a[index1], xs_a[index2]],
+                [ys_a[index1], ys_a[index2]],
+                [zs_a[index1], zs_a[index2]],
+                linewidth=1, color = 'r'
+            )
+        # draw joints A
+        ax.scatter(xs_a, ys_a, zs_a, color = 'r', label=label_1)
+
+        # draw bones B
+        for bone in bone_links:
+            index1, index2 = bone[0], bone[1]
+            ax.plot3D(
+                [xs_b[index1], xs_b[index2]],
+                [ys_b[index1], ys_b[index2]],
+                [zs_b[index1], zs_b[index2]],
+                linewidth=1, color = 'b'
+            )
+        # draw joints B
+        ax.scatter(xs_b, ys_b, zs_b, color = 'b', label=label_2)
+
+        
+        ax.set_title("X: {0}, Y: {1}, Z: {2}".format(
+                                            [round(lim, 2) for lim in ax.get_xlim()], 
+                                            [round(lim, 2) for lim in ax.get_ylim()], 
+                                            [round(lim, 2) for lim in ax.get_zlim()]))
+
+        ax.legend()
     
     if savepath is not None:
         fig.savefig(savepath)
