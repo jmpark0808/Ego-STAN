@@ -7,6 +7,7 @@ Class for model evaluation
 import csv
 import matplotlib.pyplot as plt
 from matplotlib.pyplot import bone
+from mpl_toolkits.mplot3d.axes3d import get_test_data
 
 import numpy as np
 from base import BaseEval
