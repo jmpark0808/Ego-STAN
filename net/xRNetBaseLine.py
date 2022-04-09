@@ -116,9 +116,7 @@ class xREgoPose(pl.LightningModule):
     def forward(self, x, gt_heatmap=None):
         """
         Forward pass through model
-
         :param x: Input image
-
         :return: 2D heatmap, 16x3 joint inferences, 2D reconstructed heatmap
         """
         # x = 3 x 368 x 368
@@ -147,7 +145,6 @@ class xREgoPose(pl.LightningModule):
         Compute and return the training loss
         logging resources:
         https://pytorch-lightning.readthedocs.io/en/latest/starter/introduction_guide.html
-
         """
         tensorboard = self.logger.experiment
         img, p2d, p3d, action = batch

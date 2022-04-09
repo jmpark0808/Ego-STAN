@@ -5,7 +5,9 @@ Class for model evaluation
 
 """
 import csv
+import matplotlib.pyplot as plt
 from matplotlib.pyplot import bone
+from mpl_toolkits.mplot3d.axes3d import get_test_data
 
 import numpy as np
 from base import BaseEval
@@ -19,6 +21,118 @@ mean3D = scipy.io.loadmat(os.path.join(os.path.expanduser('~'), 'projects/def-pf
 kinematic_parents = [ 0, 0, 1, 2, 0, 4, 5, 1, 7, 8, 9, 4, 11, 12, 13]
 bones_mean = mean3D - mean3D[:,kinematic_parents]
 bone_length = np.sqrt(np.sum(np.power(bones_mean, 2), axis=0)) # 15 shape
+
+def get_p3ds_t(p3d_preds, p3d_gts):
+    """
+    Retrieve the 3D Poses, Predicted, Ground Truth and Procrustes Aligned
+    Ground Truth.
+
+    :param p3d_preds: Predicted 3D joints [batch_size x N x 3]
+    :param p3d_gts: Ground Truth 3D joints [batch_size x N x 3]
+    :return p3d_preds_t, p3d_gt_rot_t: [batch_size x N x 3], [batch_size x N x 3]
+        Rescaled Predicted 3D joints, 
+        Rescaled Procrustes Aligned Ground Truth 3D joints 
+    """
+
+    gt_rots_t = np.zeros((p3d_gts.shape[0], p3d_gts.shape[1], p3d_gts.shape[2]))
+    preds_t = np.zeros((p3d_gts.shape[0], p3d_gts.shape[1], p3d_gts.shape[2]))
+
+    for i, (p3d_pred, p3d_gt) in enumerate(zip(p3d_preds, p3d_gts)):
+        if p3d_pred.shape[0] != 3:
+            pred = np.transpose(p3d_pred, [1, 0])
+
+        if p3d_gt.shape[0] != 3:
+            gt = np.transpose(p3d_gt, [1, 0])
+        assert pred.shape == gt.shape
+
+        gt = skeleton_rescale(gt, bone_length[1:], kinematic_parents)
+        pred = skeleton_rescale(pred, bone_length[1:], kinematic_parents)
+        _, gt_rot, _ = procrustes(np.transpose(pred), np.transpose(gt), True, False)
+
+        gt_rots_t[i] = gt_rot
+        preds_t[i] = np.transpose(pred)
+
+    return preds_t, gt_rots_t
+
+def plot_skels(p3ds, savepath=None):
+
+    """
+    Returns matplotlib figure based on inputted 3D-Pose co-ordinates.
+    Currently only supports 16 or 15 joints and even batch sizes.
+
+    :param p3d: 3D Pose in batch_size x N x 3
+    :return fig: matplotlib figure
+    """
+
+    fig = plt.figure(figsize=(6*len(p3ds)//2, 2*4))
+    fig.tight_layout()
+   
+    # Check if there are any p3ds, return the fig as is if none
+    if p3ds is None or len(p3ds) == 0:
+        return fig
+
+    if len(p3ds)%2 == 1:
+        print("WARNING: Function cannot deal with odd batch-size")
+        return fig
+
+    for i, p3d in enumerate(p3ds):
+
+        ax = fig.add_subplot(2, len(p3ds)//2, i+1, projection='3d')
+
+        if p3d.shape[0] == 15:
+            p3d_a = np.zeros((16, 3))
+            p3d_a[1:, :] = p3d
+        else:
+            p3d_a = p3d
+
+        #ax.set_xlim(-1, 1)
+        #ax.set_ylim(-1, 1)
+        #ax.set_zlim(-1, 1)
+        ax.set_title(f"X: {ax.get_xlim()}, Y: {ax.get_ylim()}, Z: {ax.get_zlim()}")
+        plt.axis("off")
+
+        ax.view_init(elev=27.0, azim=41.0)
+
+        bone_links = [
+            #    [0, 1],
+                [1, 2],
+                [1, 5],
+                [2, 3],
+                [3, 4],
+                [2, 8],
+                [8, 9],
+                [9, 10],
+                [10, 11],
+                [8, 12],
+                [5, 12],
+                [5, 6],
+                [6, 7],
+                [12, 13],
+                [13, 14],
+                [14, 15],
+            ]
+
+        pose = p3d_a
+        xs = pose[:, 0]
+        ys = pose[:, 1]
+        zs = -pose[:, 2]
+
+        # draw bones
+        for bone in bone_links:
+            index1, index2 = bone[0], bone[1]
+            ax.plot3D(
+                [xs[index1], xs[index2]],
+                [ys[index1], ys[index2]],
+                [zs[index1], zs[index2]],
+                linewidth=1, color = 'r'
+            )
+        # draw joints
+        ax.scatter(xs, ys, zs, color = 'r')
+    
+    if savepath is not None:
+        fig.savefig(savepath)
+
+    return fig
 
 
 def skeleton_rescale(joints, bone_length, kinematic_parents):
