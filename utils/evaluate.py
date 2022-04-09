@@ -76,13 +76,6 @@ def plot_skels(p3ds, savepath=None):
 
     for i, p3d in enumerate(p3ds):
 
-        if i == 0:
-            ax = fig.add_subplot(2, len(p3ds)//2, i+1, projection='3d')
-            # plot a 3D wireframe like in the example mplot3d/wire3d_demo
-            X, Y, Z = get_test_data(0.05)
-            ax.plot_wireframe(X, Y, Z, rstride=10, cstride=10)
-            continue
-
         ax = fig.add_subplot(2, len(p3ds)//2, i+1, projection='3d')
 
         if p3d.shape[0] == 15:
@@ -94,6 +87,7 @@ def plot_skels(p3ds, savepath=None):
         #ax.set_xlim(-1, 1)
         #ax.set_ylim(-1, 1)
         #ax.set_zlim(-1, 1)
+        ax.set_title(f"X: {ax.get_xlim()}, Y: {ax.get_ylim()}, Z: {ax.get_zlim()}")
         plt.axis("off")
 
         ax.view_init(elev=27.0, azim=41.0)
