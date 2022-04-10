@@ -16,8 +16,8 @@ import os
 
 __all__ = ["EvalBody", "EvalUpperBody", "EvalLowerBody"]
 
-mean3D = scipy.io.loadmat(os.path.join(os.path.expanduser('~'), 'projects/def-pfieguth/mo2cap/code/util/mean3D.mat'))['mean3D'] # 3x15 shape
-# mean3D = scipy.io.loadmat('/home/eddie/scripts/code/util/mean3D.mat')['mean3D']
+mean3D = scipy.io.loadmat(os.path.join(os.path.expanduser('~'), 'projects/def-pfieguth/mo2cap/code/util/mean3D.mat'))['mean3D']/100. # 3x15 shape
+# mean3D = scipy.io.loadmat('/home/eddie/scripts/code/util/mean3D.mat')['mean3D']/100.
 kinematic_parents = [ 0, 0, 1, 2, 0, 4, 5, 1, 7, 8, 9, 4, 11, 12, 13]
 bones_mean = mean3D - mean3D[:,kinematic_parents]
 bone_length = np.sqrt(np.sum(np.power(bones_mean, 2), axis=0)) # 15 shape
@@ -251,7 +251,8 @@ def skeleton_rescale(joints, bone_length, kinematic_parents):
     bones_rescale = bones * bone_length/np.sqrt(np.sum(np.power(bones, 2), axis=0)) # 3 x 14
     #bones_rescale = bsxfun(@times, bones, bone_length./sqrt(sum(bones.^2,1))) 
 
-    joints_rescaled = joints
+    joints_rescaled = np.zeros_like(joints)
+    joints_rescaled[:, 0] = joints[:, 0]
     for i in range(1, 15):
         joints_rescaled[:, i] = joints_rescaled[:, kinematic_parents[i]] + bones_rescale[:, i-1]
     # for i=2:(size(joints_rescaled,2))
@@ -452,9 +453,9 @@ def compute_error(pred, gt, return_mean=True, mode='baseline'):
         if gt.shape[0] != 3:
             gt = np.transpose(gt, [1, 0])
         assert pred.shape == gt.shape
-        gt = skeleton_rescale(gt, bone_length[1:], kinematic_parents)
-        pred = skeleton_rescale(pred, bone_length[1:], kinematic_parents)
-        _, gt_rot, _ = procrustes(np.transpose(pred), np.transpose(gt), True, False)
+        gt_rescale = skeleton_rescale(gt, bone_length[1:], kinematic_parents)
+        pred_rescale = skeleton_rescale(pred, bone_length[1:], kinematic_parents)
+        _, gt_rot, _ = procrustes(np.transpose(pred_rescale), np.transpose(gt_rescale), True, False)
         error = pred - np.transpose(gt_rot)
         joint_error = np.sqrt(np.sum(np.power(error, 2), axis=0)) 
         if return_mean:

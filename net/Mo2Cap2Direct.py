@@ -20,6 +20,7 @@ class Mo2Cap2Direct(pl.LightningModule):
         self.decay_step = kwargs.get("decay_step")
         self.load_resnet = kwargs.get("load_resnet")
         self.hm_train_steps = kwargs.get("hm_train_steps")
+        self.es_patience = kwargs.get('es_patience')
         self.which_data = kwargs.get('dataloader')
         # must be defined for logging computational graph
         self.example_input_array = torch.rand((1, 3, 368, 368))
@@ -30,7 +31,7 @@ class Mo2Cap2Direct(pl.LightningModule):
         self.pose = HM2Pose(num_class)
 
         # Initialize the mpjpe evaluation pipeline
-        self.eval_body = evaluate.EvalBody()
+        self.eval_body = evaluate.EvalBody(mode=self.which_data)
         self.eval_upper = evaluate.EvalUpperBody(mode=self.which_data)
         self.eval_lower = evaluate.EvalLowerBody(mode=self.which_data)
         self.eval_per_joint = evaluate.EvalPerJoint(mode=self.which_data)
@@ -83,8 +84,36 @@ class Mo2Cap2Direct(pl.LightningModule):
         optimizer = torch.optim.AdamW(
         self.parameters(), lr=self.lr
         )
+        self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer,
+            mode='min',
+            factor=0.1,
+            patience=self.es_patience-3,
+            min_lr=1e-8,
+            verbose=True)
         
         return optimizer
+    
+    def optimizer_step(
+        self,
+        epoch,
+        batch_idx,
+        optimizer,
+        optimizer_idx,
+        optimizer_closure,
+        on_tpu=False,
+        using_native_amp=False,
+        using_lbfgs=False,
+    ):
+        # skip the first 500 steps
+        if self.trainer.global_step < int(self.hm_train_steps/self.batch_size):
+            lr_scale = min(1.0, float(self.trainer.global_step + 1) / int(self.hm_train_steps/self.batch_size))
+            for pg in optimizer.param_groups:
+                pg["lr"] = lr_scale * self.lr
+
+        # update params
+        optimizer.step(closure=optimizer_closure)
+        optimizer.zero_grad()
       
 
     def forward(self, x):
@@ -161,9 +190,9 @@ class Mo2Cap2Direct(pl.LightningModule):
                                             label_1 = 'GT', label_2 = 'Pred', 
                                             savepath = os.path.join(skel_dir, 'train_gt_vs_pred.png'))
 
-            tensorboard.add_figure('TR Ground Truth 3D Skeleton', fig_p3d_gt)
-            tensorboard.add_figure('TR Predicted 3D Skeleton', fig_p3d_pred)
-            tensorboard.add_figure('TR Pred vs GT 3D Skeleton', fig_compare)
+            tensorboard.add_figure('TR Ground Truth 3D Skeleton', fig_p3d_gt, global_step = self.iteration)
+            tensorboard.add_figure('TR Predicted 3D Skeleton', fig_p3d_pred, global_step = self.iteration)
+            tensorboard.add_figure('TR Pred vs GT 3D Skeleton', fig_compare, global_step = self.iteration)
 
         return loss
 
@@ -197,7 +226,6 @@ class Mo2Cap2Direct(pl.LightningModule):
         self.eval_body.eval(y_output, y_target, action)
         self.eval_upper.eval(y_output, y_target, action)
         self.eval_lower.eval(y_output, y_target, action)
-
         if batch_idx%100 == 0:
 
             skel_dir = os.path.join(self.logger.log_dir, 'skel_plots')
@@ -206,6 +234,8 @@ class Mo2Cap2Direct(pl.LightningModule):
 
             # Get the procrustes aligned 3D Pose and log
             p3d_pred_t, p3d_gt_rot_t = evaluate.get_p3ds_t(y_output, y_target)
+            print(p3d_pred_t)
+            assert(0)
             fig_p3d_pred = evaluate.plot_skels(y_output, os.path.join(skel_dir, 'val_p3d_pred.png'))
             fig_p3d_pred_t = evaluate.plot_skels(p3d_pred_t, os.path.join(skel_dir, 'val_p3d_pred_t.png'))
             fig_p3d_gt = evaluate.plot_skels(y_target, os.path.join(skel_dir, 'val_p3d_gt.png'))
@@ -219,13 +249,13 @@ class Mo2Cap2Direct(pl.LightningModule):
 
             # Tensorboard log images
             tensorboard.add_images('Val Ground Truth 2D Heatmap', torch.clip(torch.sum(p2d, dim=1, keepdim=True), 0, 1), self.iteration)
-            tensorboard.add_figure('Val Ground Truth 3D Skeleton', fig_p3d_gt)
-            tensorboard.add_figure('Val Aligned Ground Truth 3D Skeleton + Rescaling', fig_p3d_gt_rot)
+            tensorboard.add_figure('Val Ground Truth 3D Skeleton', fig_p3d_gt, global_step = self.iteration)
+            tensorboard.add_figure('Val Aligned Ground Truth 3D Skeleton + Rescaling', fig_p3d_gt_rot, global_step = self.iteration)
             tensorboard.add_images('Val Predicted 2D Heatmap', torch.clip(torch.sum(heatmap, dim=1, keepdim=True), 0, 1), self.iteration)
-            tensorboard.add_figure('Val Predicted 3D Skeleton', fig_p3d_pred)
-            tensorboard.add_figure('Val Predicted 3D Skeleton + Rescaling', fig_p3d_pred_t)
-            tensorboard.add_figure('Val GT 3D Skeleton vs Predicted 3D Skeleton (Rescaled)', fig_compare_rescale)
-            tensorboard.add_figure('Val Comparing Predicted 3D Skeleton (Raw vs Rescaled)', fig_compare_preds)
+            tensorboard.add_figure('Val Predicted 3D Skeleton', fig_p3d_pred, global_step = self.iteration)
+            tensorboard.add_figure('Val Predicted 3D Skeleton + Rescaling', fig_p3d_pred_t, global_step = self.iteration)
+            tensorboard.add_figure('Val GT 3D Skeleton vs Predicted 3D Skeleton (Rescaled)', fig_compare_rescale, global_step = self.iteration)
+            tensorboard.add_figure('Val Comparing Predicted 3D Skeleton (Raw vs Rescaled)', fig_compare_preds, global_step = self.iteration)
 
         return val_loss_3d_pose
 
@@ -251,8 +281,11 @@ class Mo2Cap2Direct(pl.LightningModule):
             self.log("val_mpjpe_lower_body", val_mpjpe_lower["All"]["mpjpe"])
             self.log("val_loss_3D", self.val_loss_3d_pose_total)
             self.log("val_loss_2D", self.val_loss_2d_hm)
+            self.scheduler.step(val_mpjpe["All"]["mpjpe"])
         else:
             self.log("val_mpjpe_full_body", 0.3-0.01*(self.iteration/self.hm_train_steps))
+            self.scheduler.step(0.3-0.01*(self.iteration/self.hm_train_steps))
+   
                     
     def on_test_start(self):
         # Initialize the mpjpe evaluation pipeline
