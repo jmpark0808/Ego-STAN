@@ -234,8 +234,6 @@ class Mo2Cap2Direct(pl.LightningModule):
 
             # Get the procrustes aligned 3D Pose and log
             p3d_pred_t, p3d_gt_rot_t = evaluate.get_p3ds_t(y_output, y_target)
-            print(p3d_pred_t)
-            assert(0)
             fig_p3d_pred = evaluate.plot_skels(y_output, os.path.join(skel_dir, 'val_p3d_pred.png'))
             fig_p3d_pred_t = evaluate.plot_skels(p3d_pred_t, os.path.join(skel_dir, 'val_p3d_pred_t.png'))
             fig_p3d_gt = evaluate.plot_skels(y_target, os.path.join(skel_dir, 'val_p3d_gt.png'))
