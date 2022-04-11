@@ -36,7 +36,7 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
                                               nn.ConvTranspose2d(1024, 16, kernel_size=3,
                                                                  stride=2, dilation=1, padding=0)])
         # Transformer that takes sequence of heatmaps and outputs a sequence of heatmaps
-        self.resnet_transformer = ResNetTransformerCls(seq_len=self.seq_len*12*12, dim=512, depth=3, heads=8, mlp_dim=1024, dim_head=64, dropout=self.dropout, emb_dropout=self.dropout)
+        self.resnet_transformer = ResNetTransformerCls(seq_len=self.seq_len*12*12, dim=512, depth=3, heads=8, mlp_dim=1024, dim_head=64, dropout=self.dropout)
         # Direct regression from heatmap
         self.hm2pose = HM2Pose()
 
