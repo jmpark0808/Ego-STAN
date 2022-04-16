@@ -521,3 +521,17 @@ class HM2PoseUNet(nn.Module):
         x = self.linear3(x)
         x = x.reshape(x.size(0), 16, 3)
         return x
+
+
+class HM2PoseLinear(nn.Module):
+    def __init__(self, num_class=16):
+        super(HM2Pose, self).__init__()
+        self.num_class = num_class
+        self.linear = nn.Linear(16*47*47, num_class*3)
+ 
+
+    def forward(self, x):
+        x = x.reshape(x.size(0), -1)
+        x = self.linear(x)
+        x = x.reshape(x.size(0), -1, 3)
+        return x

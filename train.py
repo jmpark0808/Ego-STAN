@@ -23,6 +23,7 @@ from net.DirectRegression import DirectRegression
 from net.Mo2Cap2Direct import Mo2Cap2Direct
 from net.xRNetDirect import xREgoPoseDirect
 from net.Mo2Cap2Baseline import Mo2Cap2Baseline
+from net.xRNetPosteriorLinear import xREgoPosePosteriorLinear
 from net.xRNetSeq import xREgoPoseSeq
 from net.xRNetBaseLine import xREgoPose
 from net.xRNetConcat import xRNetConcat
@@ -51,6 +52,7 @@ MODEL_DIRECTORY = {
     "xregopose_seq_hm": xREgoPoseSeqHM,
     "xregopose_posterior": xREgoPosePosterior,
     "xregopose_posterior_dist": xREgoPosePosteriorDist,
+    "xregopose_posterior_linear": xREgoPosePosteriorLinear,
     "xregopose_seq_hm_direct": xREgoPoseSeqHMDirect,
     "xregopose_seq_direct": xREgoPoseSeqDirect,
     "xregopose_global_trans": xREgoPoseGlobalTrans,

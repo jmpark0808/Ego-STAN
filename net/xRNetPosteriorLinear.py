@@ -8,7 +8,7 @@ from net.blocks import *
 
 
 
-class xREgoPosePosterior(pl.LightningModule):
+class xREgoPosePosteriorLinear(pl.LightningModule):
     def __init__(self, **kwargs):
         super().__init__()
 
@@ -24,7 +24,7 @@ class xREgoPosePosterior(pl.LightningModule):
         self.example_input_array = torch.rand((1, 16, 47, 47))
 
         # Generator that produces the HeatMap
-        self.hm2pose = HM2Pose()
+        self.hm2pose = HM2PoseLinear()
 
         # Initialize the mpjpe evaluation pipeline
         self.eval_body = evaluate.EvalBody()
