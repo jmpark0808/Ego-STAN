@@ -22,6 +22,7 @@ class xREgoPoseSeqHMDirectSlice(pl.LightningModule):
         self.hm_train_steps = kwargs.get("hm_train_steps")
         self.seq_len = kwargs.get('seq_len')
         self.es_patience = kwargs.get('es_patience')
+        self.dropout = kwargs.get('dropout')
 
         # must be defined for logging computational graph
         self.example_input_array = torch.rand((1, self.seq_len, 3, 368, 368))
@@ -34,7 +35,7 @@ class xREgoPoseSeqHMDirectSlice(pl.LightningModule):
                                               nn.ConvTranspose2d(1024, 16, kernel_size=3,
                                                                  stride=2, dilation=1, padding=0)])
         # Transformer that takes sequence of heatmaps and outputs a sequence of heatmaps
-        self.resnet_transformer = ResNetTransformerSlice(seq_len=self.seq_len*12*12, dim=512, depth=3, heads=8, mlp_dim=1024, dim_head=64, dropout=0.)
+        self.resnet_transformer = ResNetTransformerSlice(seq_len=self.seq_len*12*12, dim=512, depth=3, heads=8, mlp_dim=1024, dim_head=64, dropout=self.dropout)
         # Direct regression from heatmap
         self.hm2pose = HM2Pose()
 
