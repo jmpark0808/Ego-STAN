@@ -525,7 +525,7 @@ class HM2PoseUNet(nn.Module):
 
 class HM2PoseLinear(nn.Module):
     def __init__(self, num_class=16):
-        super(HM2Pose, self).__init__()
+        super().__init__()
         self.num_class = num_class
         self.linear = nn.Linear(16*47*47, num_class*3)
  
