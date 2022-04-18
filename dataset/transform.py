@@ -43,8 +43,6 @@ class ImageTrsf(BaseTransform):
         img[0, :, :] = (img[0, :, :]-mean[0])/std[0]
         img[1, :, :] = (img[1, :, :]-mean[1])/std[1]
         img[2, :, :] = (img[2, :, :]-mean[2])/std[2]
-        img -= self.mean
-        img /= self.std
         data.update({'image': img})
 
         return data
