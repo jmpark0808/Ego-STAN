@@ -8,7 +8,7 @@ from net.blocks import *
 
 
 
-class xREgoPose(pl.LightningModule):
+class Mo2Cap2Baseline(pl.LightningModule):
     def __init__(self, **kwargs):
         super().__init__()
 
@@ -21,12 +21,7 @@ class xREgoPose(pl.LightningModule):
         self.hm_train_steps = kwargs.get("hm_train_steps")
         self.es_patience = kwargs.get("es_patience")
         self.which_data = kwargs.get('dataloader')
-        if self.which_data == 'baseline':
-            num_class = 16
-        elif self.which_data == 'sequential':
-            num_class = 16
-        elif self.which_data == 'mo2cap2':
-            num_class = 15
+        num_class = 15
 
         # must be defined for logging computational graph
         self.example_input_array = torch.rand((1, 3, 368, 368))
@@ -99,9 +94,7 @@ class xREgoPose(pl.LightningModule):
         Choose what optimizers and learning-rate schedulers to use in your optimization.
         """
         
-        optimizer = torch.optim.SGD(
-        self.parameters(), lr=self.lr, momentum=0.9, nesterov=True
-        )
+        optimizer = torch.optim.AdamW(self.parameters(), lr=self.lr)
         self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
             optimizer,
             mode='min',
@@ -116,7 +109,9 @@ class xREgoPose(pl.LightningModule):
     def forward(self, x, gt_heatmap=None):
         """
         Forward pass through model
+
         :param x: Input image
+
         :return: 2D heatmap, 16x3 joint inferences, 2D reconstructed heatmap
         """
         # x = 3 x 368 x 368
@@ -145,8 +140,9 @@ class xREgoPose(pl.LightningModule):
         Compute and return the training loss
         logging resources:
         https://pytorch-lightning.readthedocs.io/en/latest/starter/introduction_guide.html
+
         """
-        tensorboard = self.logger.experiment
+
         img, p2d, p3d, action = batch
         img = img.cuda()
         p2d = p2d.cuda()
@@ -180,10 +176,7 @@ class xREgoPose(pl.LightningModule):
         self.log("train_mpjpe_full_body", mpjpe)
         self.log("train_mpjpe_std", mpjpe_std)
         self.iteration += img.size(0)
-   
-        tensorboard.add_images('TR Images', img, self.iteration)
-        tensorboard.add_images('TR Ground Truth 2D Heatmap', torch.clip(torch.sum(p2d, dim=1, keepdim=True), 0, 1), self.iteration)
-        tensorboard.add_images('TR Predicted 2D Heatmap', torch.clip(torch.sum(heatmap, dim=1, keepdim=True), 0, 1), self.iteration)
+
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -214,8 +207,9 @@ class xREgoPose(pl.LightningModule):
         self.eval_body.eval(y_output, y_target, action)
         self.eval_upper.eval(y_output, y_target, action)
         self.eval_lower.eval(y_output, y_target, action)
-        tensorboard.add_images('Val Ground Truth 2D Heatmap', torch.clip(torch.sum(p2d, dim=1, keepdim=True), 0, 1), self.iteration)
-        tensorboard.add_images('Val Predicted 2D Heatmap', torch.clip(torch.sum(heatmap, dim=1, keepdim=True), 0, 1), self.iteration)
+        if batch_idx == 0:
+            tensorboard.add_images('Val Image', img, self.iteration)
+            tensorboard.add_images('Val Predicted 2D Heatmap', torch.clip(torch.sum(heatmap, dim=1, keepdim=True), 0, 1), self.iteration)
         return val_loss_3d_pose
 
     def on_validation_start(self):

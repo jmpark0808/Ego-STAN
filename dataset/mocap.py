@@ -18,6 +18,7 @@ from base import SetType
 import dataset.transform as trsf
 from torch.utils.data import DataLoader
 from torchvision import transforms
+import matplotlib.pyplot as plt
 
 def generate_heatmap_distance(joints, heatmap_sigma):
     """
@@ -74,19 +75,19 @@ def generate_heatmap_distance(joints, heatmap_sigma):
 
     return target
 
-def generate_heatmap(joints, heatmap_sigma):
+def generate_heatmap(joints, heatmap_sigma, resolution=[47, 47]):
     """
     :param joints:  [nof_joints, 2]
     :return: target, target_weight(1: visible, 0: invisible)
     """
-    heatmap_size = [47, 47]
+    heatmap_size = resolution
     num_joints = joints.shape[0]
     target = np.zeros((num_joints,
                        heatmap_size[0],
                        heatmap_size[1]),
                       dtype=np.float32)
     target_weight = np.ones((num_joints, 1), dtype=np.float32)
-    tmp_size = heatmap_sigma * 3
+    tmp_size = heatmap_sigma * 3 
 
     for joint_id in range(num_joints):
         feat_stride = np.asarray([940, 800]) / np.asarray([heatmap_size[0], heatmap_size[1]])
@@ -134,13 +135,15 @@ class Mocap(BaseDataset):
     ROOT_DIRS = ['rgba', 'json']
     CM_TO_M = 100
 
-    def __init__(self, *args, heatmap_type='baseline', **kwargs):
+    def __init__(self, *args, heatmap_type='baseline', heatmap_resolution=[47, 47], image_resolution=[368, 368], **kwargs):
         """Init class, to allow variable sequence length, inherits from Base
         Keyword Arguments:
             sequence_length -- length of image sequence (default: {5})
         """
 
         self.heatmap_type = heatmap_type
+        self.heatmap_resolution = heatmap_resolution
+        self.image_resolution = image_resolution
         super().__init__(*args, **kwargs)
 
     def index_db(self):
@@ -233,8 +236,7 @@ class Mocap(BaseDataset):
         img = sio.imread(img_path).astype(np.float32)
         img /= 255.0
         img = img[:, 180:1120, :] #crop
-        img = resize(img, (368, 368))
-
+        img = resize(img, (self.image_resolution[0], self.image_resolution[1]))
 
 
         # read joint positions
@@ -248,10 +250,10 @@ class Mocap(BaseDataset):
         
         
         if self.heatmap_type == 'baseline':
-            p2d_heatmap = generate_heatmap(p2d[1:, :], 3) # exclude head
+            p2d_heatmap = generate_heatmap(p2d, int(3*self.heatmap_resolution[0]/47.), resolution=self.heatmap_resolution) # exclude head
         elif self.heatmap_type == 'distance':
-            distances = np.sqrt(np.sum(p3d**2, axis=1))[1:]
-            p2d_heatmap = generate_heatmap_distance(p2d[1:, :], distances) # exclude head
+            distances = np.sqrt(np.sum(p3d**2, axis=1))
+            p2d_heatmap = generate_heatmap_distance(p2d, distances) # exclude head
         else:
             self.logger.error('Unrecognized heatmap type')
         
@@ -280,26 +282,27 @@ class MocapDataModule(pl.LightningDataModule):
         self.batch_size = kwargs.get('batch_size')
         self.num_workers = kwargs.get('num_workers', 0)
         self.heatmap_type = kwargs.get('heatmap_type')
-
+        self.heatmap_resolution = kwargs.get('heatmap_resolution')
+        self.image_resolution = kwargs.get('image_resolution')
         # Data: data transformation strategy
         self.data_transform = transforms.Compose(
             [trsf.ImageTrsf(), trsf.Joints3DTrsf(), trsf.ToTensor()]
         )
         
     def train_dataloader(self):
-        data_train = Mocap(self.train_dir, SetType.TRAIN, transform=self.data_transform, heatmap_type=self.heatmap_type)
+        data_train = Mocap(self.train_dir, SetType.TRAIN, transform=self.data_transform, heatmap_type=self.heatmap_type, heatmap_resolution=self.heatmap_resolution, image_resolution=self.image_resolution)
         return DataLoader(
                 data_train, batch_size=self.batch_size, 
                 num_workers=self.num_workers, shuffle=True, pin_memory=True)
 
     def val_dataloader(self):
-        data_val = Mocap(self.val_dir, SetType.VAL, transform=self.data_transform, heatmap_type=self.heatmap_type)
+        data_val = Mocap(self.val_dir, SetType.VAL, transform=self.data_transform, heatmap_type=self.heatmap_type, heatmap_resolution=self.heatmap_resolution, image_resolution=self.image_resolution)
         return DataLoader(
                 data_val, batch_size=self.batch_size, 
                 num_workers=self.num_workers, pin_memory=True)
 
     def test_dataloader(self):
-        data_test = Mocap(self.test_dir, SetType.TEST, transform=self.data_transform, heatmap_type=self.heatmap_type)
+        data_test = Mocap(self.test_dir, SetType.TEST, transform=self.data_transform, heatmap_type=self.heatmap_type, heatmap_resolution=self.heatmap_resolution, image_resolution=self.image_resolution)
         return DataLoader(
                 data_test, batch_size=self.batch_size, 
                 num_workers=self.num_workers, pin_memory=True)

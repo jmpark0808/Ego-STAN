@@ -1,6 +1,8 @@
 import argparse
 import datetime
 import os
+import random
+import time
 from re import X
 
 import pytorch_lightning as pl
@@ -9,13 +11,19 @@ from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from pytorch_lightning.callbacks.lr_monitor import LearningRateMonitor
 from pytorch_lightning.profiler import SimpleProfiler
 from pytorch_lightning.loggers import TensorBoardLogger
+from dataset.mo2cap2 import Mo2Cap2DataModule
 
 
 from dataset.mocap import MocapDataModule
 from dataset.mo2cap2 import Mo2Cap2DataModule
 from dataset.mocap_distance import MocapDistanceDataModule
 from dataset.mocap_transformer import MocapSeqDataModule
+from dataset.mo2cap2_transformer import Mo2Cap2SeqDataModule
 from net.DirectRegression import DirectRegression
+from net.Mo2Cap2Direct import Mo2Cap2Direct
+from net.xRNetDirect import xREgoPoseDirect
+from net.Mo2Cap2Baseline import Mo2Cap2Baseline
+from net.xRNetPosteriorLinear import xREgoPosePosteriorLinear
 from net.xRNetSeq import xREgoPoseSeq
 from net.xRNetBaseLine import xREgoPose
 from net.xRNetConcat import xRNetConcat
@@ -26,6 +34,11 @@ from net.xRNetPosteriorDist import xREgoPosePosteriorDist
 from net.xRNetSeqDirect import xREgoPoseSeqDirect
 from net.xRNetSeqHMDirect import xREgoPoseSeqHMDirect
 from net.xRNetGlobalTrans import xREgoPoseGlobalTrans
+from net.xRNetDist import xREgoPoseDist
+from net.xRNetSeqHMDirectAvg import xREgoPoseSeqHMDirectAvg
+from net.xRNetSeqHMDirectRevPos import xREgoPoseSeqHMDirectRevPos
+from net.xRNetSeqHMDirectSlice import xREgoPoseSeqHMDirectSlice
+from net.xRNetUNet import xREgoPoseUNet
 from utils.evaluate import create_results_csv
 
 # Deterministic
@@ -39,15 +52,25 @@ MODEL_DIRECTORY = {
     "xregopose_seq_hm": xREgoPoseSeqHM,
     "xregopose_posterior": xREgoPosePosterior,
     "xregopose_posterior_dist": xREgoPosePosteriorDist,
+    "xregopose_posterior_linear": xREgoPosePosteriorLinear,
     "xregopose_seq_hm_direct": xREgoPoseSeqHMDirect,
     "xregopose_seq_direct": xREgoPoseSeqDirect,
-    "xregopose_global_trans": xREgoPoseGlobalTrans
+    "xregopose_global_trans": xREgoPoseGlobalTrans,
+    "xregopose_dist": xREgoPoseDist,
+    "xregopose_unet": xREgoPoseUNet,
+    "xregopose_direct": xREgoPoseDirect,
+    "xregopose_seq_hm_direct_rev_pos": xREgoPoseSeqHMDirectRevPos,
+    "xregopose_seq_hm_direct_avg": xREgoPoseSeqHMDirectAvg,
+    "xregopose_seq_hm_direct_slice": xREgoPoseSeqHMDirectSlice,
+    "mo2cap2": Mo2Cap2Baseline,
+    "mo2cap2_direct": Mo2Cap2Direct
 }
 DATALOADER_DIRECTORY = {
     'baseline': MocapDataModule,
     'sequential': MocapSeqDataModule,
     'distance': MocapDistanceDataModule,
     'mo2cap2': Mo2Cap2DataModule,
+    'mo2cap2_seq': Mo2Cap2SeqDataModule
 } 
 
 if __name__ == "__main__":
@@ -88,8 +111,12 @@ if __name__ == "__main__":
                         default= 'branch_concat')
     parser.add_argument('--heatmap_type', help='Type of 2D ground truth heatmap, Defaults to "baseline"', 
                         default= 'baseline')
+    parser.add_argument("--heatmap_resolution",  help='2D heatmap resolution', nargs="*", type=int, default=[47, 47])
+    parser.add_argument("--image_resolution",  help='Image resolution', nargs="*", type=int, default=[368, 368])
     parser.add_argument('--seed', help='Seed for reproduceability', 
                         default=42, type=int)
+    parser.add_argument('--clip_grad_norm', help='Clipping gradient norm, 0 means no clipping', type=float, default=0.)
+    parser.add_argument('--dropout', help='Dropout for transformer', type=float, default=0.)
 
     args = parser.parse_args()
     dict_args = vars(args)
@@ -100,10 +127,14 @@ if __name__ == "__main__":
     model = MODEL_DIRECTORY[dict_args['model']](**dict_args)
 
     # Initialize logging paths
-    now = datetime.datetime.now().strftime('%m%d%H%M')
+    random_sec = random.randint(1, 20)
+    time.sleep(random_sec)
+    now = datetime.datetime.now().strftime('%m%d%H%M%S')
     weight_save_dir = os.path.join(dict_args["logdir"], os.path.join('models', 'state_dict', now))
     while os.path.exists(weight_save_dir):
-        now = datetime.datetime.now().strftime('%m%d%H%M')
+        random_sec = random.randint(1, 20)
+        time.sleep(random_sec)
+        now = datetime.datetime.now().strftime('%m%d%H%M%S')
         weight_save_dir = os.path.join(dict_args["logdir"], os.path.join('models', 'state_dict', now))
 
     os.makedirs(weight_save_dir, exist_ok=True)
@@ -138,7 +169,8 @@ if __name__ == "__main__":
         profiler=profiler,
         logger=logger,
         max_epochs=dict_args["epoch"],
-        log_every_n_steps=10
+        log_every_n_steps=10,
+        gradient_clip_val=dict_args['clip_grad_norm']
     )
 
     # Trainer: train model
@@ -150,6 +182,6 @@ if __name__ == "__main__":
         test_mpjpe_dict = model.test_results
         mpjpe_csv_path = os.path.join(weight_save_dir, f'{now}_eval.csv')
         # Store mpjpe test results as a csv
-        create_results_csv(test_mpjpe_dict, mpjpe_csv_path)
+        create_results_csv(test_mpjpe_dict, mpjpe_csv_path, dict_args['dataloader'])
     else:
         print("Evaluation skipped")

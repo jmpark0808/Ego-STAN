@@ -1,3 +1,4 @@
+from tkinter import X
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -7,14 +8,14 @@ import math
 import torchvision
 
 class HeatMap(nn.Module):
-    def __init__(self):
+    def __init__(self, num_classes=16):
         super(HeatMap, self).__init__()
         # Resnet 101 without last average pooling and fully connected layers
         self.resnet101 = torchvision.models.resnet101(pretrained=False)
         # First Deconvolution to obtain 2D heatmap
         self.heatmap_deconv = nn.Sequential(*[nn.ConvTranspose2d(2048, 1024, kernel_size=3,
                                                                  stride=2, dilation=1, padding=1),
-                                              nn.ConvTranspose2d(1024, 15, kernel_size=3,
+                                              nn.ConvTranspose2d(1024, num_classes, kernel_size=3,
                                                                  stride=2, dilation=1, padding=0)])
 
     def update_resnet101(self):
@@ -30,6 +31,43 @@ class HeatMap(nn.Module):
         # heatmap = 15 x 47 x 47
 
         return heatmap
+
+
+class HeatMapDist(nn.Module):
+    def __init__(self):
+        super(HeatMapDist, self).__init__()
+        # Resnet 101 without last average pooling and fully connected layers
+        self.resnet_2d = torchvision.models.resnet101(pretrained=False)
+        self.resnet_1d = torchvision.models.resnet101(pretrained=False)
+        # First Deconvolution to obtain 2D heatmap
+        self.heatmap_deconv = nn.Sequential(*[nn.ConvTranspose2d(2048, 1024, kernel_size=3,
+                                                                 stride=2, dilation=1, padding=1),
+                                              nn.ConvTranspose2d(1024, 16, kernel_size=3,
+                                                                 stride=2, dilation=1, padding=0)])
+        self.heatmap_spatial_linear = nn.Linear(12*12, 200)
+        self.heatmap_channel_linear = nn.Conv1d(2048, 16, 1)
+
+    def update_resnet(self):
+        self.resnet_2d = nn.Sequential(*[l for ind, l in enumerate(self.resnet_2d.children()) if ind < 8])
+        self.resnet_1d = nn.Sequential(*[l for ind, l in enumerate(self.resnet_1d.children()) if ind < 8])
+
+    def forward(self, x):
+        # x = 3 x 368 x 368
+
+        x_2d = self.resnet_2d(x)
+        x_1d = self.resnet_1d(x)
+        # x = 2048 x 12 x 12
+        
+        heatmap_2d = self.heatmap_deconv(x_2d)
+        # heatmap_2d = 16 x 47 x 47
+
+        x_1d = x_1d.reshape(x_1d.size(0), x_1d.size(1), -1)
+        heatmap_1d = self.heatmap_spatial_linear(x_1d)
+        heatmap_1d = self.heatmap_channel_linear(heatmap_1d)
+        # heatmap_1d = 16 x 30
+
+
+        return heatmap_2d, heatmap_1d
 
 # -> Edit of HeatMap class, except returns a feature map as well -> Why is it in net and not in blocks?
 
@@ -69,9 +107,9 @@ class FeatureHeatMaps(nn.Module):
 
 
 class Encoder(nn.Module):
-    def __init__(self):
+    def __init__(self, num_classes=16):
         super(Encoder, self).__init__()
-        self.conv1 = nn.Conv2d(15, 64, kernel_size=4, stride=2, padding=2)
+        self.conv1 = nn.Conv2d(num_classes, 64, kernel_size=4, stride=2, padding=2)
         self.lrelu1 = nn.LeakyReLU(0.2)
         self.conv2 = nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1)
         self.lrelu2 = nn.LeakyReLU(0.2)
@@ -228,13 +266,14 @@ class FeatureBranchEncoder(nn.Module):
         return x
 
 class PoseDecoder(nn.Module):
-    def __init__(self, initial_dim=20):
+    def __init__(self, initial_dim=20, num_classes=16):
         super(PoseDecoder, self).__init__()
         self.linear1 = nn.Linear(initial_dim, 32)
         self.lrelu1 = nn.LeakyReLU(0.2)
         self.linear2 = nn.Linear(32, 32)
         self.lrelu2 = nn.LeakyReLU(0.2)
-        self.linear3 = nn.Linear(32, 48)
+        self.linear3 = nn.Linear(32, num_classes*3)
+        self.num_classes = num_classes
 
     def forward(self, x):
         x = self.linear1(x)
@@ -242,11 +281,11 @@ class PoseDecoder(nn.Module):
         x = self.linear2(x)
         x = self.lrelu2(x)
         x = self.linear3(x)
-        x = x.reshape(x.size(0), 16, 3)
+        x = x.reshape(x.size(0), self.num_classes, 3)
         return x
 
 class HeatmapDecoder(nn.Module):
-    def __init__(self):
+    def __init__(self, num_classes=16):
         super(HeatmapDecoder, self).__init__()
         self.linear1 = nn.Linear(20, 512)
         self.lrelu1 = nn.LeakyReLU(0.2)
@@ -256,7 +295,7 @@ class HeatmapDecoder(nn.Module):
         self.lrelu3 = nn.LeakyReLU(0.2)
         self.deconv1 = nn.ConvTranspose2d(512, 128, kernel_size=4, stride=2, padding=1)
         self.deconv2 = nn.ConvTranspose2d(128, 64, kernel_size=4, stride=2, padding=1)
-        self.deconv3 = nn.ConvTranspose2d(64, 15, kernel_size=3, stride=2, padding=1)
+        self.deconv3 = nn.ConvTranspose2d(64, num_classes, kernel_size=3, stride=2, padding=1)
     def forward(self, x):
         x = self.linear1(x)
         x = self.lrelu1(x)
@@ -271,20 +310,21 @@ class HeatmapDecoder(nn.Module):
         return x
 
 class HM2Pose(nn.Module):
-    def __init__(self):
+    def __init__(self, num_class=16):
         super(HM2Pose, self).__init__()
-        self.conv1 = nn.Conv2d(15, 64, kernel_size=4, stride=2, padding=2)
-        self.lrelu1 = nn.LeakyReLU(0.2)
+        self.num_class = num_class
+        self.conv1 = nn.Conv2d(num_class, 64, kernel_size=4, stride=2, padding=2)
+        self.lrelu1 = nn.PReLU()
         self.conv2 = nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1)
-        self.lrelu2 = nn.LeakyReLU(0.2)
+        self.lrelu2 = nn.PReLU()
         self.conv3 = nn.Conv2d(128, 512, kernel_size=4, stride=2, padding=1)
-        self.lrelu3 = nn.LeakyReLU(0.2)
+        self.lrelu3 = nn.PReLU()
 
         self.linear1 = nn.Linear(18432, 2048)
-        self.lrelu4 = nn.LeakyReLU(0.2)
+        self.lrelu4 = nn.PReLU()
         self.linear2 = nn.Linear(2048, 512)
-        self.lrelu5 = nn.LeakyReLU(0.2)
-        self.linear3 = nn.Linear(512, 48)
+        self.lrelu5 = nn.PReLU()
+        self.linear3 = nn.Linear(512, num_class*3)
  
 
     def forward(self, x):
@@ -300,7 +340,7 @@ class HM2Pose(nn.Module):
         x = self.linear2(x)
         x = self.lrelu5(x)
         x = self.linear3(x)
-        x = x.reshape(x.size(0), 16, 3)
+        x = x.reshape(x.size(0), -1, 3)
         return x
 
 class HM2PoseDist(nn.Module):
@@ -320,7 +360,7 @@ class HM2PoseDist(nn.Module):
         self.conv3_1d = nn.Conv1d(64, 128, kernel_size=3, stride=2, padding=1)
         self.relu3_1d = nn.PReLU()
 
-        self.linear1 = nn.Linear(5120, 2048)
+        self.linear1 = nn.Linear(7808, 2048)
         self.relu4 = nn.PReLU()
         self.linear2 = nn.Linear(2048, 512)
         self.relu5 = nn.PReLU()
@@ -353,3 +393,145 @@ class HM2PoseDist(nn.Module):
         pose = self.linear3(pose)
         pose = pose.reshape(pose.size(0), 16, 3)
         return pose
+
+class UNet(nn.Module):
+    def __init__(self, load_resnet=None):
+        super(UNet, self).__init__()
+        self.resnet18 = torchvision.models.resnet18(pretrained=False)
+        if load_resnet:
+            self.resnet18.load_state_dict(torch.load(load_resnet))
+
+        self.encoder1 = nn.Sequential(*[l for ind, l in enumerate(self.resnet18.children()) if ind < 3])
+        self.encoder2 = nn.Sequential(*[l for ind, l in enumerate(self.resnet18.children()) if 3 <= ind <= 4])
+        self.encoder3 = nn.Sequential(*[l for ind, l in enumerate(self.resnet18.children()) if ind == 5])
+        self.encoder4 = nn.Sequential(*[l for ind, l in enumerate(self.resnet18.children()) if ind == 6])
+        self.encoder5 = nn.Sequential(*[l for ind, l in enumerate(self.resnet18.children()) if ind == 7])
+
+        self.up1 = Up(512, 256, False)
+        self.up2 = Up(256, 128, False )
+        self.up3 = Up(128, 64, False)
+        self.up4 = Up(64, 64, False)
+        self.outc = nn.Conv2d(64, 16, 1)
+
+    def forward(self, x):
+
+        encoder1 = self.encoder1(x)
+        # 64 x 192 x 192
+        encoder2 = self.encoder2(encoder1)
+        # 64 x 96 x 96
+        encoder3 = self.encoder3(encoder2)
+        # 128 x 48 x 48
+        encoder4 = self.encoder4(encoder3)
+        # 256 x 24 x 24
+        encoder5 = self.encoder5(encoder4)
+        # 512 x 12 x 12
+        x = self.up1(encoder5, encoder4)
+        x = self.up2(x, encoder3)
+        x = self.up3(x, encoder2)
+        x = self.up4(x, encoder1)
+        x = self.outc(x)
+        return x
+
+class DoubleConv(nn.Module):
+    """(convolution => [BN] => ReLU) * 2"""
+
+    def __init__(self, in_channels, out_channels, mid_channels=None):
+        super().__init__()
+        if not mid_channels:
+            mid_channels = out_channels
+        self.double_conv = nn.Sequential(
+            nn.Conv2d(in_channels, mid_channels, kernel_size=3, padding=1, bias=False),
+            nn.BatchNorm2d(mid_channels),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(mid_channels, out_channels, kernel_size=3, padding=1, bias=False),
+            nn.BatchNorm2d(out_channels),
+            nn.ReLU(inplace=True)
+        )
+
+    def forward(self, x):
+        return self.double_conv(x)
+
+
+class Up(nn.Module):
+    """Upscaling then double conv"""
+
+    def __init__(self, in_channels, out_channels, bilinear=True):
+        super().__init__()
+
+        # if bilinear, use the normal convolutions to reduce the number of channels
+        if bilinear:
+            self.up = nn.Upsample(scale_factor=2, mode='bilinear', align_corners=True)
+            self.conv = DoubleConv(in_channels, out_channels, in_channels // 2)
+        else:
+            self.up = nn.ConvTranspose2d(in_channels, in_channels // 2, kernel_size=2, stride=2)
+            self.conv = DoubleConv(in_channels//2 + out_channels, out_channels)
+
+    def forward(self, x1, x2):
+        x1 = self.up(x1)
+        # input is CHW
+        diffY = x2.size()[2] - x1.size()[2]
+        diffX = x2.size()[3] - x1.size()[3]
+
+        x1 = F.pad(x1, [diffX // 2, diffX - diffX // 2,
+                        diffY // 2, diffY - diffY // 2])
+        # if you have padding issues, see
+        # https://github.com/HaiyongJiang/U-Net-Pytorch-Unstructured-Buggy/commit/0e854509c2cea854e247a9c615f175f76fbb2e3a
+        # https://github.com/xiaopeng-liao/Pytorch-UNet/commit/8ebac70e633bac59fc22bb5195e513d5832fb3bd
+        x = torch.cat([x2, x1], dim=1)
+        return self.conv(x)
+
+class HM2PoseUNet(nn.Module):
+    def __init__(self):
+        super(HM2PoseUNet, self).__init__()
+        self.conv1 = nn.Conv2d(16, 32, kernel_size=3, stride=2, padding=1)
+        self.lrelu1 = nn.PReLU()
+        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=2, padding=1)
+        self.lrelu2 = nn.PReLU()
+        self.conv3 = nn.Conv2d(64, 128, kernel_size=3, stride=2, padding=1)
+        self.lrelu3 = nn.PReLU()
+        self.conv4 = nn.Conv2d(128, 256, kernel_size=3, stride=2, padding=1)
+        self.lrelu4 = nn.PReLU()
+        self.conv5 = nn.Conv2d(256, 256, kernel_size=3, stride=2, padding=1)
+        self.lrelu5 = nn.PReLU()
+
+        self.linear1 = nn.Linear(9216, 2048)
+        self.lrelu4 = nn.PReLU()
+        self.linear2 = nn.Linear(2048, 512)
+        self.lrelu5 = nn.PReLU()
+        self.linear3 = nn.Linear(512, 48)
+ 
+
+    def forward(self, x):
+        x = self.conv1(x)
+        x = self.lrelu1(x)
+        x = self.conv2(x)
+        x = self.lrelu2(x)
+        x = self.conv3(x)
+        x = self.lrelu3(x)
+        x = self.conv4(x)
+        x = self.lrelu4(x)
+        x = self.conv5(x)
+        x = self.lrelu5(x)
+        x = x.reshape(x.size(0), -1) # flatten
+
+        x = self.linear1(x)
+        x = self.lrelu4(x)
+        x = self.linear2(x)
+        x = self.lrelu5(x)
+        x = self.linear3(x)
+        x = x.reshape(x.size(0), 16, 3)
+        return x
+
+
+class HM2PoseLinear(nn.Module):
+    def __init__(self, num_class=16):
+        super().__init__()
+        self.num_class = num_class
+        self.linear = nn.Linear(16*47*47, num_class*3)
+ 
+
+    def forward(self, x):
+        x = x.reshape(x.size(0), -1)
+        x = self.linear(x)
+        x = x.reshape(x.size(0), -1, 3)
+        return x

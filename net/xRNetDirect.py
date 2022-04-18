@@ -8,7 +8,7 @@ from net.blocks import *
 
 
 
-class xREgoPose(pl.LightningModule):
+class xREgoPoseDirect(pl.LightningModule):
     def __init__(self, **kwargs):
         super().__init__()
 
@@ -19,36 +19,21 @@ class xREgoPose(pl.LightningModule):
         self.decay_step = kwargs.get("decay_step")
         self.load_resnet = kwargs.get("load_resnet")
         self.hm_train_steps = kwargs.get("hm_train_steps")
-        self.es_patience = kwargs.get("es_patience")
-        self.which_data = kwargs.get('dataloader')
-        if self.which_data == 'baseline':
-            num_class = 16
-        elif self.which_data == 'sequential':
-            num_class = 16
-        elif self.which_data == 'mo2cap2':
-            num_class = 15
 
         # must be defined for logging computational graph
         self.example_input_array = torch.rand((1, 3, 368, 368))
 
         # Generator that produces the HeatMap
-        self.heatmap = HeatMap(num_class)
+        self.heatmap = HeatMap()
         # Encoder that takes 2D heatmap and transforms to latent vector Z
-        self.encoder = Encoder(num_class)
-        # Pose decoder that takes latent vector Z and transforms to 3D pose coordinates
-        self.pose_decoder = PoseDecoder(num_classes = num_class)
-        # Heatmap decoder that takes latent vector Z and generates the original 2D heatmap
-        self.heatmap_decoder = HeatmapDecoder(num_class)
+        self.pose = HM2Pose()
 
         # Initialize the mpjpe evaluation pipeline
         self.eval_body = evaluate.EvalBody()
-        self.eval_upper = evaluate.EvalUpperBody(mode=self.which_data)
-        self.eval_lower = evaluate.EvalLowerBody(mode=self.which_data)
+        self.eval_upper = evaluate.EvalUpperBody()
+        self.eval_lower = evaluate.EvalLowerBody()
         self.eval_per_joint = evaluate.EvalPerJoint()
 
-        # Initialize total validation pose loss
-        self.val_loss_3d_pose_total = torch.tensor(0., device=self.device)
-        self.val_loss_hm = torch.tensor(0., device=self.device)
 
         def weight_init(m):
             """
@@ -74,25 +59,20 @@ class xREgoPose(pl.LightningModule):
         label = label.reshape(label.size(0), -1)
         return torch.sum(torch.mean(torch.pow(pred-label, 2), dim=1))
 
-    def auto_encoder_loss(self, pose_pred, pose_label, hm_decoder, hm_resnet):
+    def auto_encoder_loss(self, pose_pred, pose_label):
         """
         Defining the loss funcition:
         """
         lambda_p = 0.1
         lambda_theta = -0.01
         lambda_L = 0.5
-        lambda_hm = 0.001
-        pose_l2norm = torch.sum(torch.sum(torch.pow(pose_pred-pose_label, 2), dim=2), dim=1)
-        # pose_l2norm = torch.sqrt(torch.sum(torch.sum(torch.pow(pose_pred-pose_label, 2), dim=2), dim=1))
+        pose_l2norm = torch.sqrt(torch.sum(torch.sum(torch.pow(pose_pred-pose_label, 2), dim=2), dim=1))
         cos = torch.nn.CosineSimilarity(dim=2, eps=1e-6)
         cosine_similarity_error = torch.sum(cos(pose_pred, pose_label), dim=1)
-        limb_length_error = torch.sum(torch.sqrt(torch.sum(torch.pow(pose_pred-pose_label, 2), dim=2)), dim=1)
-        heatmap_error = torch.sum(torch.pow(hm_resnet.view(hm_resnet.size(0), -1) - hm_decoder.view(hm_decoder.size(0), -1), 2), dim=1)
-        # limb_length_error = torch.sum(torch.sum(torch.abs(pose_pred-pose_label), dim=2), dim=1)
-        # heatmap_error = torch.sqrt(torch.sum(torch.pow(hm_resnet.reshape(hm_resnet.size(0), -1) - hm_decoder.reshape(hm_decoder.size(0), -1), 2), dim=1))
+        limb_length_error = torch.sum(torch.sum(torch.abs(pose_pred-pose_label), dim=2), dim=1)
         LAE_pose = lambda_p*(pose_l2norm + lambda_theta*cosine_similarity_error + lambda_L*limb_length_error)
-        LAE_hm = lambda_hm*heatmap_error
-        return torch.mean(LAE_pose), torch.mean(LAE_hm)
+
+        return torch.mean(LAE_pose)
 
     def configure_optimizers(self):
         """
@@ -102,51 +82,36 @@ class xREgoPose(pl.LightningModule):
         optimizer = torch.optim.SGD(
         self.parameters(), lr=self.lr, momentum=0.9, nesterov=True
         )
-        self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-            optimizer,
-            mode='min',
-            factor=0.1,
-            patience=self.es_patience-3,
-            min_lr=1e-8,
-            verbose=True)
         
         return optimizer
       
 
-    def forward(self, x, gt_heatmap=None):
+    def forward(self, x):
         """
         Forward pass through model
+
         :param x: Input image
+
         :return: 2D heatmap, 16x3 joint inferences, 2D reconstructed heatmap
         """
         # x = 3 x 368 x 368
 
         heatmap = self.heatmap(x)
+        # heatmap_2d = 16 x 47 x 47
+        # heatmap_1d = 16 x 30
+        pose = self.pose(heatmap)
 
-        # heatmap = 15 x 47 x 47
-        
-        if gt_heatmap is not None:
-            z = self.encoder(gt_heatmap)
-        else:
-            z = self.encoder(heatmap)
-        # z = 20
 
-        pose = self.pose_decoder(z)
-        # pose = 16 x 3
-
-        generated_heatmaps = self.heatmap_decoder(z)
-
-        # generated_heatmaps = 15 x 47 x 47
-
-        return heatmap, pose, generated_heatmaps
+        return heatmap, pose
 
     def training_step(self, batch, batch_idx):
         """
         Compute and return the training loss
         logging resources:
         https://pytorch-lightning.readthedocs.io/en/latest/starter/introduction_guide.html
+
         """
-        tensorboard = self.logger.experiment
+
         img, p2d, p3d, action = batch
         img = img.cuda()
         p2d = p2d.cuda()
@@ -157,33 +122,28 @@ class xREgoPose(pl.LightningModule):
 
 
         if self.iteration <= self.hm_train_steps:
-            heatmap, pose, generated_heatmap = self.forward(img)
+            heatmap, pose = self.forward(img)
             heatmap = torch.sigmoid(heatmap)
-            hm_loss = self.mse(heatmap, p2d)
-            loss = hm_loss
-            self.log('Total HM loss', hm_loss.item())
+            hm_2d_loss = self.mse(heatmap, p2d)
+            loss = hm_2d_loss
+            self.log('Total HM loss', hm_2d_loss.item())
+
+
         else:
-            heatmap, pose, generated_heatmap = self.forward(img)
+            heatmap, pose = self.forward(img)
             heatmap = torch.sigmoid(heatmap)
-            generated_heatmap = torch.sigmoid(generated_heatmap)
-            hm_loss = self.mse(heatmap, p2d)
-            loss_3d_pose, loss_2d_ghm = self.auto_encoder_loss(pose, p3d, generated_heatmap, heatmap)
-            ae_loss = loss_2d_ghm + loss_3d_pose
-            loss = hm_loss + ae_loss
-            self.log('Total HM loss', hm_loss.item())
+            hm_2d_loss = self.mse(heatmap, p2d)
+            loss_3d_pose = self.auto_encoder_loss(pose, p3d)
+            loss = hm_2d_loss + loss_3d_pose
+            self.log('Total HM loss', hm_2d_loss.item())
             self.log('Total 3D loss', loss_3d_pose.item())
-            self.log('Total GHM loss', loss_2d_ghm.item())
-     
+
         # calculate mpjpe loss
         mpjpe = torch.mean(torch.sqrt(torch.sum(torch.pow(p3d - pose, 2), dim=2)))
         mpjpe_std = torch.std(torch.sqrt(torch.sum(torch.pow(p3d - pose, 2), dim=2)))
         self.log("train_mpjpe_full_body", mpjpe)
         self.log("train_mpjpe_std", mpjpe_std)
         self.iteration += img.size(0)
-   
-        tensorboard.add_images('TR Images', img, self.iteration)
-        tensorboard.add_images('TR Ground Truth 2D Heatmap', torch.clip(torch.sum(p2d, dim=1, keepdim=True), 0, 1), self.iteration)
-        tensorboard.add_images('TR Predicted 2D Heatmap', torch.clip(torch.sum(heatmap, dim=1, keepdim=True), 0, 1), self.iteration)
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -197,15 +157,16 @@ class xREgoPose(pl.LightningModule):
         p2d = p2d.cuda()
         p3d = p3d.cuda()
 
-        # forward pass  
-        heatmap, pose, generated_heatmap = self.forward(img)
+
+        # forward pass
+        heatmap, pose = self.forward(img)
         heatmap = torch.sigmoid(heatmap)
-        generated_heatmap = torch.sigmoid(generated_heatmap)
+
         # calculate pose loss
-        val_hm_loss = self.mse(heatmap, p2d)
-        val_loss_3d_pose, _ = self.auto_encoder_loss(pose, p3d, generated_heatmap, heatmap)
+        val_hm_2d_loss = self.mse(heatmap, p2d)
+        val_loss_3d_pose = self.auto_encoder_loss(pose, p3d)
         # update 3d pose loss
-        self.val_loss_hm += val_hm_loss
+        self.val_loss_2d_hm += val_hm_2d_loss
         self.val_loss_3d_pose_total += val_loss_3d_pose
 
         # Evaluate mpjpe
@@ -214,19 +175,19 @@ class xREgoPose(pl.LightningModule):
         self.eval_body.eval(y_output, y_target, action)
         self.eval_upper.eval(y_output, y_target, action)
         self.eval_lower.eval(y_output, y_target, action)
-        tensorboard.add_images('Val Ground Truth 2D Heatmap', torch.clip(torch.sum(p2d, dim=1, keepdim=True), 0, 1), self.iteration)
-        tensorboard.add_images('Val Predicted 2D Heatmap', torch.clip(torch.sum(heatmap, dim=1, keepdim=True), 0, 1), self.iteration)
+
         return val_loss_3d_pose
 
     def on_validation_start(self):
         # Initialize the mpjpe evaluation pipeline
         self.eval_body = evaluate.EvalBody()
-        self.eval_upper = evaluate.EvalUpperBody(mode=self.which_data)
-        self.eval_lower = evaluate.EvalLowerBody(mode=self.which_data)
+        self.eval_upper = evaluate.EvalUpperBody()
+        self.eval_lower = evaluate.EvalLowerBody()
 
         # Initialize total validation pose loss
         self.val_loss_3d_pose_total = torch.tensor(0., device=self.device)
-        self.val_loss_hm = torch.tensor(0., device=self.device)
+        self.val_loss_2d_hm = torch.tensor(0., device=self.device)
+
 
     def validation_epoch_end(self, validation_step_outputs):
         val_mpjpe = self.eval_body.get_results()
@@ -237,16 +198,16 @@ class xREgoPose(pl.LightningModule):
             self.log("val_mpjpe_full_body_std", val_mpjpe["All"]["std_mpjpe"])
             self.log("val_mpjpe_upper_body", val_mpjpe_upper["All"]["mpjpe"])
             self.log("val_mpjpe_lower_body", val_mpjpe_lower["All"]["mpjpe"])
-            self.log("val_loss", self.val_loss_3d_pose_total)
-            self.scheduler.step(val_mpjpe["All"]["mpjpe"])
+            self.log("val_loss_3D", self.val_loss_3d_pose_total)
+            self.log("val_loss_2D", self.val_loss_2d_hm)
         else:
             self.log("val_mpjpe_full_body", 0.3-0.01*(self.iteration/self.hm_train_steps))
-            self.scheduler.step(0.3-0.01*(self.iteration/self.hm_train_steps))
+                    
     def on_test_start(self):
         # Initialize the mpjpe evaluation pipeline
         self.eval_body = evaluate.EvalBody()
-        self.eval_upper = evaluate.EvalUpperBody(mode=self.which_data)
-        self.eval_lower = evaluate.EvalLowerBody(mode=self.which_data)
+        self.eval_upper = evaluate.EvalUpperBody()
+        self.eval_lower = evaluate.EvalLowerBody()
         self.eval_per_joint = evaluate.EvalPerJoint()
 
     def test_step(self, batch, batch_idx):
@@ -256,8 +217,8 @@ class xREgoPose(pl.LightningModule):
         p3d = p3d.cuda()
 
         # forward pass
-        heatmap, pose, generated_heatmap = self.forward(img)
-   
+        heatmap, pose = self.forward(img)
+
         # Evaluate mpjpe
         y_output = pose.data.cpu().numpy()
         y_target = p3d.data.cpu().numpy()
