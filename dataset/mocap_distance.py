@@ -212,7 +212,7 @@ class MocapDistance(BaseDataset):
         if self.transform:
             p2d_dist = self.transform({'joints2d_dist': p2d_dist})['joints2d_dist']
 
-        return img, p2d_heatmap, p2d_dist, p3d, action
+        return img, p2d_heatmap, p2d_dist, p3d, action, img_path
 
     def __len__(self):
 

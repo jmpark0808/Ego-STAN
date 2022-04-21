@@ -103,7 +103,7 @@ class xREgoPosePosteriorDist(pl.LightningModule):
 
         """
           
-        img, p2d, p2d_1d, p3d, action = batch
+        img, p2d, p2d_1d, p3d, action, img_path = batch
         p2d = p2d.cuda()
         p3d = p3d.cuda()
         p2d_1d = p2d_1d.cuda()
@@ -127,7 +127,7 @@ class xREgoPosePosteriorDist(pl.LightningModule):
         validation loop: https://pytorch-lightning.readthedocs.io/en/stable/common/lightning_module.html#hooks
         """
   
-        img, p2d,  p2d_1d, p3d, action = batch
+        img, p2d,  p2d_1d, p3d, action, img_path = batch
         p2d = p2d.cuda()
         p3d = p3d.cuda()
         p2d_1d = p2d_1d.cuda()
@@ -174,7 +174,7 @@ class xREgoPosePosteriorDist(pl.LightningModule):
         self.eval_per_joint = evaluate.EvalPerJoint()
 
     def test_step(self, batch, batch_idx):
-        img, p2d, p2d_1d, p3d, action = batch
+        img, p2d, p2d_1d, p3d, action, img_path = batch
         p2d = p2d.cuda()
         p3d = p3d.cuda()
         p2d_1d = p2d_1d.cuda()
