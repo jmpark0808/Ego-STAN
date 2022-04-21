@@ -219,7 +219,7 @@ class Mo2Cap2(BaseDataset):
             p3d = self.transform({'joints3D': p3d})['joints3D']
             p2d = self.transform({'joints2D': p2d})['joints2D']
 
-        return img, p2d_heatmap, p3d, action
+        return img, p2d_heatmap, p3d, action, img_path
 
     def __len__(self):
 
