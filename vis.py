@@ -6,9 +6,13 @@ import pickle
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
+import seaborn as sns
 from tqdm import tqdm
 
 from train import DATALOADER_DIRECTORY, MODEL_DIRECTORY
+
+sns.set_theme(style="whitegrid")
 
 
 def main():
@@ -107,12 +111,17 @@ def main():
     # Create output directory
     now = datetime.datetime.now().strftime("%m_%a_%H_%M_%S")
     dir_name = dict_args["model"] + "_" + now
-    img_dir = os.path.join(dict_args["output_directory"], dir_name)
-    os.makedirs(img_dir, exist_ok=True)
+    out_dir = os.path.join(dict_args["output_directory"], dir_name)
+    os.makedirs(out_dir, exist_ok=True)
+
     # Save results file
-    results_path = os.path.join(img_dir, dir_name + ".pkl")
+    results_path = os.path.join(out_dir, "results_" + dir_name + ".pkl")
     with open(results_path, "wb") as handle:
         pickle.dump(results, handle)
+
+    # plot violin
+    violin_path = os.path.join(out_dir, "violin_" + dir_name + ".jpg")
+    plot_violin(results=results, output_file=violin_path)
 
 
 def get_errors_per_action(results: dict):
@@ -147,6 +156,38 @@ def get_errors_per_action(results: dict):
             action_mpjpe.update({action: [[key, full_mpjpe]]})
 
     return action_mpjpe
+
+
+def plot_violin(results: dict, output_file: str):
+    """
+    Create and save one figure with violin plots per action
+    full-body mpjpe errors. Refer to the url for seaborn
+    violin plot configurations:
+    https://seaborn.pydata.org/generated/seaborn.violinplot.html
+
+    @param results (dict):
+        A dict with the mpjpe and action types per image
+        {
+            "id_1" : {"action": clapping, "full_mpjpe": 0.3},
+            "id_2" : {"action": jumping, "full_mpjpe": 0.15},
+            ...
+        }
+
+    @param output_file (str):
+        The file path and name to save the figure. Include
+        'jpg' file extension
+
+    """
+    pd_data = []
+
+    for key, value in results.items():
+        pd_data.append([key, value["action"], value["full_mpjpe"]])
+
+    df = pd.DataFrame(pd_data, columns=["id", "action", "full_mpjpe"])
+    ax = sns.violinplot(x="action", y="full_mpjpe", data=df, inner="quartile")
+
+    os.makedirs(output_file, exist_ok=True)
+    ax.figure.savefig(output_file)
 
 
 def plot_skeleton(poses: list, output_file: str):
