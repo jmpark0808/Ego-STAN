@@ -127,11 +127,11 @@ def get_errors_per_action(results: dict):
             ...
         }
     @returns action_mpjpe (dict):
-        A dict with keys being actions and a list tuples of corresponding
-        mpjpe errors with the id
+        A dict with keys being actions and a list of 2-element list
+        of the corresponding mpjpe errors with the id
         {
-            "clapping": [(id_1, 0.3), ...],
-            "jumping": [(id_2, 0.15), ...],
+            "clapping": [[id_1, 0.3], ...],
+            "jumping": [[id_2, 0.15], ...],
             ...
         }
     """
@@ -142,11 +142,36 @@ def get_errors_per_action(results: dict):
         full_mpjpe = value["full_mpjpe"]
 
         if action in action_mpjpe:
-            action_mpjpe[action].append((key, full_mpjpe))
+            action_mpjpe[action].append([key, full_mpjpe])
         else:
-            action_mpjpe.update({action: [(key, full_mpjpe)]})
+            action_mpjpe.update({action: [[key, full_mpjpe]]})
 
     return action_mpjpe
+
+
+def plot_skeleton(poses: list, output_file: str):
+    """
+    Plot, overlay and save joint skeletons for comparison
+
+    @param poses (list):
+        A list of different skeletons to overlay and plot.
+        This allows for multiple pose inferences to be 
+        viewed concurrently. Each item in the list is
+        required to have the following information:
+        [
+            {
+                "legend_name": "...",
+                "plot_color": "...",
+                "pose": < num_joints by 3 array >
+            },
+            ...
+        ]
+
+    @param output_file (str):
+        The file path and name to save the figure
+        
+    """
+    pass
 
 
 def save_skeleton(
