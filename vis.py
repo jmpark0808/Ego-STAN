@@ -155,7 +155,7 @@ def plot_skeleton(poses: list, output_file: str):
 
     @param poses (list):
         A list of different skeletons to overlay and plot.
-        This allows for multiple pose inferences to be 
+        This allows for multiple pose inferences to be
         viewed concurrently. Each item in the list is
         required to have the following information:
         [
@@ -169,22 +169,12 @@ def plot_skeleton(poses: list, output_file: str):
 
     @param output_file (str):
         The file path and name to save the figure
-        
+
     """
-    pass
-
-
-def save_skeleton(
-    gt_pose: np.ndarray,
-    pred_pose: np.ndarray,
-    img_filename: str,
-    action: str,
-    output_directory: str,
-):
     fig = plt.figure(figsize=(16, 9))
     ax = plt.axes(projection="3d")
 
-    bone_links = [
+    BONE_LINKS = [
         [0, 1],
         [1, 2],
         [1, 5],
@@ -202,48 +192,36 @@ def save_skeleton(
         [13, 14],
         [14, 15],
     ]
-    skeletons = [
-        {"pose": gt_pose, "color": "blue"},
-        {"pose": pred_pose, "color": "green"},
-    ]
 
-    for item in skeletons:
-        pose = item["pose"]
-        color = item["color"]
-        xs = pose[:, 0]
-        ys = pose[:, 1]
-        zs = -pose[:, 2]
-
+    for item in poses:
+        xs = item["pose"][:, 0]
+        ys = item["pose"][:, 1]
+        zs = -item["pose"][:, 2]
         # draw bones
-        for bone in bone_links:
+        for bone in BONE_LINKS:
             index1, index2 = bone[0], bone[1]
             ax.plot3D(
                 [xs[index1], xs[index2]],
                 [ys[index1], ys[index2]],
                 [zs[index1], zs[index2]],
                 linewidth=1,
-                color=color,
+                color=item["plot_color"],
+                label=item["legend_name"],
             )
         # draw joints
-        ax.scatter(xs, ys, zs, color=color)
+        ax.scatter(xs, ys, zs, color=item["plot_color"])
 
     ax.set_xlim(-1, 1)
     ax.set_ylim(-1, 1)
     ax.set_zlim(-1, 1)
-    ax.title.set_text(f"{img_filename}")
+    ax.legend()
+    ax.title.set_text(f"{output_file}")
     plt.axis("off")
     fig.tight_layout()
     ax.view_init(elev=27.0, azim=41.0)
 
-    frame_count = img_filename.split("_")[-1]
-    video_name = "_".join(img_filename.split("_")[:-1]) + f"_{action}"
-    file_destination = os.path.join(output_directory, video_name)
-    os.makedirs(file_destination, exist_ok=True)
-
-    frame_file_path = os.path.join(
-        file_destination, f"{video_name}_{frame_count}_3d.png"
-    )
-    fig.savefig(frame_file_path)
+    os.makedirs(output_file, exist_ok=True)
+    fig.savefig(output_file)
     plt.close()
 
 
