@@ -22,7 +22,7 @@ class DirectRegression(pl.LightningModule):
         # must be defined for logging computational graph
         self.example_input_array = torch.rand((1, 3, 368, 368))
 
-        self.heatmap = HeatMap()
+        self.heatmap = HeatMap(num_classes=15)
         self.conv1 = nn.Conv2d(2048, 512, kernel_size=1)
         self.relu1 = nn.ReLU()
         self.l1 = nn.Linear(73728, 7000)
