@@ -309,22 +309,53 @@ class HeatmapDecoder(nn.Module):
         x = self.deconv3(x)
         return x
 
+# class HM2Pose(nn.Module):
+#     def __init__(self, num_class=16):
+#         super(HM2Pose, self).__init__()
+#         self.num_class = num_class
+#         self.conv1 = nn.Conv2d(num_class, 64, kernel_size=4, stride=2, padding=2)
+#         self.lrelu1 = nn.PReLU()
+#         self.conv2 = nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1)
+#         self.lrelu2 = nn.PReLU()
+#         self.conv3 = nn.Conv2d(128, 512, kernel_size=4, stride=2, padding=1)
+#         self.lrelu3 = nn.PReLU()
+
+#         self.linear1 = nn.Linear(18432, 2048)
+#         self.lrelu4 = nn.PReLU()
+#         self.linear2 = nn.Linear(2048, 512)
+#         self.lrelu5 = nn.PReLU()
+#         self.linear3 = nn.Linear(512, num_class*3)
+ 
+
+#     def forward(self, x):
+#         x = self.conv1(x)
+#         x = self.lrelu1(x)
+#         x = self.conv2(x)
+#         x = self.lrelu2(x)
+#         x = self.conv3(x)
+#         x = self.lrelu3(x)
+#         x = x.reshape(x.size(0), -1) # flatten
+#         x = self.linear1(x)
+#         x = self.lrelu4(x)
+#         x = self.linear2(x)
+#         x = self.lrelu5(x)
+#         x = self.linear3(x)
+#         x = x.reshape(x.size(0), -1, 3)
+#         return x
+
 class HM2Pose(nn.Module):
     def __init__(self, num_class=16):
         super(HM2Pose, self).__init__()
         self.num_class = num_class
-        self.conv1 = nn.Conv2d(num_class, 64, kernel_size=4, stride=2, padding=2)
+        self.conv1 = nn.Conv2d(16, 32, kernel_size=4, stride=2, padding=2)
         self.lrelu1 = nn.PReLU()
-        self.conv2 = nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1)
+        self.conv2 = nn.Conv2d(32, 64, kernel_size=4, stride=2, padding=1)
         self.lrelu2 = nn.PReLU()
-        self.conv3 = nn.Conv2d(128, 512, kernel_size=4, stride=2, padding=1)
+        self.conv3 = nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1)
         self.lrelu3 = nn.PReLU()
 
-        self.linear1 = nn.Linear(18432, 2048)
-        self.lrelu4 = nn.PReLU()
-        self.linear2 = nn.Linear(2048, 512)
-        self.lrelu5 = nn.PReLU()
-        self.linear3 = nn.Linear(512, num_class*3)
+        self.linear1 = nn.Linear(4608, num_class*3)
+
  
 
     def forward(self, x):
@@ -336,10 +367,6 @@ class HM2Pose(nn.Module):
         x = self.lrelu3(x)
         x = x.reshape(x.size(0), -1) # flatten
         x = self.linear1(x)
-        x = self.lrelu4(x)
-        x = self.linear2(x)
-        x = self.lrelu5(x)
-        x = self.linear3(x)
         x = x.reshape(x.size(0), -1, 3)
         return x
 
