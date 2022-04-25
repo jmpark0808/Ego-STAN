@@ -149,7 +149,6 @@ class MPII(BaseDataset):
         img_height, img_width = (data['img_height'], data['img_width'])
         p2ds = self._process_points(data)
         p2ds = p2ds[:, :14, :] # We only take the first 14 joints
-
         p2d_heatmap = np.zeros((14, 47, 47))
 
         for i in range(len(p2ds)):
@@ -163,7 +162,7 @@ class MPII(BaseDataset):
         if self.transform:
             img = self.transform({'image': img})['image']
 
-        return img, p2d_heatmap, p2ds, action
+        return img, p2d_heatmap, action, img_path
 
     def __len__(self):
 
