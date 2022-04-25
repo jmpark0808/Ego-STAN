@@ -106,10 +106,10 @@ class Mo2Cap2Heatmap(pl.LightningModule):
         self.log('Total HM loss', hm_loss.item())
 
         self.iteration += img.size(0)
-   
-        tensorboard.add_images('TR Images', img, self.iteration)
-        tensorboard.add_images('TR Ground Truth 2D Heatmap', torch.clip(torch.sum(p2d, dim=1, keepdim=True), 0, 1), self.iteration)
-        tensorboard.add_images('TR Predicted 2D Heatmap', torch.clip(torch.sum(heatmap, dim=1, keepdim=True), 0, 1), self.iteration)
+        if batch_idx % 500 == 0:
+            tensorboard.add_images('TR Images', img, self.iteration)
+            tensorboard.add_images('TR Ground Truth 2D Heatmap', torch.clip(torch.sum(p2d, dim=1, keepdim=True), 0, 1), self.iteration)
+            tensorboard.add_images('TR Predicted 2D Heatmap', torch.clip(torch.sum(heatmap, dim=1, keepdim=True), 0, 1), self.iteration)
         return loss
 
 
