@@ -42,6 +42,8 @@ pip install -r requirements.txt
     * Folder that contains base class for dataset, eval and transform. 
 * utils/
     * Folder that contains codes for utility. (Logging, metrics, configuration of joints etc.)
+* sbash_scripts/
+    * Example scripts to run on compute canada.
 
 
      

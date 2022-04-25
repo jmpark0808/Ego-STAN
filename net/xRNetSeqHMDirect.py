@@ -179,7 +179,7 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
 
         """
         
-        sequence_imgs, p2d, p3d, action = batch
+        sequence_imgs, p2d, p3d, action, img_path = batch
         sequence_imgs = sequence_imgs.cuda()
         p2d = p2d.cuda()
         p2d = p2d[:, -1, :, :, :]
@@ -216,7 +216,7 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
         validation loop: https://pytorch-lightning.readthedocs.io/en/stable/common/lightning_module.html#hooks
         """
         
-        sequence_imgs, p2d, p3d, action = batch
+        sequence_imgs, p2d, p3d, action, img_path = batch
         sequence_imgs = sequence_imgs.cuda()
         p2d = p2d.cuda()
         p2d = p2d[:, -1, :, :, :]
@@ -279,7 +279,7 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
     def test_step(self, batch, batch_idx):
         logdir = self.logger.log_dir
         tensorboard = self.logger.experiment
-        sequence_imgs, p2d, p3d, action = batch
+        sequence_imgs, p2d, p3d, action, img_path = batch
         sequence_imgs = sequence_imgs.cuda()
         p2d = p2d.cuda()
         p2d = p2d[:, -1, :, :, :]

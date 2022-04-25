@@ -177,7 +177,7 @@ class xREgoPoseSeq(pl.LightningModule):
 
         """
         
-        sequence_imgs, p2d, p3d, action = batch
+        sequence_imgs, p2d, p3d, action, img_path = batch
         sequence_imgs = sequence_imgs.cuda()
         p2d = p2d.cuda()
         p2d = p2d.reshape(-1, 16, 47, 47)
@@ -216,7 +216,8 @@ class xREgoPoseSeq(pl.LightningModule):
         Compute the metrics for validation batch
         validation loop: https://pytorch-lightning.readthedocs.io/en/stable/common/lightning_module.html#hooks
         """
-        sequence_imgs, p2d, p3d, action = batch
+        tensorboard = self.logger.experiment
+        sequence_imgs, p2d, p3d, action, img_path = batch
         sequence_imgs = sequence_imgs.cuda()
         p2d = p2d.cuda()
         p2d = p2d.reshape(-1, 16, 47, 47)
@@ -280,7 +281,7 @@ class xREgoPoseSeq(pl.LightningModule):
         self.eval_per_joint = evaluate.EvalPerJoint()
 
     def test_step(self, batch, batch_idx):
-        sequence_imgs, p2d, p3d, action = batch
+        sequence_imgs, p2d, p3d, action, img_path = batch
         sequence_imgs = sequence_imgs.cuda()
         p2d = p2d.cuda()
         p2d = p2d.reshape(-1, 16, 47, 47)

@@ -140,7 +140,7 @@ class Mo2Cap2Direct(pl.LightningModule):
 
         """
         tensorboard = self.logger.experiment
-        img, p2d, p3d, action = batch
+        img, p2d, p3d, action, img_path = batch
         img = img.cuda()
         p2d = p2d.cuda()
         p3d = p3d.cuda()
@@ -203,7 +203,7 @@ class Mo2Cap2Direct(pl.LightningModule):
         """
 
         tensorboard = self.logger.experiment
-        img, p2d, p3d, action = batch
+        img, p2d, p3d, action, img_path = batch
         img = img.cuda()
         p2d = p2d.cuda()
         p3d = p3d.cuda()
@@ -293,7 +293,7 @@ class Mo2Cap2Direct(pl.LightningModule):
         self.eval_per_joint = evaluate.EvalPerJoint(mode=self.which_data)
 
     def test_step(self, batch, batch_idx):
-        img, p2d, p3d, action = batch
+        img, p2d, p3d, action, img_path = batch
         img = img.cuda()
         p2d = p2d.cuda()
         p3d = p3d.cuda()
