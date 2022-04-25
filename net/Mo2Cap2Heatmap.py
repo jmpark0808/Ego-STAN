@@ -93,12 +93,8 @@ class Mo2Cap2Heatmap(pl.LightningModule):
         img, p2d, action, img_path = batch
         img = img.cuda()
         p2d = p2d.cuda()
- 
+
         # forward pass
-        
-
-
-        
         heatmap = self.forward(img)
         heatmap = torch.sigmoid(heatmap)
         hm_loss = self.mse(heatmap, p2d)
@@ -107,7 +103,13 @@ class Mo2Cap2Heatmap(pl.LightningModule):
 
         self.iteration += img.size(0)
         if batch_idx % 500 == 0:
-            tensorboard.add_images('TR Images', img, self.iteration)
+            mean=[0.485, 0.456, 0.406]
+            std=[0.229, 0.224, 0.225]
+            img_plot = img.clone()
+            img_plot[:, 0, :, :] = img_plot[:, 0, :, :]*std[0]+mean[0]
+            img_plot[:, 1, :, :] = img_plot[:, 1, :, :]*std[1]+mean[1]
+            img_plot[:, 2, :, :] = img_plot[:, 2, :, :]*std[2]+mean[2]
+            tensorboard.add_images('TR Images', img_plot, self.iteration)
             tensorboard.add_images('TR Ground Truth 2D Heatmap', torch.clip(torch.sum(p2d, dim=1, keepdim=True), 0, 1), self.iteration)
             tensorboard.add_images('TR Predicted 2D Heatmap', torch.clip(torch.sum(heatmap, dim=1, keepdim=True), 0, 1), self.iteration)
         return loss
