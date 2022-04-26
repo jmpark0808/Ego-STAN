@@ -92,13 +92,25 @@ class Mo2Cap2Direct(pl.LightningModule):
         Choose what optimizers and learning-rate schedulers to use in your optimization.
         """
 
-        grouped_parameters = [
-            {'params': self.heatmap.resnet101.conv1.parameters(), 'lr': self.lr/50.},
-            {'params': self.heatmap.resnet101.bn1.parameters(), 'lr': self.lr/50.},
-            {'params': self.heatmap.resnet101.layer1.parameters(), 'lr': self.lr/50.},
-            {'params': self.heatmap.resnet101.layer2.parameters(), 'lr': self.lr/50.},
-            {'params': self.heatmap.resnet101.layer3.parameters(), 'lr': self.lr/50.},
-            {'params': self.heatmap.resnet101.layer4.parameters()},
+        layer_names = []
+        for idx, (name, param) in enumerate(self.heatmap.resnet101.named_parameters()):
+            layer_names.append(name)
+            
+        grouped_parameters = []
+
+
+        # store params & learning rates
+        for idx, name in enumerate(layer_names):
+            # append layer parameters
+            if idx <= 0.86*len(layer_names):
+                grouped_parameters += [{'params': [p for n, p in self.heatmap.resnet101.named_parameters() if n == name and p.requires_grad],
+                                'lr': self.lr/50.}]
+            else:
+                grouped_parameters += [{'params': [p for n, p in self.heatmap.resnet101.named_parameters() if n == name and p.requires_grad],
+                                'lr': self.lr}]
+            
+
+        grouped_parameters += [
             {"params": self.heatmap.heatmap_deconv.parameters()},
             {"params": self.pose.parameters()},
         ]
