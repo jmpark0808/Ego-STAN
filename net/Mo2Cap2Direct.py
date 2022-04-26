@@ -48,10 +48,21 @@ class Mo2Cap2Direct(pl.LightningModule):
 
         # Initialize weights
         self.apply(weight_init)
-        if self.load_resnet:
-            self.heatmap.resnet101.load_state_dict(torch.load(self.load_resnet))
-
         self.heatmap.update_resnet101()
+
+        if self.load_resnet:
+            pretrained_dict = torch.load(self.load_resnet)
+            model_dict = self.heatmap.resnet101.state_dict()
+
+            # 1. filter out unnecessary keys
+            pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
+            # 2. overwrite entries in the existing state dict
+            model_dict.update(pretrained_dict) 
+            # 3. load the new state dict
+            self.heatmap.resnet101.load_state_dict(model_dict)
+
+
+        
         self.iteration = 0
         self.save_hyperparameters()
         self.test_results = {}
@@ -80,9 +91,15 @@ class Mo2Cap2Direct(pl.LightningModule):
         """
         Choose what optimizers and learning-rate schedulers to use in your optimization.
         """
-        
+
+        grouped_parameters = [
+            {"params": self.heatmap.resnet101.parameters(), 'lr': self.lr*0.001},
+            {"params": self.heatmap.heatmap_deconv.parameters()},
+            {"params": self.pose.parameters()},
+        ]
+
         optimizer = torch.optim.AdamW(
-        self.parameters(), lr=self.lr
+        grouped_parameters, lr=self.lr
         )
         self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
             optimizer,
@@ -156,6 +173,8 @@ class Mo2Cap2Direct(pl.LightningModule):
             loss = hm_2d_loss
             self.log('Total HM loss', hm_2d_loss.item())
         else:
+            for param in self.heatmap.parameters():
+                param.requires_grad = False
             heatmap, pose = self.forward(img)
             heatmap = torch.sigmoid(heatmap)
             hm_2d_loss = self.mse(heatmap, p2d)
