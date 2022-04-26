@@ -93,7 +93,7 @@ class Mo2Cap2Direct(pl.LightningModule):
         """
 
         grouped_parameters = [
-            {"params": self.heatmap.resnet101.parameters(), 'lr': self.lr*0.001},
+            {"params": self.heatmap.resnet101.parameters(), 'lr': self.lr*0.1},
             {"params": self.heatmap.heatmap_deconv.parameters()},
             {"params": self.pose.parameters()},
         ]
@@ -111,26 +111,6 @@ class Mo2Cap2Direct(pl.LightningModule):
         
         return optimizer
     
-    def optimizer_step(
-        self,
-        epoch,
-        batch_idx,
-        optimizer,
-        optimizer_idx,
-        optimizer_closure,
-        on_tpu=False,
-        using_native_amp=False,
-        using_lbfgs=False,
-    ):
-        # skip the first 500 steps
-        if self.trainer.global_step < int(self.hm_train_steps/self.batch_size):
-            lr_scale = min(1.0, float(self.trainer.global_step + 1) / int(self.hm_train_steps/self.batch_size))
-            for pg in optimizer.param_groups:
-                pg["lr"] = lr_scale * self.lr
-
-        # update params
-        optimizer.step(closure=optimizer_closure)
-        optimizer.zero_grad()
       
 
     def forward(self, x):
