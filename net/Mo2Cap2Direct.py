@@ -170,12 +170,14 @@ class Mo2Cap2Direct(pl.LightningModule):
             loss = hm_2d_loss
             self.log('Total HM loss', hm_2d_loss.item())
         else:
+            for param in self.heatmap.parameters():
+                param.requires_grad = False
             heatmap, pose = self.forward(img)
             heatmap = torch.sigmoid(heatmap)
-            hm_2d_loss = self.mse(heatmap, p2d)
+            # hm_2d_loss = self.mse(heatmap, p2d)
             loss_3d_pose = self.auto_encoder_loss(pose, p3d)
-            loss = hm_2d_loss + loss_3d_pose
-            self.log('Total HM loss', hm_2d_loss.item())
+            loss = loss_3d_pose #+hm_2d_loss
+            # self.log('Total HM loss', hm_2d_loss.item())
             self.log('Total 3D loss', loss_3d_pose.item())
 
         # calculate mpjpe loss
@@ -240,7 +242,7 @@ class Mo2Cap2Direct(pl.LightningModule):
         self.eval_body.eval(y_output, y_target, action)
         self.eval_upper.eval(y_output, y_target, action)
         self.eval_lower.eval(y_output, y_target, action)
-        if batch_idx%100 == 0:
+        if batch_idx == 0:
 
             skel_dir = os.path.join(self.logger.log_dir, 'skel_plots')
             if not os.path.exists(skel_dir):
