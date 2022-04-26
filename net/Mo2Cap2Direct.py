@@ -93,7 +93,12 @@ class Mo2Cap2Direct(pl.LightningModule):
         """
 
         grouped_parameters = [
-            {"params": self.heatmap.resnet101.parameters()},
+            {'params': self.heatmap.resnet101.conv1.parameters(), 'lr': self.lr/50.},
+            {'params': self.heatmap.resnet101.bn1.parameters(), 'lr': self.lr/50.},
+            {'params': self.heatmap.resnet101.layer1.parameters(), 'lr': self.lr/50.},
+            {'params': self.heatmap.resnet101.layer2.parameters(), 'lr': self.lr/50.},
+            {'params': self.heatmap.resnet101.layer3.parameters(), 'lr': self.lr/50.},
+            {'params': self.heatmap.resnet101.layer4.parameters()},
             {"params": self.heatmap.heatmap_deconv.parameters()},
             {"params": self.pose.parameters()},
         ]
