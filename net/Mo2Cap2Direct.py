@@ -93,7 +93,7 @@ class Mo2Cap2Direct(pl.LightningModule):
         """
 
         grouped_parameters = [
-            {"params": self.heatmap.resnet101.parameters(), 'lr': self.lr*0.1},
+            {"params": self.heatmap.resnet101.parameters()},
             {"params": self.heatmap.heatmap_deconv.parameters()},
             {"params": self.pose.parameters()},
         ]
@@ -153,8 +153,6 @@ class Mo2Cap2Direct(pl.LightningModule):
             loss = hm_2d_loss
             self.log('Total HM loss', hm_2d_loss.item())
         else:
-            for param in self.heatmap.parameters():
-                param.requires_grad = False
             heatmap, pose = self.forward(img)
             heatmap = torch.sigmoid(heatmap)
             hm_2d_loss = self.mse(heatmap, p2d)
