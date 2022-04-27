@@ -58,7 +58,12 @@ def main():
     for batch in tqdm(test_dataloader):
         img, p2d, p3d, action, img_path = batch
 
-        p3d = p3d.cpu().numpy()
+
+        if len(p3d.size()) == 3:
+            p3d = p3d.cpu().numpy()
+        else:
+            p3d = p3d[:, -1, :, :].cpu().numpy()
+            
         pose = model(img).detach().numpy()
 
         print("[p] rendering skeletons")
