@@ -24,7 +24,8 @@ def main():
     parser.add_argument("--batch_size", default=16, type=int)
     parser.add_argument("--output_directory", required=True, type=str)
     parser.add_argument("--cuda", default="cuda", choices=["cuda", "cpu"], type=str)
-    parser.add_argument("--heatmap_type", required=True)
+    parser.add_argument("--heatmap_type", help='Type of 2D ground truth heatmap, Defaults to "baseline"', 
+                        default= 'baseline')
     parser.add_argument(
         "--heatmap_resolution",
         help="2D heatmap resolution",
