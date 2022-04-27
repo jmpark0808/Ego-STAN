@@ -111,8 +111,8 @@ download_set "TestSet"
 # Start testing
 python ~/projects/def-pfieguth/kkaai/xREgoPose/vis.py \
     --model direct_regression \
-    --model_checkpoint_file /home/kkaai/projects/def-pfieguth/kkaai/xREgoPose/ \
-    --output_directory /home/kkaai/scratch/3d_plots \
+    --model_checkpoint_file /home/kkaai/workspace/models/state_dict/02251123/epoch=11-step=146693.ckpt \
+    --output_directory /home/kkaai/scratch/ \
     --dataloader baseline \
     --dataset_test $SLURM_TMPDIR/TestSet \
     --batch_size 16 \
