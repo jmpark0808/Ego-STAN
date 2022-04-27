@@ -93,10 +93,10 @@ def main():
         img = img.cuda()
         if dict_args['dataloader'] == 'sequential':
             hms, pose, atts = model(img)
-            pose = pose.detach().numpy()
+            pose = pose.data.cpu().numpy()
         else:
             hms, pose = model(img)
-            pose = pose.detach().numpy()
+            pose = pose.data.cpu().numpy()
 
         errors = np.mean(np.sqrt(np.sum(np.power(p3d - pose, 2), axis=2)), axis=1)
 
