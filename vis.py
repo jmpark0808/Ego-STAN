@@ -89,7 +89,7 @@ def main():
         else:
             p3d = p3d[:, -1, :, :].cpu().numpy()
             
-        img = img.cuda()
+        img = img.cpu().numpy()
         pose = model(img).detach().numpy()
 
         errors = np.mean(np.sqrt(np.sum(np.power(p3d - pose, 2), axis=2)), axis=1)
@@ -104,7 +104,7 @@ def main():
                         "pred_pose": pose[idx],
                         "action": action[idx],
                         "full_mpjpe": errors[idx],
-                        "img": img.cpu().numpy()[idx],
+                        "img": img[idx],
                     }
                 }
             )
