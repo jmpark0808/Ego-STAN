@@ -101,7 +101,11 @@ def main():
         errors = np.mean(np.sqrt(np.sum(np.power(p3d - pose, 2), axis=2)), axis=1)
 
         for idx in range(p3d.shape[0]):
-            filename = pathlib.Path(img_path[idx]).stem
+            if dict_args['dataloader'] == 'sequential':
+                filename = pathlib.Path(img_path[idx, -1]).stem
+            else:
+                filename = pathlib.Path(img_path[idx]).stem
+            
             filename = str(filename).replace(".", "_")
             results.update(
                 {
