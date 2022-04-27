@@ -41,15 +41,6 @@ def main():
     )
     parser.add_argument("--num_workers", type=int, required=True)
     parser.add_argument(
-        "--clip_grad_norm",
-        help="Clipping gradient norm, 0 means no clipping",
-        type=float,
-        default=0.0,
-    )
-    parser.add_argument(
-        "--dropout", help="Dropout for transformer", type=float, default=0.0
-    )
-    parser.add_argument(
         "--encoder_type",
         help='Type of encoder for concatenation, Defaults to "branch_concat"',
         default="branch_concat",
@@ -111,7 +102,7 @@ def main():
                         "pred_pose": pose[idx],
                         "action": action[idx],
                         "full_mpjpe": errors[idx],
-                        "img": img[idx],
+                        "img": img.cpu().numpy()[idx],
                     }
                 }
             )
