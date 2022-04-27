@@ -91,7 +91,12 @@ def main():
             p3d = p3d[:, -1, :, :].cpu().numpy()
             
         img = img.cuda()
-        pose = model(img).detach().numpy()
+        if dict_args['dataloader'] == 'sequential':
+            hms, pose, atts = model(img)
+            pose = pose.detach().numpy()
+        else:
+            hms, pose = model(img)
+            pose = pose.detach().numpy()
 
         errors = np.mean(np.sqrt(np.sum(np.power(p3d - pose, 2), axis=2)), axis=1)
 
