@@ -73,6 +73,7 @@ def main():
         checkpoint_path=dict_args["model_checkpoint_file"],
         map_location=dict_args["cuda"],
     )
+    model = model.to(dict_args['cuda'])
     model.eval()
 
     # Store results in dict
@@ -89,7 +90,7 @@ def main():
         else:
             p3d = p3d[:, -1, :, :].cpu().numpy()
             
-        img = img.cpu().numpy()
+        img = img.cuda()
         pose = model(img).detach().numpy()
 
         errors = np.mean(np.sqrt(np.sum(np.power(p3d - pose, 2), axis=2)), axis=1)
@@ -104,7 +105,7 @@ def main():
                         "pred_pose": pose[idx],
                         "action": action[idx],
                         "full_mpjpe": errors[idx],
-                        "img": img[idx],
+                        "img": img.cpu().numpy()[idx],
                     }
                 }
             )
