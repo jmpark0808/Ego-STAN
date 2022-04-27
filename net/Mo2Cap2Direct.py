@@ -174,10 +174,10 @@ class Mo2Cap2Direct(pl.LightningModule):
                 param.requires_grad = False
             heatmap, pose = self.forward(img)
             heatmap = torch.sigmoid(heatmap)
-            # hm_2d_loss = self.mse(heatmap, p2d)
+            hm_2d_loss = self.mse(heatmap, p2d)
             loss_3d_pose = self.auto_encoder_loss(pose, p3d)
             loss = loss_3d_pose #+hm_2d_loss
-            # self.log('Total HM loss', hm_2d_loss.item())
+            self.log('Total HM loss', hm_2d_loss.item())
             self.log('Total 3D loss', loss_3d_pose.item())
 
         # calculate mpjpe loss
