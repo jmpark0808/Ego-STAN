@@ -196,7 +196,7 @@ def plot_violin(results: dict, output_file: str):
     df = pd.DataFrame(pd_data, columns=["id", "action", "full_mpjpe"])
     ax = sns.violinplot(x="action", y="full_mpjpe", data=df, inner="quartile")
 
-    os.makedirs(output_file, exist_ok=True)
+    # os.makedirs(output_file, exist_ok=True)
     ax.figure.savefig(output_file)
 
 
