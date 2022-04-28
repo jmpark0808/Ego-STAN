@@ -99,10 +99,10 @@ def main():
             pose = pose.data.cpu().numpy()
 
         errors = np.mean(np.sqrt(np.sum(np.power(p3d - pose, 2), axis=2)), axis=1)
-
+        print(p3d.shape[0], len(img_path))
         for idx in range(p3d.shape[0]):
             if dict_args['dataloader'] == 'sequential':
-                filename = pathlib.Path(img_path[idx][-1]).stem
+                filename = pathlib.Path(img_path[-1][idx]).stem
             else:
                 filename = pathlib.Path(img_path[idx]).stem
             
