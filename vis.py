@@ -92,12 +92,14 @@ def main():
                 p3d = p3d[:, -1, :, :].cpu().numpy()
                 
             img = img.cuda()
-            if dict_args['dataloader'] == 'sequential':
+            if dict_args['model'] == 'xregopose_seq_hm_direct':
                 hms, pose, atts = model(img)
                 pose = pose.data.cpu().numpy()
-            else:
-                hms, pose = model(img)
+            elif dict_args['model'] == 'xregopose':
+                hms, pose, ghm = model(img)
                 pose = pose.data.cpu().numpy()
+            else:
+                raise('Unsupported model type')
 
             errors = np.mean(np.sqrt(np.sum(np.power(p3d - pose, 2), axis=2)), axis=1)
             for idx in range(p3d.shape[0]):
