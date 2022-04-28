@@ -114,7 +114,6 @@ def main():
                             "pred_pose": pose[idx],
                             "action": action[idx],
                             "full_mpjpe": errors[idx],
-                            "img": img.cpu().numpy()[idx],
                         }
                     }
                 )
