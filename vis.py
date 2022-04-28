@@ -102,7 +102,7 @@ def main():
 
         for idx in range(p3d.shape[0]):
             if dict_args['dataloader'] == 'sequential':
-                filename = pathlib.Path(img_path[idx, -1]).stem
+                filename = pathlib.Path(img_path[idx][-1]).stem
             else:
                 filename = pathlib.Path(img_path[idx]).stem
             
