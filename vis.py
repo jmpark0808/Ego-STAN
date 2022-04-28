@@ -3,7 +3,7 @@ import datetime
 import os
 import pathlib
 import pickle
-
+import torch
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -81,43 +81,43 @@ def main():
 
     # Iterate through each batch to generate visuals
     print("[p] processing batches")
-    for batch in tqdm(test_dataloader):
-        img, p2d, p3d, action, img_path = batch
+    with torch.no_grad():
+        for batch in tqdm(test_dataloader):
+            img, p2d, p3d, action, img_path = batch
 
 
-        if len(p3d.size()) == 3:
-            p3d = p3d.cpu().numpy()
-        else:
-            p3d = p3d[:, -1, :, :].cpu().numpy()
-            
-        img = img.cuda()
-        if dict_args['dataloader'] == 'sequential':
-            hms, pose, atts = model(img)
-            pose = pose.data.cpu().numpy()
-        else:
-            hms, pose = model(img)
-            pose = pose.data.cpu().numpy()
-
-        errors = np.mean(np.sqrt(np.sum(np.power(p3d - pose, 2), axis=2)), axis=1)
-        print(p3d.shape[0], len(img_path))
-        for idx in range(p3d.shape[0]):
-            if dict_args['dataloader'] == 'sequential':
-                filename = pathlib.Path(img_path[-1][idx]).stem
+            if len(p3d.size()) == 3:
+                p3d = p3d.cpu().numpy()
             else:
-                filename = pathlib.Path(img_path[idx]).stem
-            
-            filename = str(filename).replace(".", "_")
-            results.update(
-                {
-                    filename: {
-                        "gt_pose": p3d[idx],
-                        "pred_pose": pose[idx],
-                        "action": action[idx],
-                        "full_mpjpe": errors[idx],
-                        "img": img.cpu().numpy()[idx],
+                p3d = p3d[:, -1, :, :].cpu().numpy()
+                
+            img = img.cuda()
+            if dict_args['dataloader'] == 'sequential':
+                hms, pose, atts = model(img)
+                pose = pose.data.cpu().numpy()
+            else:
+                hms, pose = model(img)
+                pose = pose.data.cpu().numpy()
+
+            errors = np.mean(np.sqrt(np.sum(np.power(p3d - pose, 2), axis=2)), axis=1)
+            for idx in range(p3d.shape[0]):
+                if dict_args['dataloader'] == 'sequential':
+                    filename = pathlib.Path(img_path[-1][idx]).stem
+                else:
+                    filename = pathlib.Path(img_path[idx]).stem
+                
+                filename = str(filename).replace(".", "_")
+                results.update(
+                    {
+                        filename: {
+                            "gt_pose": p3d[idx],
+                            "pred_pose": pose[idx],
+                            "action": action[idx],
+                            "full_mpjpe": errors[idx],
+                            "img": img.cpu().numpy()[idx],
+                        }
                     }
-                }
-            )
+                )
 
     # Create output directory
     now = datetime.datetime.now().strftime("%m_%a_%H_%M_%S")
