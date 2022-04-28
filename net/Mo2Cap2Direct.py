@@ -115,7 +115,7 @@ class Mo2Cap2Direct(pl.LightningModule):
             {"params": self.pose.parameters()},
         ]
 
-        optimizer = torch.optim.Adadelta(
+        optimizer = torch.optim.AdamW(
         grouped_parameters, lr=self.lr
         )
         self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
