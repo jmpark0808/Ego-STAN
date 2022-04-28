@@ -110,8 +110,8 @@ def main():
                 results.update(
                     {
                         filename: {
-                            "gt_pose": p3d[idx],
-                            "pred_pose": pose[idx],
+                            # "gt_pose": p3d[idx],
+                            # "pred_pose": pose[idx],
                             "action": action[idx],
                             "full_mpjpe": errors[idx],
                         }
