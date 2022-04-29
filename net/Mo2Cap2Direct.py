@@ -104,7 +104,7 @@ class Mo2Cap2Direct(pl.LightningModule):
             # append layer parameters
             if idx <= 0.86*len(layer_names):
                 grouped_parameters += [{'params': [p for n, p in self.heatmap.resnet101.named_parameters() if n == name and p.requires_grad],
-                                'lr': self.lr*0.001}]
+                                'lr': self.lr*0.01}]
             else:
                 grouped_parameters += [{'params': [p for n, p in self.heatmap.resnet101.named_parameters() if n == name and p.requires_grad],
                                 'lr': self.lr}]
