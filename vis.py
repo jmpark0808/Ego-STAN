@@ -239,7 +239,7 @@ def plot_violin(results: dict, output_file: str):
     ax.set_xticklabels(ax.get_xticklabels(),rotation=90)
     ax.set_ylabel("MPJPE (mm)")
     # os.makedirs(output_file, exist_ok=True)
-    ax.figure.savefig(output_file)
+    ax.figure.savefig(output_file, bbox_inches = "tight")
 
 
 def plot_skeleton(poses: list, output_file: str):
