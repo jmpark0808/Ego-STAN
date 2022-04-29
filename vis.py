@@ -13,7 +13,7 @@ from tqdm import tqdm
 from train import DATALOADER_DIRECTORY, MODEL_DIRECTORY
 
 sns.set_theme(style="whitegrid")
-
+highest_differences = ['female_008_a_a_rgba_001625', 'female_010_a_a_rgba_003845', 'male_002_a_a_rgba_1812', 'male_006_a_a_rgba_004566', 'male_010_a_a_rgba_004940']
 
 def main():
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
@@ -194,8 +194,9 @@ def plot_violin(results: dict, output_file: str):
 
     for key, value in results.items():
         pd_data.append([key, value["action"], value["full_mpjpe"]])
-
+    
     df = pd.DataFrame(pd_data, columns=["id", "action", "full_mpjpe"])
+    print(df.action.unique())
     ax = sns.violinplot(x="action", y="full_mpjpe", data=df, inner="quartile")
 
     # os.makedirs(output_file, exist_ok=True)
