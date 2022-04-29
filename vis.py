@@ -237,7 +237,7 @@ def plot_violin(results: dict, output_file: str):
     df = pd.DataFrame(pd_data, columns=["id", "action", "full_mpjpe"])
     ax = sns.violinplot(x="action", y="full_mpjpe", data=df, inner="quartile")
     ax.set_xticklabels(ax.get_xticklabels(),rotation=90)
-    ax.fig.get_axes()[0].set_ylabel("MPJPE (mm)")
+    ax.set_ylabel("MPJPE (mm)")
     # os.makedirs(output_file, exist_ok=True)
     ax.figure.savefig(output_file)
 
