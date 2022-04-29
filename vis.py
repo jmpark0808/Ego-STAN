@@ -10,6 +10,7 @@ import pandas as pd
 import seaborn as sns
 from tqdm import tqdm
 
+from base.base_eval import BaseEval
 from train import DATALOADER_DIRECTORY, MODEL_DIRECTORY
 
 sns.set_theme(style="whitegrid")
@@ -78,13 +79,14 @@ def main():
 
     # Store results in dict
     results = {}
-
+    handpicked_results = {}
+    baseeval = BaseEval()
     # Iterate through each batch to generate visuals
     print("[p] processing batches")
     with torch.no_grad():
         for batch in tqdm(test_dataloader):
             img, p2d, p3d, action, img_path = batch
-
+            
 
             if len(p3d.size()) == 3:
                 p3d = p3d.cpu().numpy()
@@ -109,12 +111,22 @@ def main():
                     filename = pathlib.Path(img_path[idx]).stem
                 
                 filename = str(filename).replace(".", "_")
+                if filename in highest_differences:
+                    handpicked_results.update(
+                    {
+                        filename: {
+                            "gt_pose": p3d[idx],
+                            "pred_pose": pose[idx],
+                            "img": img.cpu().numppy()[idx]
+                        }
+                    }
+                )
                 results.update(
                     {
                         filename: {
                             # "gt_pose": p3d[idx],
                             # "pred_pose": pose[idx],
-                            "action": action[idx],
+                            "action": baseeval._map_action_name(action[idx]),
                             "full_mpjpe": errors[idx],
                         }
                     }
@@ -128,9 +140,12 @@ def main():
 
     # Save results file
     results_path = os.path.join(out_dir, "results_" + dir_name + ".pkl")
+    handpicked_results_path = os.path.join(out_dir, "handpicked_results_" + dir_name + ".pkl")
     with open(results_path, "wb") as handle:
         pickle.dump(results, handle)
 
+    with open(handpicked_results_path, "wb") as handle:
+        pickle.dump(handpicked_results, handle)
     # plot violin
     violin_path = os.path.join(out_dir, "violin_" + dir_name + ".jpg")
     plot_violin(results=results, output_file=violin_path)
@@ -196,9 +211,9 @@ def plot_violin(results: dict, output_file: str):
         pd_data.append([key, value["action"], value["full_mpjpe"]])
     
     df = pd.DataFrame(pd_data, columns=["id", "action", "full_mpjpe"])
-    print(df.action.unique())
     ax = sns.violinplot(x="action", y="full_mpjpe", data=df, inner="quartile")
-
+    ax.set_xticklabels(ax.get_xticklabels(),rotation=90)
+    ax.fig.get_axes()[0].set_ylabel("MPJPE (mm)")
     # os.makedirs(output_file, exist_ok=True)
     ax.figure.savefig(output_file)
 
