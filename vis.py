@@ -13,8 +13,32 @@ from tqdm import tqdm
 from base.base_eval import BaseEval
 from train import DATALOADER_DIRECTORY, MODEL_DIRECTORY
 
+
 sns.set_theme(style="whitegrid")
 highest_differences = ['female_008_a_a_rgba_001625', 'female_010_a_a_rgba_003845', 'male_002_a_a_rgba_1812', 'male_006_a_a_rgba_004566', 'male_010_a_a_rgba_004940']
+
+class ActionMap(BaseEval):
+    """Eval entire body"""
+    def __init__(self):
+        super().__init__()
+
+
+    def map_action(self, action):
+        """Evaluate
+
+        Arguments:
+            pred {np.ndarray} -- predictions, format (N x 3)
+            gt {np.ndarray} -- ground truth, format (N x 3)
+
+        Keyword Arguments:
+            action {str} -- action name (default: {None})
+        """
+        return self._map_action_name(action)
+
+ 
+
+    def desc(self):
+        return "ActionMapper"
 
 def main():
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
@@ -80,7 +104,7 @@ def main():
     # Store results in dict
     results = {}
     handpicked_results = {}
-    baseeval = BaseEval()
+    baseeval = ActionMap()
     # Iterate through each batch to generate visuals
     print("[p] processing batches")
     with torch.no_grad():
@@ -126,7 +150,7 @@ def main():
                         filename: {
                             # "gt_pose": p3d[idx],
                             # "pred_pose": pose[idx],
-                            "action": baseeval._map_action_name(action[idx]),
+                            "action": baseeval.map_action(action[idx]),
                             "full_mpjpe": errors[idx],
                         }
                     }
