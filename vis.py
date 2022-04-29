@@ -141,7 +141,7 @@ def main():
                         filename: {
                             "gt_pose": p3d[idx],
                             "pred_pose": pose[idx],
-                            "img": img.cpu().numppy()[idx]
+                            "img": img.cpu().numpy()[idx]
                         }
                     }
                 )
