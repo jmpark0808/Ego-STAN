@@ -23,7 +23,7 @@ class ActionMap(BaseEval):
         super().__init__()
 
 
-    def map_action(self, action):
+    def eval(self, pred, gt, actions=None):
         """Evaluate
 
         Arguments:
@@ -33,7 +33,7 @@ class ActionMap(BaseEval):
         Keyword Arguments:
             action {str} -- action name (default: {None})
         """
-        return self._map_action_name(action)
+        return self._map_action_name(actions)
 
  
 
@@ -150,7 +150,7 @@ def main():
                         filename: {
                             # "gt_pose": p3d[idx],
                             # "pred_pose": pose[idx],
-                            "action": baseeval.map_action(action[idx]),
+                            "action": baseeval.eval(None, None, action[idx]),
                             "full_mpjpe": errors[idx],
                         }
                     }
