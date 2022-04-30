@@ -103,11 +103,11 @@ class Mo2Cap2Direct(pl.LightningModule):
         threshold = False
         for idx, name in enumerate(layer_names):
             # append layer parameters
-            if '6.15' in name:
+            if '7.0' in name:
                 threshold = True
 
             if not threshold:
-                grouped_parameters += [{'params': [p for n, p in self.heatmap.resnet101.named_parameters() if n == name and p.requires_grad], 'lr': self.lr*0.001}]
+                grouped_parameters += [{'params': [p for n, p in self.heatmap.resnet101.named_parameters() if n == name and p.requires_grad], 'lr': self.lr/50.}]
             else:
                 grouped_parameters += [{'params': [p for n, p in self.heatmap.resnet101.named_parameters() if n == name and p.requires_grad],
                                 'lr': self.lr}]
@@ -118,7 +118,7 @@ class Mo2Cap2Direct(pl.LightningModule):
             {"params": self.pose.parameters()},
         ]
 
-        optimizer = torch.optim.AdamW(
+        optimizer = torch.optim.Adadelta(
         grouped_parameters, lr=self.lr
         )
         self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
