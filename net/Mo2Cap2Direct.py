@@ -100,11 +100,15 @@ class Mo2Cap2Direct(pl.LightningModule):
 
 
         # store params & learning rates
+        threshold = False
         for idx, name in enumerate(layer_names):
             # append layer parameters
-            if idx <= 0.86*len(layer_names):
+            if 'layer3.15' in name:
+                threshold = True
+
+            if not threshold:
                 grouped_parameters += [{'params': [p for n, p in self.heatmap.resnet101.named_parameters() if n == name and p.requires_grad],
-                                'lr': self.lr*0.01}]
+                                'lr': self.lr*0.001}]
             else:
                 grouped_parameters += [{'params': [p for n, p in self.heatmap.resnet101.named_parameters() if n == name and p.requires_grad],
                                 'lr': self.lr}]
