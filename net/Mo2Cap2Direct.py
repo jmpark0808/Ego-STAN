@@ -107,7 +107,7 @@ class Mo2Cap2Direct(pl.LightningModule):
                 threshold = True
 
             if not threshold:
-                grouped_parameters += [{'params': [p for n, p in self.heatmap.resnet101.named_parameters() if n == name and p.requires_grad], 'lr': self.lr*0.02}]
+                grouped_parameters += [{'params': [p for n, p in self.heatmap.resnet101.named_parameters() if n == name and p.requires_grad], 'lr': self.lr*0.005}]
             else:
                 grouped_parameters += [{'params': [p for n, p in self.heatmap.resnet101.named_parameters() if n == name and p.requires_grad],
                                 'lr': self.lr}]
@@ -166,23 +166,23 @@ class Mo2Cap2Direct(pl.LightningModule):
         
 
 
-        if self.iteration <= self.hm_train_steps:
-            heatmap, pose = self.forward(img)
-            heatmap = torch.sigmoid(heatmap)
-            hm_2d_loss = self.mse(heatmap, p2d)
-            loss = hm_2d_loss
-            self.log('Total HM loss', hm_2d_loss.item())
-        else:
-            for param in self.heatmap.parameters():
-                param.requires_grad = False
-            self.trainer.optimizers[0] = torch.optim.AdamW(self.pose.parameters(), lr=self.lr)
-            heatmap, pose = self.forward(img)
-            heatmap = torch.sigmoid(heatmap)
-            hm_2d_loss = self.mse(heatmap, p2d)
-            loss_3d_pose = self.auto_encoder_loss(pose, p3d)
-            loss = loss_3d_pose #+ hm_2d_loss
-            self.log('Total HM loss', hm_2d_loss.item())
-            self.log('Total 3D loss', loss_3d_pose.item())
+        # if self.iteration <= self.hm_train_steps:
+        #     heatmap, pose = self.forward(img)
+        #     heatmap = torch.sigmoid(heatmap)
+        #     hm_2d_loss = self.mse(heatmap, p2d)
+        #     loss = hm_2d_loss
+        #     self.log('Total HM loss', hm_2d_loss.item())
+        # else:
+        #     for param in self.heatmap.parameters():
+        #         param.requires_grad = False
+        #     self.trainer.optimizers[0] = torch.optim.AdamW(self.pose.parameters(), lr=self.lr)
+        heatmap, pose = self.forward(img)
+        heatmap = torch.sigmoid(heatmap)
+        hm_2d_loss = self.mse(heatmap, p2d)
+        loss_3d_pose = self.auto_encoder_loss(pose, p3d)
+        loss = loss_3d_pose + hm_2d_loss
+        self.log('Total HM loss', hm_2d_loss.item())
+        self.log('Total 3D loss', loss_3d_pose.item())
 
         # calculate mpjpe loss
         mpjpe = torch.mean(torch.sqrt(torch.sum(torch.pow(p3d - pose, 2), dim=2)))
