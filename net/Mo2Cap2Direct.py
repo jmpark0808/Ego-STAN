@@ -49,7 +49,7 @@ class Mo2Cap2Direct(pl.LightningModule):
         # Initialize weights
         self.apply(weight_init)
         self.heatmap.update_resnet101()
-
+        
         if self.load_resnet:
             pretrained_dict = torch.load(self.load_resnet)
             model_dict = self.heatmap.resnet101.state_dict()
@@ -103,11 +103,11 @@ class Mo2Cap2Direct(pl.LightningModule):
         threshold = False
         for idx, name in enumerate(layer_names):
             # append layer parameters
-            if '7.0' in name:
+            if '7.2' in name:
                 threshold = True
 
             if not threshold:
-                grouped_parameters += [{'params': [p for n, p in self.heatmap.resnet101.named_parameters() if n == name and p.requires_grad], 'lr': self.lr/50.}]
+                grouped_parameters += [{'params': [p for n, p in self.heatmap.resnet101.named_parameters() if n == name and p.requires_grad], 'lr': self.lr*0.02}]
             else:
                 grouped_parameters += [{'params': [p for n, p in self.heatmap.resnet101.named_parameters() if n == name and p.requires_grad],
                                 'lr': self.lr}]
@@ -118,7 +118,7 @@ class Mo2Cap2Direct(pl.LightningModule):
             {"params": self.pose.parameters()},
         ]
 
-        optimizer = torch.optim.Adadelta(
+        optimizer = torch.optim.AdamW(
         grouped_parameters, lr=self.lr
         )
         self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
@@ -175,6 +175,7 @@ class Mo2Cap2Direct(pl.LightningModule):
         else:
             for param in self.heatmap.parameters():
                 param.requires_grad = False
+            self.trainer.optimizers[0] = torch.optim.AdamW(self.pose.parameters(), lr=self.lr)
             heatmap, pose = self.forward(img)
             heatmap = torch.sigmoid(heatmap)
             hm_2d_loss = self.mse(heatmap, p2d)
