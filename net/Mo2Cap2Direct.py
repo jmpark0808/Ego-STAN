@@ -107,7 +107,7 @@ class Mo2Cap2Direct(pl.LightningModule):
                 threshold = True
 
             if not threshold:
-                grouped_parameters += [{'params': [p for n, p in self.heatmap.resnet101.named_parameters() if n == name and p.requires_grad], 'lr': self.lr*0.01}]
+                grouped_parameters += [{'params': [p for n, p in self.heatmap.resnet101.named_parameters() if n == name and p.requires_grad], 'lr': self.lr*0.02}]
             else:
                 grouped_parameters += [{'params': [p for n, p in self.heatmap.resnet101.named_parameters() if n == name and p.requires_grad],
                                 'lr': self.lr}]
