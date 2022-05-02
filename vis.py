@@ -126,8 +126,10 @@ def main():
                 pose = pose.data.cpu().numpy()
             elif dict_args['model'] in ['xregopose_direct']:
                 hms, pose = model(img)
+                pose = pose.data.cpu().numpy()
             elif dict_args['model'] in ['xregopose_seq']:
                 hms, pose, ghm, atts = model(img)
+                pose = pose.data.cpu().numpy()
             else:
                 raise('Unsupported model type')
 
