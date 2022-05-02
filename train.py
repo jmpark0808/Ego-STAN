@@ -21,6 +21,7 @@ from dataset.mocap_transformer import MocapSeqDataModule
 from dataset.mo2cap2_transformer import Mo2Cap2SeqDataModule
 from net.DirectRegression import DirectRegression
 from net.Mo2Cap2Direct import Mo2Cap2Direct
+from net.xRNetBaseLineL1 import xREgoPoseL1
 from net.xRNetDirect import xREgoPoseDirect
 from net.Mo2Cap2Baseline import Mo2Cap2Baseline
 from net.xRNetPosteriorLinear import xREgoPosePosteriorLinear
@@ -46,6 +47,7 @@ from utils.evaluate import create_results_csv
 MODEL_DIRECTORY = {
     "direct_regression": DirectRegression,
     "xregopose": xREgoPose,
+    "xregopose_l1": xREgoPoseL1,
     "xregopose_seq": xREgoPoseSeq,
     "xregopose_concat":xRNetConcat,
     "xregopose_heatmap": xREgoPoseHeatMap,
