@@ -103,7 +103,7 @@ class Mo2Cap2Direct(pl.LightningModule):
         threshold = False
         for idx, name in enumerate(layer_names):
             # append layer parameters
-            if '7.2' in name:
+            if '7.0' in name:
                 threshold = True
 
             if not threshold:
@@ -232,7 +232,7 @@ class Mo2Cap2Direct(pl.LightningModule):
         # forward pass
         heatmap, pose = self.forward(img)
         heatmap = torch.sigmoid(heatmap)
-
+  
         # calculate pose loss
         val_hm_2d_loss = self.mse(heatmap, p2d)
         val_loss_3d_pose = self.auto_encoder_loss(pose, p3d)
@@ -241,8 +241,8 @@ class Mo2Cap2Direct(pl.LightningModule):
         self.val_loss_3d_pose_total += val_loss_3d_pose
 
         # Evaluate mpjpe
-        y_output = pose.data.cpu().numpy()
-        y_target = p3d.data.cpu().numpy()
+        y_output = pose.data.cpu().numpy()*1000.
+        y_target = p3d.data.cpu().numpy()*1000.
         self.eval_body.eval(y_output, y_target, action)
         self.eval_upper.eval(y_output, y_target, action)
         self.eval_lower.eval(y_output, y_target, action)
