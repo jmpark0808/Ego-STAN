@@ -118,12 +118,16 @@ def main():
                 p3d = p3d[:, -1, :, :].cpu().numpy()
                 
             img = img.cuda()
-            if dict_args['model'] == 'xregopose_seq_hm_direct':
+            if dict_args['model'] in ['xregopose_seq_hm_direct', 'xregopose_seq_hm_direct_avg', 'xregopose_global_trans', 'xregopose_seq_hm_direct_slice']:
                 hms, pose, atts = model(img)
                 pose = pose.data.cpu().numpy()
-            elif dict_args['model'] == 'xregopose':
+            elif dict_args['model'] in ['xregopose', 'xregopose_l1']:
                 hms, pose, ghm = model(img)
                 pose = pose.data.cpu().numpy()
+            elif dict_args['model'] in ['xregopose_direct']:
+                hms, pose = model(img)
+            elif dict_args['model'] in ['xregopose_seq']:
+                hms, pose, ghm, atts = model(img)
             else:
                 raise('Unsupported model type')
 
@@ -171,8 +175,8 @@ def main():
     with open(handpicked_results_path, "wb") as handle:
         pickle.dump(handpicked_results, handle)
     # plot violin
-    violin_path = os.path.join(out_dir, "violin_" + dir_name + ".jpg")
-    plot_violin(results=results, output_file=violin_path)
+    # violin_path = os.path.join(out_dir, "violin_" + dir_name + ".jpg")
+    # plot_violin(results=results, output_file=violin_path)
 
 
 def get_errors_per_action(results: dict):
