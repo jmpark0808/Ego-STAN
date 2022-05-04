@@ -41,10 +41,10 @@ class xREgoPose(pl.LightningModule):
         self.heatmap_decoder = HeatmapDecoder(num_class)
 
         # Initialize the mpjpe evaluation pipeline
-        self.eval_body = evaluate.EvalBody()
+        self.eval_body = evaluate.EvalBody(mode=self.which_data)
         self.eval_upper = evaluate.EvalUpperBody(mode=self.which_data)
         self.eval_lower = evaluate.EvalLowerBody(mode=self.which_data)
-        self.eval_per_joint = evaluate.EvalPerJoint()
+        self.eval_per_joint = evaluate.EvalPerJoint(mode=self.which_data)
 
         # Initialize total validation pose loss
         self.val_loss_3d_pose_total = torch.tensor(0., device=self.device)
@@ -102,13 +102,7 @@ class xREgoPose(pl.LightningModule):
         optimizer = torch.optim.SGD(
         self.parameters(), lr=self.lr, momentum=0.9, nesterov=True
         )
-        self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-            optimizer,
-            mode='min',
-            factor=0.1,
-            patience=self.es_patience-3,
-            min_lr=1e-8,
-            verbose=True)
+ 
         
         return optimizer
       
@@ -146,7 +140,7 @@ class xREgoPose(pl.LightningModule):
         logging resources:
         https://pytorch-lightning.readthedocs.io/en/latest/starter/introduction_guide.html
         """
-        tensorboard = self.logger.experiment
+
         img, p2d, p3d, action, img_path = batch
         img = img.cuda()
         p2d = p2d.cuda()
@@ -181,9 +175,7 @@ class xREgoPose(pl.LightningModule):
         self.log("train_mpjpe_std", mpjpe_std)
         self.iteration += img.size(0)
    
-        tensorboard.add_images('TR Images', img, self.iteration)
-        tensorboard.add_images('TR Ground Truth 2D Heatmap', torch.clip(torch.sum(p2d, dim=1, keepdim=True), 0, 1), self.iteration)
-        tensorboard.add_images('TR Predicted 2D Heatmap', torch.clip(torch.sum(heatmap, dim=1, keepdim=True), 0, 1), self.iteration)
+
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -191,7 +183,7 @@ class xREgoPose(pl.LightningModule):
         Compute the metrics for validation batch
         validation loop: https://pytorch-lightning.readthedocs.io/en/stable/common/lightning_module.html#hooks
         """
-        tensorboard = self.logger.experiment
+ 
         
         img, p2d, p3d, action, img_path = batch
         img = img.cuda()
@@ -215,13 +207,12 @@ class xREgoPose(pl.LightningModule):
         self.eval_body.eval(y_output, y_target, action)
         self.eval_upper.eval(y_output, y_target, action)
         self.eval_lower.eval(y_output, y_target, action)
-        tensorboard.add_images('Val Ground Truth 2D Heatmap', torch.clip(torch.sum(p2d, dim=1, keepdim=True), 0, 1), self.iteration)
-        tensorboard.add_images('Val Predicted 2D Heatmap', torch.clip(torch.sum(heatmap, dim=1, keepdim=True), 0, 1), self.iteration)
+
         return val_loss_3d_pose
 
     def on_validation_start(self):
         # Initialize the mpjpe evaluation pipeline
-        self.eval_body = evaluate.EvalBody()
+        self.eval_body = evaluate.EvalBody(mode=self.which_data)
         self.eval_upper = evaluate.EvalUpperBody(mode=self.which_data)
         self.eval_lower = evaluate.EvalLowerBody(mode=self.which_data)
 
@@ -239,16 +230,15 @@ class xREgoPose(pl.LightningModule):
             self.log("val_mpjpe_upper_body", val_mpjpe_upper["All"]["mpjpe"])
             self.log("val_mpjpe_lower_body", val_mpjpe_lower["All"]["mpjpe"])
             self.log("val_loss", self.val_loss_3d_pose_total)
-            self.scheduler.step(val_mpjpe["All"]["mpjpe"])
         else:
             self.log("val_mpjpe_full_body", 0.3-0.01*(self.iteration/self.hm_train_steps))
-            self.scheduler.step(0.3-0.01*(self.iteration/self.hm_train_steps))
+
     def on_test_start(self):
         # Initialize the mpjpe evaluation pipeline
-        self.eval_body = evaluate.EvalBody()
+        self.eval_body = evaluate.EvalBody(mode=self.which_data)
         self.eval_upper = evaluate.EvalUpperBody(mode=self.which_data)
         self.eval_lower = evaluate.EvalLowerBody(mode=self.which_data)
-        self.eval_per_joint = evaluate.EvalPerJoint()
+        self.eval_per_joint = evaluate.EvalPerJoint(mode=self.which_data)
 
     def test_step(self, batch, batch_idx):
         img, p2d, p3d, action, img_path = batch

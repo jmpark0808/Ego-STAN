@@ -41,10 +41,10 @@ class xREgoPoseL1(pl.LightningModule):
         self.heatmap_decoder = HeatmapDecoder(num_class)
 
         # Initialize the mpjpe evaluation pipeline
-        self.eval_body = evaluate.EvalBody()
+        self.eval_body = evaluate.EvalBody(mode=self.which_data)
         self.eval_upper = evaluate.EvalUpperBody(mode=self.which_data)
         self.eval_lower = evaluate.EvalLowerBody(mode=self.which_data)
-        self.eval_per_joint = evaluate.EvalPerJoint()
+        self.eval_per_joint = evaluate.EvalPerJoint(mode=self.which_data)
 
         # Initialize total validation pose loss
         self.val_loss_3d_pose_total = torch.tensor(0., device=self.device)
@@ -99,13 +99,7 @@ class xREgoPoseL1(pl.LightningModule):
         optimizer = torch.optim.SGD(
         self.parameters(), lr=self.lr, momentum=0.9, nesterov=True
         )
-        self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-            optimizer,
-            mode='min',
-            factor=0.1,
-            patience=self.es_patience-3,
-            min_lr=1e-8,
-            verbose=True)
+  
         
         return optimizer
       
@@ -218,7 +212,7 @@ class xREgoPoseL1(pl.LightningModule):
 
     def on_validation_start(self):
         # Initialize the mpjpe evaluation pipeline
-        self.eval_body = evaluate.EvalBody()
+        self.eval_body = evaluate.EvalBody(mode=self.which_data)
         self.eval_upper = evaluate.EvalUpperBody(mode=self.which_data)
         self.eval_lower = evaluate.EvalLowerBody(mode=self.which_data)
 
@@ -242,10 +236,10 @@ class xREgoPoseL1(pl.LightningModule):
             self.scheduler.step(0.3-0.01*(self.iteration/self.hm_train_steps))
     def on_test_start(self):
         # Initialize the mpjpe evaluation pipeline
-        self.eval_body = evaluate.EvalBody()
+        self.eval_body = evaluate.EvalBody(mode=self.which_data)
         self.eval_upper = evaluate.EvalUpperBody(mode=self.which_data)
         self.eval_lower = evaluate.EvalLowerBody(mode=self.which_data)
-        self.eval_per_joint = evaluate.EvalPerJoint()
+        self.eval_per_joint = evaluate.EvalPerJoint(mode=self.which_data)
 
     def test_step(self, batch, batch_idx):
         img, p2d, p3d, action, img_path = batch
