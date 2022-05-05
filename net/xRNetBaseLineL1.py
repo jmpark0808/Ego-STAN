@@ -230,10 +230,9 @@ class xREgoPoseL1(pl.LightningModule):
             self.log("val_mpjpe_upper_body", val_mpjpe_upper["All"]["mpjpe"])
             self.log("val_mpjpe_lower_body", val_mpjpe_lower["All"]["mpjpe"])
             self.log("val_loss", self.val_loss_3d_pose_total)
-            self.scheduler.step(val_mpjpe["All"]["mpjpe"])
         else:
             self.log("val_mpjpe_full_body", 0.3-0.01*(self.iteration/self.hm_train_steps))
-            self.scheduler.step(0.3-0.01*(self.iteration/self.hm_train_steps))
+
     def on_test_start(self):
         # Initialize the mpjpe evaluation pipeline
         self.eval_body = evaluate.EvalBody(mode=self.which_data)
