@@ -169,7 +169,7 @@ def main():
                 )
 
     # Create output directory
-    now = datetime.datetime.now().strftime("%m_%a_%H_%M_%S")
+    now = datetime.datetime.now().strftime("%m_%d_%H_%M_%S")
     dir_name = dict_args["model"] + "_" + now
     out_dir = os.path.join(dict_args["output_directory"], dir_name)
     os.makedirs(out_dir, exist_ok=True)
