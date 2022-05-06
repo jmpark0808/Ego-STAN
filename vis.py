@@ -15,7 +15,13 @@ from train import DATALOADER_DIRECTORY, MODEL_DIRECTORY
 
 
 sns.set_theme(style="whitegrid")
-highest_differences = ['female_008_a_a_rgba_001625', 'female_010_a_a_rgba_003845', 'male_002_a_a_rgba_1812', 'male_006_a_a_rgba_004566', 'male_010_a_a_rgba_004940']
+highest_differences = ['female_008_a_a_rgba_001625',
+ 'female_010_a_a_rgba_003845',
+  'male_002_a_a_rgba_1812',
+   'male_006_a_a_rgba_004566',
+    'male_010_a_a_rgba_004940',
+    'male_002_a_a_rgba_1447',
+    'female_008_a_a_rgba_003302']
 
 class ActionMap(BaseEval):
     """Eval entire body"""
