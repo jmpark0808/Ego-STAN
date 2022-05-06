@@ -42,6 +42,7 @@ def main():
                         default= 'baseline')
     parser.add_argument("--heatmap_resolution",  help='2D heatmap resolution', nargs="*", type=int, default=[47, 47])
     parser.add_argument("--image_resolution",  help='Image resolution', nargs="*", type=int, default=[368, 368])
+    parser.add_argument('--dropout', help='Dropout for transformer', type=float, default=0.)
 
 
     dict_args = vars(parser.parse_args())
