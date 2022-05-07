@@ -88,7 +88,7 @@ def main():
 
     # handpicked_results = model.handpicked_results
     results = model.test_mpjpe_samples
-    filenames = model.filenames
+
 
     now = datetime.datetime.now().strftime("%m_%d_%H_%M_%S")
     dir_name = dict_args["model"] + "_" + now
