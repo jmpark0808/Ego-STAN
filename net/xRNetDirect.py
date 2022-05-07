@@ -5,7 +5,9 @@ import torch
 import torch.nn as nn
 from utils import evaluate
 from net.blocks import *
-
+import numpy as np
+import pathlib
+from vis import highest_differences
 
 
 class xREgoPoseDirect(pl.LightningModule):
@@ -209,6 +211,9 @@ class xREgoPoseDirect(pl.LightningModule):
         self.eval_upper = evaluate.EvalUpperBody()
         self.eval_lower = evaluate.EvalLowerBody()
         self.eval_per_joint = evaluate.EvalPerJoint()
+        self.handpicked_results = {}
+        self.results = {}
+        self.baseeval = evaluate.ActionMap()
 
     def test_step(self, batch, batch_idx):
         img, p2d, p3d, action, img_path = batch
@@ -226,7 +231,29 @@ class xREgoPoseDirect(pl.LightningModule):
         self.eval_upper.eval(y_output, y_target, action)
         self.eval_lower.eval(y_output, y_target, action)
         self.eval_per_joint.eval(y_output, y_target)
+        errors = np.mean(np.sqrt(np.sum(np.power(y_target - y_output, 2), axis=2)), axis=1)
+        for idx in range(y_target.shape[0]):
 
+            filename = pathlib.Path(img_path[idx]).stem
+            filename = str(filename).replace(".", "_")
+            if filename in highest_differences:
+                self.handpicked_results.update(
+                {
+                    filename: {
+                        "gt_pose": y_target[idx],
+                        "pred_pose": y_output[idx],
+                        "img": img.cpu().numpy()[idx]
+                    }
+                }
+            )
+            self.results.update(
+                {
+                    filename: {
+                        "action": self.baseeval.eval(None, None, action[idx]),
+                        "full_mpjpe": errors[idx],
+                    }
+                }
+            )
 
     def test_epoch_end(self, test_step_outputs):
         test_mpjpe = self.eval_body.get_results()

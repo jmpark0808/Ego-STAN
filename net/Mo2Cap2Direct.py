@@ -31,10 +31,10 @@ class Mo2Cap2Direct(pl.LightningModule):
         self.pose = HM2Pose(num_class)
 
         # Initialize the mpjpe evaluation pipeline
-        self.eval_body = evaluate.EvalBody(mode=self.which_data)
-        self.eval_upper = evaluate.EvalUpperBody(mode=self.which_data)
-        self.eval_lower = evaluate.EvalLowerBody(mode=self.which_data)
-        self.eval_per_joint = evaluate.EvalPerJoint(mode=self.which_data)
+        self.eval_body = evaluate.EvalBody()
+        self.eval_upper = evaluate.EvalUpperBody()
+        self.eval_lower = evaluate.EvalLowerBody()
+        self.eval_per_joint = evaluate.EvalPerJoint()
 
 
         def weight_init(m):
@@ -92,42 +92,7 @@ class Mo2Cap2Direct(pl.LightningModule):
         Choose what optimizers and learning-rate schedulers to use in your optimization.
         """
 
-        layer_names = []
-        for idx, (name, param) in enumerate(self.heatmap.resnet101.named_parameters()):
-            layer_names.append(name)
-            
-        grouped_parameters = []
-
-
-        # store params & learning rates
-        threshold = False
-        for idx, name in enumerate(layer_names):
-            # append layer parameters
-            if '7.0' in name:
-                threshold = True
-
-            if not threshold:
-                grouped_parameters += [{'params': [p for n, p in self.heatmap.resnet101.named_parameters() if n == name and p.requires_grad], 'lr': self.lr*0.02}]
-            else:
-                grouped_parameters += [{'params': [p for n, p in self.heatmap.resnet101.named_parameters() if n == name and p.requires_grad],
-                                'lr': self.lr}]
-            
-
-        grouped_parameters += [
-            {"params": self.heatmap.heatmap_deconv.parameters()},
-            {"params": self.pose.parameters()},
-        ]
-
-        optimizer = torch.optim.AdamW(
-        grouped_parameters, lr=self.lr
-        )
-        # self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-        #     optimizer,
-        #     mode='min',
-        #     factor=0.1,
-        #     patience=self.es_patience-3,
-        #     min_lr=1e-8,
-        #     verbose=True)
+        optimizer = torch.optim.AdamW(self.parameters(), lr=self.lr)
         
         return optimizer
     
@@ -166,23 +131,20 @@ class Mo2Cap2Direct(pl.LightningModule):
         
 
 
-        # if self.iteration <= self.hm_train_steps:
-        #     heatmap, pose = self.forward(img)
-        #     heatmap = torch.sigmoid(heatmap)
-        #     hm_2d_loss = self.mse(heatmap, p2d)
-        #     loss = hm_2d_loss
-        #     self.log('Total HM loss', hm_2d_loss.item())
-        # else:
-        #     for param in self.heatmap.parameters():
-        #         param.requires_grad = False
-        #     self.trainer.optimizers[0] = torch.optim.AdamW(self.pose.parameters(), lr=self.lr)
-        heatmap, pose = self.forward(img)
-        heatmap = torch.sigmoid(heatmap)
-        hm_2d_loss = self.mse(heatmap, p2d)
-        loss_3d_pose = self.auto_encoder_loss(pose, p3d)
-        loss = loss_3d_pose + hm_2d_loss
-        self.log('Total HM loss', hm_2d_loss.item())
-        self.log('Total 3D loss', loss_3d_pose.item())
+        if self.iteration <= self.hm_train_steps:
+            heatmap, pose = self.forward(img)
+            heatmap = torch.sigmoid(heatmap)
+            hm_2d_loss = self.mse(heatmap, p2d)
+            loss = hm_2d_loss
+            self.log('Total HM loss', hm_2d_loss.item())
+        else:
+            heatmap, pose = self.forward(img)
+            heatmap = torch.sigmoid(heatmap)
+            hm_2d_loss = self.mse(heatmap, p2d)
+            loss_3d_pose = self.auto_encoder_loss(pose, p3d)
+            loss = hm_2d_loss + loss_3d_pose
+            self.log('Total HM loss', hm_2d_loss.item())
+            self.log('Total 3D loss', loss_3d_pose.item())
 
         # calculate mpjpe loss
         mpjpe = torch.mean(torch.sqrt(torch.sum(torch.pow(p3d - pose, 2), dim=2)))
@@ -190,30 +152,6 @@ class Mo2Cap2Direct(pl.LightningModule):
         self.log("train_mpjpe_full_body", mpjpe)
         self.log("train_mpjpe_std", mpjpe_std)
         self.iteration += img.size(0)
-
-        # Log images and skeletons every 3k batches
-        if batch_idx%3000 == 0:
-            tensorboard.add_images('TR Images', img, self.iteration)
-            tensorboard.add_images('TR Ground Truth 2D Heatmap', torch.clip(torch.sum(p2d, dim=1, keepdim=True), 0, 1), self.iteration)
-            tensorboard.add_images('TR Predicted 2D Heatmap', torch.clip(torch.sum(heatmap, dim=1, keepdim=True), 0, 1), self.iteration)  
-
-            # Plotting the skeletons
-            skel_dir = os.path.join(self.logger.log_dir, 'skel_plots')
-            if not os.path.exists(skel_dir):
-                os.mkdir(skel_dir) 
-
-            y_output = pose.data.cpu().numpy()
-            y_target = p3d.data.cpu().numpy()
-            fig_p3d_pred = evaluate.plot_skels(y_output, os.path.join(skel_dir, 'train_p3d_pred.png'))
-            fig_p3d_gt = evaluate.plot_skels(y_target, os.path.join(skel_dir, 'train_p3d_gt.png'))
-            fig_compare = evaluate.plot_skels_compare( p3ds_1 = y_target, p3ds_2 = y_output,
-                                            label_1 = 'GT', label_2 = 'Pred', 
-                                            savepath = os.path.join(skel_dir, 'train_gt_vs_pred.png'))
-
-            tensorboard.add_figure('TR Ground Truth 3D Skeleton', fig_p3d_gt, global_step = self.iteration)
-            tensorboard.add_figure('TR Predicted 3D Skeleton', fig_p3d_pred, global_step = self.iteration)
-            tensorboard.add_figure('TR Pred vs GT 3D Skeleton', fig_compare, global_step = self.iteration)
-
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -279,9 +217,9 @@ class Mo2Cap2Direct(pl.LightningModule):
 
     def on_validation_start(self):
         # Initialize the mpjpe evaluation pipeline
-        self.eval_body = evaluate.EvalBody(mode=self.which_data)
-        self.eval_upper = evaluate.EvalUpperBody(mode=self.which_data)
-        self.eval_lower = evaluate.EvalLowerBody(mode=self.which_data)
+        self.eval_body = evaluate.EvalBody()
+        self.eval_upper = evaluate.EvalUpperBody()
+        self.eval_lower = evaluate.EvalLowerBody()
 
         # Initialize total validation pose loss
         self.val_loss_3d_pose_total = torch.tensor(0., device=self.device)
@@ -307,10 +245,10 @@ class Mo2Cap2Direct(pl.LightningModule):
                     
     def on_test_start(self):
         # Initialize the mpjpe evaluation pipeline
-        self.eval_body = evaluate.EvalBody(mode=self.which_data)
-        self.eval_upper = evaluate.EvalUpperBody(mode=self.which_data)
-        self.eval_lower = evaluate.EvalLowerBody(mode=self.which_data)
-        self.eval_per_joint = evaluate.EvalPerJoint(mode=self.which_data)
+        self.eval_body = evaluate.EvalBody()
+        self.eval_upper = evaluate.EvalUpperBody()
+        self.eval_lower = evaluate.EvalLowerBody()
+        self.eval_per_joint = evaluate.EvalPerJoint()
 
     def test_step(self, batch, batch_idx):
         img, p2d, p3d, action, img_path = batch

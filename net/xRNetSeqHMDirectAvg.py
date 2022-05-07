@@ -7,7 +7,8 @@ from utils import evaluate
 from net.blocks import *
 from net.transformer import ResNetTransformerAvg
 import matplotlib
-
+import pathlib
+from vis import highest_differences
 
 class xREgoPoseSeqHMDirectAvg(pl.LightningModule):
     def __init__(self, **kwargs):
@@ -274,6 +275,9 @@ class xREgoPoseSeqHMDirectAvg(pl.LightningModule):
         self.eval_upper = evaluate.EvalUpperBody()
         self.eval_lower = evaluate.EvalLowerBody()
         self.eval_per_joint = evaluate.EvalPerJoint()
+        self.handpicked_results = {}
+        self.results = {}
+        self.baseeval = evaluate.ActionMap()
 
     def test_step(self, batch, batch_idx):
         tensorboard = self.logger.experiment
@@ -316,7 +320,29 @@ class xREgoPoseSeqHMDirectAvg(pl.LightningModule):
         self.eval_lower.eval(y_output, y_target, action)
         self.eval_per_joint.eval(y_output, y_target)
         self.test_iteration += sequence_imgs.size(0)
-        
+        errors = np.mean(np.sqrt(np.sum(np.power(y_target - y_output, 2), axis=2)), axis=1)
+        for idx in range(y_target.shape[0]):
+
+            filename = pathlib.Path(img_path[-1][idx]).stem
+            filename = str(filename).replace(".", "_")
+            if filename in highest_differences:
+                self.handpicked_results.update(
+                {
+                    filename: {
+                        "gt_pose": y_target[idx],
+                        "pred_pose": y_output[idx],
+                        "img": sequence_imgs[idx, -1].cpu().numpy()
+                    }
+                }
+            )
+            self.results.update(
+                {
+                    filename: {
+                        "action": self.baseeval.eval(None, None, action[idx]),
+                        "full_mpjpe": errors[idx],
+                    }
+                }
+            )
       
 
     def test_epoch_end(self, test_step_outputs):

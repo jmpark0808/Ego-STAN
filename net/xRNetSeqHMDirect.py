@@ -55,19 +55,19 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
         self.image_limit = 100
         self.save_hyperparameters()
 
-        # def weight_init(m):
-        #     """
-        #     Xavier Initialization
-        #     """
-        #     if isinstance(m, torch.nn.Conv2d) or isinstance(m, torch.nn.Linear):
-        #         torch.nn.init.xavier_uniform_(m.weight)
-        #         if m.bias is not None:
-        #             torch.nn.init.zeros_(m.bias)
+        def weight_init(m):
+            """
+            Xavier Initialization
+            """
+            if isinstance(m, torch.nn.Conv2d) or isinstance(m, torch.nn.Linear):
+                torch.nn.init.xavier_uniform_(m.weight)
+                if m.bias is not None:
+                    torch.nn.init.zeros_(m.bias)
 
-        # # Initialize weights
-        # self.apply(weight_init)
-        # if self.load_resnet:
-        #     self.resnet101.load_state_dict(torch.load(self.load_resnet))
+        # Initialize weights
+        self.apply(weight_init)
+        if self.load_resnet:
+            self.resnet101.load_state_dict(torch.load(self.load_resnet))
         self.resnet101 = nn.Sequential(*[l for ind, l in enumerate(self.resnet101.children()) if ind < 8])
         
         
@@ -336,7 +336,7 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
                     filename: {
                         "gt_pose": y_target[idx],
                         "pred_pose": y_output[idx],
-                        "img": img.cpu().numpy()[idx]
+                        "img": sequence_imgs[idx, -1].cpu().numpy()
                     }
                 }
             )

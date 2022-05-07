@@ -21,7 +21,14 @@ mean3D = scipy.io.loadmat(os.path.join(os.path.expanduser('~'), 'projects/def-pf
 kinematic_parents = [ 0, 0, 1, 2, 0, 4, 5, 1, 7, 8, 9, 4, 11, 12, 13]
 bones_mean = mean3D - mean3D[:,kinematic_parents]
 bone_length = np.sqrt(np.sum(np.power(bones_mean, 2), axis=0)) # 15 shape
-
+highest_differences = ['female_008_a_a_rgba_001625',
+ 'female_010_a_a_rgba_003845',
+  'male_002_a_a_rgba_1812',
+   'male_006_a_a_rgba_004566',
+    'male_010_a_a_rgba_004940',
+    'male_002_a_a_rgba_1447',
+    'female_008_a_a_rgba_003302']
+    
 def get_p3ds_t(p3d_preds, p3d_gts):
     """
     Retrieve the 3D Poses, Predicted, Ground Truth and Procrustes Aligned
@@ -624,4 +631,25 @@ class EvalPerJoint(object):
         stacked = np.mean(stacked, axis=0)
         return stacked
 
-    
+class ActionMap(BaseEval):
+    """Eval entire body"""
+    def __init__(self):
+        super().__init__()
+
+
+    def eval(self, pred, gt, actions=None):
+        """Evaluate
+
+        Arguments:
+            pred {np.ndarray} -- predictions, format (N x 3)
+            gt {np.ndarray} -- ground truth, format (N x 3)
+
+        Keyword Arguments:
+            action {str} -- action name (default: {None})
+        """
+        return self._map_action_name(actions)
+
+ 
+
+    def desc(self):
+        return "ActionMapper"
