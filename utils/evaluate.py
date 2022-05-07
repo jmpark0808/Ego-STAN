@@ -508,6 +508,40 @@ class EvalBody(BaseEval):
     def desc(self):
         return "Average3DError"
 
+class EvalSamples(BaseEval):
+    """Eval entire body"""
+    def __init__(self, mode='baseline'):
+        super().__init__()
+        self.mode = mode
+
+    def eval(self, pred, gt, actions=None):
+        """Evaluate
+
+        Arguments:
+            pred {np.ndarray} -- predictions, format (N x 3)
+            gt {np.ndarray} -- ground truth, format (N x 3)
+
+        Keyword Arguments:
+            action {str} -- action name (default: {None})
+        """
+
+        for pid, (pose_in, pose_target) in enumerate(zip(pred, gt)):
+            err = compute_error(pose_in, pose_target, return_mean=False)
+
+            if actions:
+                act_name = self._map_action_name(actions[pid])
+
+                # add element to dictionary if not there yet
+                if not self._is_action_stored(act_name):
+                    self._init_action(act_name)
+                self.error[act_name].append(err)
+
+            # add to all
+            act_name = "All"
+            self.error[act_name].append(err)
+
+    def desc(self):
+        return "3DError"
 
 class EvalUpperBody(BaseEval):
     """Eval upper body"""
@@ -623,6 +657,7 @@ class EvalPerJoint(object):
         stacked = np.array(self.errors)
         stacked = np.mean(stacked, axis=0)
         return stacked
+
 
 class ActionMap(BaseEval):
     """Eval entire body"""

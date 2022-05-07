@@ -7,7 +7,7 @@ import pytorch_lightning as pl
 from pytorch_lightning.loggers import TensorBoardLogger
 from train import DATALOADER_DIRECTORY, MODEL_DIRECTORY
 from utils.evaluate import create_results_csv
-
+import numpy as np
 
 def main():
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
@@ -86,22 +86,28 @@ def main():
     )
     create_results_csv(test_mpjpe_dict, mpjpe_csv_path)
 
-    handpicked_results = model.handpicked_results
-    results = model.results
+    # handpicked_results = model.handpicked_results
+    results = model.test_mpjpe_samples
+    filenames = model.filenames
 
     now = datetime.datetime.now().strftime("%m_%d_%H_%M_%S")
     dir_name = dict_args["model"] + "_" + now
     out_dir = os.path.join(dict_args["output_directory"], dir_name)
     os.makedirs(out_dir, exist_ok=True)
 
+    stacked = np.array(results)
+    
     # Save results file
-    results_path = os.path.join(out_dir, "results_" + dir_name + ".pkl")
-    handpicked_results_path = os.path.join(out_dir, "handpicked_results_" + dir_name + ".pkl")
-    with open(results_path, "wb") as handle:
-        pickle.dump(results, handle)
+    results_path = os.path.join(out_dir, "results_" + dir_name)
+    files_path = os.path.join(out_dir, "files_" + dir_name)
+    np.save(results_path, stacked)
+    np.save(files_path, np.array(filenames))
+    # handpicked_results_path = os.path.join(out_dir, "handpicked_results_" + dir_name + ".pkl")
+    # with open(results_path, "wb") as handle:
+    #     pickle.dump(results, handle)
 
-    with open(handpicked_results_path, "wb") as handle:
-        pickle.dump(handpicked_results, handle)
+    # with open(handpicked_results_path, "wb") as handle:
+    #     pickle.dump(handpicked_results, handle)
 
 if __name__ == "__main__":
     main()
