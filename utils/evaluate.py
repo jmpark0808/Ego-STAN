@@ -28,7 +28,7 @@ highest_differences = ['female_008_a_a_rgba_001625',
     'male_010_a_a_rgba_004940',
     'male_002_a_a_rgba_1447',
     'female_008_a_a_rgba_003302']
-    
+
 def get_p3ds_t(p3d_preds, p3d_gts):
     """
     Retrieve the 3D Poses, Predicted, Ground Truth and Procrustes Aligned
@@ -491,7 +491,7 @@ class EvalBody(BaseEval):
         """
 
         for pid, (pose_in, pose_target) in enumerate(zip(pred, gt)):
-            err = compute_error(pose_in, pose_target, mode=self.mode)
+            err = compute_error(pose_in, pose_target)
 
             if actions:
                 act_name = self._map_action_name(actions[pid])
@@ -534,12 +534,8 @@ class EvalUpperBody(BaseEval):
         """
 
         for pid, (pose_in, pose_target) in enumerate(zip(pred, gt)):
-            if self.mode == 'baseline' or self.mode =='sequential':
-                err = compute_error(pose_in[self._SEL], pose_target[self._SEL], mode=self.mode)
-            elif self.mode == 'mo2cap2':
-                err = compute_error(pose_in, pose_target, return_mean=False, mode=self.mode)
-                err = np.mean(err[self._SEL])
-                
+            err = compute_error(pose_in[self._SEL], pose_target[self._SEL])
+            
 
             if actions:
                 act_name = self._map_action_name(actions[pid])
@@ -583,11 +579,8 @@ class EvalLowerBody(BaseEval):
         """
 
         for pid, (pose_in, pose_target) in enumerate(zip(pred, gt)):
-            if self.mode == 'baseline' or self.mode =='sequential':
-                err = compute_error(pose_in[self._SEL], pose_target[self._SEL], mode=self.mode)
-            elif self.mode == 'mo2cap2':
-                err = compute_error(pose_in, pose_target, return_mean=False, mode=self.mode)
-                err = np.mean(err[self._SEL])
+            err = compute_error(pose_in[self._SEL], pose_target[self._SEL])
+            
 
             if actions:
                 act_name = self._map_action_name(actions[pid])
@@ -622,7 +615,7 @@ class EvalPerJoint(object):
         """
 
         for (pose_in, pose_target) in zip(pred, gt):
-            err = compute_error(pose_in, pose_target, return_mean=False, mode=self.mode)
+            err = compute_error(pose_in, pose_target, return_mean=False)
             # err = Error per joint
             self.errors.append(err)
 
