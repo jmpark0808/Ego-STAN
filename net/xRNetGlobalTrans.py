@@ -286,7 +286,7 @@ class xREgoPoseGlobalTrans(pl.LightningModule):
                     filename: {
                         "gt_pose": y_target[idx],
                         "pred_pose": y_output[idx],
-                        "img": img.cpu().numpy()[idx]
+                        "img": imgs.cpu().numpy()[idx]
                     }
                 }
             )
