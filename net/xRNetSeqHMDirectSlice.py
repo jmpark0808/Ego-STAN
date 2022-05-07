@@ -8,7 +8,7 @@ from net.blocks import *
 from net.transformer import ResNetTransformerSlice
 import matplotlib
 import pathlib
-from vis import highest_differences
+
 
 class xREgoPoseSeqHMDirectSlice(pl.LightningModule):
     def __init__(self, **kwargs):
@@ -325,7 +325,7 @@ class xREgoPoseSeqHMDirectSlice(pl.LightningModule):
 
             filename = pathlib.Path(img_path[-1][idx]).stem
             filename = str(filename).replace(".", "_")
-            if filename in highest_differences:
+            if filename in evaluate.highest_differences:
                 self.handpicked_results.update(
                 {
                     filename: {

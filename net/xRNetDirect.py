@@ -7,7 +7,7 @@ from utils import evaluate
 from net.blocks import *
 import numpy as np
 import pathlib
-from vis import highest_differences
+
 
 
 class xREgoPoseDirect(pl.LightningModule):
@@ -236,7 +236,7 @@ class xREgoPoseDirect(pl.LightningModule):
 
             filename = pathlib.Path(img_path[idx]).stem
             filename = str(filename).replace(".", "_")
-            if filename in highest_differences:
+            if filename in evaluate.highest_differences:
                 self.handpicked_results.update(
                 {
                     filename: {
