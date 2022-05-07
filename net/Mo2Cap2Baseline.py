@@ -36,10 +36,10 @@ class Mo2Cap2Baseline(pl.LightningModule):
         self.heatmap_decoder = HeatmapDecoder(num_class)
 
         # Initialize the mpjpe evaluation pipeline
-        self.eval_body = evaluate.EvalBody()
-        self.eval_upper = evaluate.EvalUpperBody()
-        self.eval_lower = evaluate.EvalLowerBody()
-        self.eval_per_joint = evaluate.EvalPerJoint()
+        self.eval_body = evaluate.EvalBody(mode='mo2cap2')
+        self.eval_upper = evaluate.EvalUpperBody(mode='mo2cap2')
+        self.eval_lower = evaluate.EvalLowerBody(mode='mo2cap2')
+        self.eval_per_joint = evaluate.EvalPerJoint(mode='mo2cap2')
 
         # Initialize total validation pose loss
         self.val_loss_3d_pose_total = torch.tensor(0., device=self.device)
@@ -214,9 +214,9 @@ class Mo2Cap2Baseline(pl.LightningModule):
 
     def on_validation_start(self):
         # Initialize the mpjpe evaluation pipeline
-        self.eval_body = evaluate.EvalBody()
-        self.eval_upper = evaluate.EvalUpperBody()
-        self.eval_lower = evaluate.EvalLowerBody()
+        self.eval_body = evaluate.EvalBody(mode='mo2cap2')
+        self.eval_upper = evaluate.EvalUpperBody(mode='mo2cap2')
+        self.eval_lower = evaluate.EvalLowerBody(mode='mo2cap2')
 
         # Initialize total validation pose loss
         self.val_loss_3d_pose_total = torch.tensor(0., device=self.device)
@@ -238,10 +238,10 @@ class Mo2Cap2Baseline(pl.LightningModule):
             self.scheduler.step(0.3-0.01*(self.iteration/self.hm_train_steps))
     def on_test_start(self):
         # Initialize the mpjpe evaluation pipeline
-        self.eval_body = evaluate.EvalBody()
-        self.eval_upper = evaluate.EvalUpperBody()
-        self.eval_lower = evaluate.EvalLowerBody()
-        self.eval_per_joint = evaluate.EvalPerJoint()
+        self.eval_body = evaluate.EvalBody(mode='mo2cap2')
+        self.eval_upper = evaluate.EvalUpperBody(mode='mo2cap2')
+        self.eval_lower = evaluate.EvalLowerBody(mode='mo2cap2')
+        self.eval_per_joint = evaluate.EvalPerJoint(mode='mo2cap2')
 
     def test_step(self, batch, batch_idx):
         img, p2d, p3d, action, img_path = batch

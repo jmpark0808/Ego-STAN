@@ -40,10 +40,10 @@ class Mo2Cap2GlobalTrans(pl.LightningModule):
         self.hm2pose = HM2Pose(15)
 
         # Initialize the mpjpe evaluation pipeline
-        self.eval_body = evaluate.EvalBody()
-        self.eval_upper = evaluate.EvalUpperBody()
-        self.eval_lower = evaluate.EvalLowerBody()
-        self.eval_per_joint = evaluate.EvalPerJoint()
+        self.eval_body = evaluate.EvalBody(mode='mo2cap2')
+        self.eval_upper = evaluate.EvalUpperBody(mode='mo2cap2')
+        self.eval_lower = evaluate.EvalLowerBody(mode='mo2cap2')
+        self.eval_per_joint = evaluate.EvalPerJoint(mode='mo2cap2')
         # Initialize total validation pose loss
         self.val_loss_3d_pose_total = torch.tensor(0., device=self.device)
         self.val_loss_hm = torch.tensor(0., device=self.device)
@@ -202,9 +202,9 @@ class Mo2Cap2GlobalTrans(pl.LightningModule):
 
     def on_validation_start(self):
         # Initialize the mpjpe evaluation pipeline
-        self.eval_body = evaluate.EvalBody()
-        self.eval_upper = evaluate.EvalUpperBody()
-        self.eval_lower = evaluate.EvalLowerBody()
+        self.eval_body = evaluate.EvalBody(mode='mo2cap2')
+        self.eval_upper = evaluate.EvalUpperBody(mode='mo2cap2')
+        self.eval_lower = evaluate.EvalLowerBody(mode='mo2cap2')
 
         # Initialize total validation pose loss
         self.val_loss_3d_pose_total = torch.tensor(0., device=self.device)
@@ -226,10 +226,10 @@ class Mo2Cap2GlobalTrans(pl.LightningModule):
 
     def on_test_start(self):
         # Initialize the mpjpe evaluation pipeline
-        self.eval_body = evaluate.EvalBody()
-        self.eval_upper = evaluate.EvalUpperBody()
-        self.eval_lower = evaluate.EvalLowerBody()
-        self.eval_per_joint = evaluate.EvalPerJoint()
+        self.eval_body = evaluate.EvalBody(mode='mo2cap2')
+        self.eval_upper = evaluate.EvalUpperBody(mode='mo2cap2')
+        self.eval_lower = evaluate.EvalLowerBody(mode='mo2cap2')
+        self.eval_per_joint = evaluate.EvalPerJoint(mode='mo2cap2')
         self.handpicked_results = {}
         self.results = {}
         self.baseeval = evaluate.ActionMap()
