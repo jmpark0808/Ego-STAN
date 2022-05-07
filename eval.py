@@ -2,7 +2,7 @@ import argparse
 import datetime
 import os
 import pathlib
-
+import pickle
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import TensorBoardLogger
 from train import DATALOADER_DIRECTORY, MODEL_DIRECTORY
@@ -86,6 +86,22 @@ def main():
     )
     create_results_csv(test_mpjpe_dict, mpjpe_csv_path)
 
+    handpicked_results = model.handpicked_results
+    results = model.results
+
+    now = datetime.datetime.now().strftime("%m_%d_%H_%M_%S")
+    dir_name = dict_args["model"] + "_" + now
+    out_dir = os.path.join(dict_args["output_directory"], dir_name)
+    os.makedirs(out_dir, exist_ok=True)
+
+    # Save results file
+    results_path = os.path.join(out_dir, "results_" + dir_name + ".pkl")
+    handpicked_results_path = os.path.join(out_dir, "handpicked_results_" + dir_name + ".pkl")
+    with open(results_path, "wb") as handle:
+        pickle.dump(results, handle)
+
+    with open(handpicked_results_path, "wb") as handle:
+        pickle.dump(handpicked_results, handle)
 
 if __name__ == "__main__":
     main()

@@ -8,7 +8,8 @@ from utils import evaluate
 from net.blocks import *
 from net.transformer import ResNetTransformerCls
 import matplotlib
-
+import pathlib
+from vis import highest_differences
 
 class xREgoPoseSeqHMDirect(pl.LightningModule):
     def __init__(self, **kwargs):
@@ -54,20 +55,19 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
         self.image_limit = 100
         self.save_hyperparameters()
 
-        def weight_init(m):
-            """
-            Xavier Initialization
-            """
-            if isinstance(m, torch.nn.Conv2d) or isinstance(m, torch.nn.Linear):
-                torch.nn.init.xavier_uniform_(m.weight)
-                if m.bias is not None:
-                    torch.nn.init.zeros_(m.bias)
+        # def weight_init(m):
+        #     """
+        #     Xavier Initialization
+        #     """
+        #     if isinstance(m, torch.nn.Conv2d) or isinstance(m, torch.nn.Linear):
+        #         torch.nn.init.xavier_uniform_(m.weight)
+        #         if m.bias is not None:
+        #             torch.nn.init.zeros_(m.bias)
 
-        # Initialize weights
-        self.apply(weight_init)
-
-        if self.load_resnet:
-            self.resnet101.load_state_dict(torch.load(self.load_resnet))
+        # # Initialize weights
+        # self.apply(weight_init)
+        # if self.load_resnet:
+        #     self.resnet101.load_state_dict(torch.load(self.load_resnet))
         self.resnet101 = nn.Sequential(*[l for ind, l in enumerate(self.resnet101.children()) if ind < 8])
         
         
@@ -275,6 +275,9 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
         self.eval_upper = evaluate.EvalUpperBody()
         self.eval_lower = evaluate.EvalLowerBody()
         self.eval_per_joint = evaluate.EvalPerJoint()
+        self.handpicked_results = {}
+        self.results = {}
+        self.baseeval = evaluate.ActionMap()
 
     def test_step(self, batch, batch_idx):
         logdir = self.logger.log_dir
@@ -321,6 +324,30 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
         self.eval_lower.eval(y_output, y_target, action)
         self.eval_per_joint.eval(y_output, y_target)
         self.test_iteration += sequence_imgs.size(0)
+
+        errors = np.mean(np.sqrt(np.sum(np.power(y_target - y_output, 2), axis=2)), axis=1)
+        for idx in range(y_target.shape[0]):
+
+            filename = pathlib.Path(img_path[-1][idx]).stem
+            filename = str(filename).replace(".", "_")
+            if filename in highest_differences:
+                self.handpicked_results.update(
+                {
+                    filename: {
+                        "gt_pose": y_target[idx],
+                        "pred_pose": y_output[idx],
+                        "img": img.cpu().numpy()[idx]
+                    }
+                }
+            )
+            self.results.update(
+                {
+                    filename: {
+                        "action": self.baseeval.eval(None, None, action[idx]),
+                        "full_mpjpe": errors[idx],
+                    }
+                }
+            )
         
       
 
@@ -329,12 +356,11 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
         test_mpjpe_upper = self.eval_upper.get_results()
         test_mpjpe_lower = self.eval_lower.get_results()
         test_mpjpe_per_joint = self.eval_per_joint.get_results()
-
         self.test_results = {
             "Full Body": test_mpjpe,
             "Upper Body": test_mpjpe_upper,
             "Lower Body": test_mpjpe_lower,
-            "Per Joint": test_mpjpe_per_joint
+            "Per Joint": test_mpjpe_per_joint,
         }          
 
 if __name__ == "__main__":
