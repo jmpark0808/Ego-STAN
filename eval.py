@@ -95,16 +95,13 @@ def main():
     out_dir = os.path.join(dict_args["output_directory"], dir_name)
     os.makedirs(out_dir, exist_ok=True)
 
-    stacked = np.array(results)
     
     # Save results file
     results_path = os.path.join(out_dir, "results_" + dir_name)
-    files_path = os.path.join(out_dir, "files_" + dir_name)
-    np.save(results_path, stacked)
-    np.save(files_path, np.array(filenames))
+
     # handpicked_results_path = os.path.join(out_dir, "handpicked_results_" + dir_name + ".pkl")
-    # with open(results_path, "wb") as handle:
-    #     pickle.dump(results, handle)
+    with open(results_path, "wb") as handle:
+        pickle.dump(results, handle)
 
     # with open(handpicked_results_path, "wb") as handle:
     #     pickle.dump(handpicked_results, handle)

@@ -514,7 +514,7 @@ class EvalSamples(BaseEval):
         super().__init__()
         self.mode = mode
 
-    def eval(self, pred, gt, actions=None):
+    def eval(self, pred, gt, actions, filenames):
         """Evaluate
 
         Arguments:
@@ -526,15 +526,21 @@ class EvalSamples(BaseEval):
         """
 
         for pid, (pose_in, pose_target) in enumerate(zip(pred, gt)):
-            err = compute_error(pose_in, pose_target, return_mean=False)
+            err = compute_error(pose_in, pose_target)
 
-            if actions:
-                act_name = self._map_action_name(actions[pid])
+            
+            act_name = self._map_action_name(actions[pid])
 
-                # add element to dictionary if not there yet
-                if not self._is_action_stored(act_name):
-                    self._init_action(act_name)
-                self.error[act_name].append(err)
+            # add element to dictionary if not there yet
+            if not self._is_action_stored('Actions'):
+                self._init_action('Actions')
+
+            self.error['Actions'].append(act_name)
+            
+            if not self._is_action_stored('Filenames'):
+                self._init_action('Filenames')
+
+            self.error['Filenames'].append(filenames[pid])    
 
             # add to all
             act_name = "All"

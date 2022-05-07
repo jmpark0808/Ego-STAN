@@ -322,16 +322,19 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
         self.eval_upper.eval(y_output, y_target, action)
         self.eval_lower.eval(y_output, y_target, action)
         self.eval_per_joint.eval(y_output, y_target)
-        self.eval_samples.eval(y_output, y_target, action)
+        
         self.test_iteration += sequence_imgs.size(0)
+        filenames = []
         for idx in range(y_target.shape[0]):
 
             filename = pathlib.Path(img_path[-1][idx]).stem
             filename = str(filename).replace(".", "_")
-            self.filenames.append(filename)
+            filenames.append(filename)
+        self.eval_samples.eval(y_output, y_target, action, filenames)
       
 
     def test_epoch_end(self, test_step_outputs):
+        print(self.eval_body.error['All'][:10])
         test_mpjpe = self.eval_body.get_results()
         test_mpjpe_upper = self.eval_upper.get_results()
         test_mpjpe_lower = self.eval_lower.get_results()
