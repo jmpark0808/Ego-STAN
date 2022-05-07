@@ -334,7 +334,6 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
       
 
     def test_epoch_end(self, test_step_outputs):
-        print(self.eval_body.error['All'][:10])
         test_mpjpe = self.eval_body.get_results()
         test_mpjpe_upper = self.eval_upper.get_results()
         test_mpjpe_lower = self.eval_lower.get_results()
