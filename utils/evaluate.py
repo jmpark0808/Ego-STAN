@@ -643,6 +643,8 @@ class EvalPerJoint(object):
     def __init__(self, mode='baseline'):
         super().__init__()
         self.errors = []
+        self.gts = []
+        self.pds = []
         self.mode = mode
 
     def eval(self, pred, gt):
@@ -658,6 +660,8 @@ class EvalPerJoint(object):
             err = compute_error(pose_in, pose_target, return_mean=False)
             # err = Error per joint
             self.errors.append(err)
+            self.pds.append(pose_in)
+            self.gts.append(pose_target)
 
     def get_results(self):
         stacked = np.array(self.errors)

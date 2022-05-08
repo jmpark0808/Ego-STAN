@@ -272,6 +272,7 @@ class xREgoPose(pl.LightningModule):
         test_mpjpe = self.eval_body.get_results()
         test_mpjpe_upper = self.eval_upper.get_results()
         test_mpjpe_lower = self.eval_lower.get_results()
+        self.test_raw_p2ds = {'preds': self.eval_per_joint.pds, 'gts': self.eval_per_joint.gts}
         test_mpjpe_per_joint = self.eval_per_joint.get_results()
         self.test_mpjpe_samples = self.eval_samples.error
         self.test_results = {

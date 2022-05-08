@@ -86,7 +86,7 @@ def main():
     )
     create_results_csv(test_mpjpe_dict, mpjpe_csv_path)
 
-    # handpicked_results = model.handpicked_results
+    raw_results = model.test_raw_p2ds
     results = model.test_mpjpe_samples
 
 
@@ -98,13 +98,13 @@ def main():
     
     # Save results file
     results_path = os.path.join(out_dir, "results_" + dir_name)
-
-    # handpicked_results_path = os.path.join(out_dir, "handpicked_results_" + dir_name + ".pkl")
+    handpicked_results_path = os.path.join(out_dir, "raw_results_" + dir_name + ".pkl")
+    
     with open(results_path, "wb") as handle:
         pickle.dump(results, handle)
 
-    # with open(handpicked_results_path, "wb") as handle:
-    #     pickle.dump(handpicked_results, handle)
+    with open(handpicked_results_path, "wb") as handle:
+        pickle.dump(raw_results, handle)
 
 if __name__ == "__main__":
     main()
