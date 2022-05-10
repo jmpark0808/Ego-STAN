@@ -9,42 +9,15 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 from tqdm import tqdm
-
+from utils import evaluate
 from base.base_eval import BaseEval
 from train import DATALOADER_DIRECTORY, MODEL_DIRECTORY
 
 
 sns.set_theme(style="whitegrid")
-highest_differences = ['female_008_a_a_rgba_001625',
- 'female_010_a_a_rgba_003845',
-  'male_002_a_a_rgba_1812',
-   'male_006_a_a_rgba_004566',
-    'male_010_a_a_rgba_004940',
-    'male_002_a_a_rgba_1447',
-    'female_008_a_a_rgba_003302']
-
-class ActionMap(BaseEval):
-    """Eval entire body"""
-    def __init__(self):
-        super().__init__()
 
 
-    def eval(self, pred, gt, actions=None):
-        """Evaluate
 
-        Arguments:
-            pred {np.ndarray} -- predictions, format (N x 3)
-            gt {np.ndarray} -- ground truth, format (N x 3)
-
-        Keyword Arguments:
-            action {str} -- action name (default: {None})
-        """
-        return self._map_action_name(actions)
-
- 
-
-    def desc(self):
-        return "ActionMapper"
 
 def main():
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
@@ -98,75 +71,79 @@ def main():
     test_dataloader = data_module.test_dataloader()
 
     # Initialize model to test
-    assert dict_args["model"] in MODEL_DIRECTORY
-    model = MODEL_DIRECTORY[dict_args["model"]](**dict_args)
-    model = model.load_from_checkpoint(
-        checkpoint_path=dict_args["model_checkpoint_file"],
-        map_location=dict_args["cuda"],
-    )
-    model = model.to(dict_args['cuda'])
-    model.eval()
-
+    # assert dict_args["model"] in MODEL_DIRECTORY
+    # # model = MODEL_DIRECTORY[dict_args["model"]].load_from_checkpoint(dict_args["model_checkpoint_file"])
+    # model = MODEL_DIRECTORY[dict_args["model"]](**dict_args)
+    # model = model.load_from_checkpoint(
+    #     dict_args["model_checkpoint_file"]
+    # )
+    # model = model.to(dict_args['cuda'])
+    # model.eval()
+    # model.freeze()
     # Store results in dict
-    results = {}
-    handpicked_results = {}
-    baseeval = ActionMap()
+
     # Iterate through each batch to generate visuals
     print("[p] processing batches")
-    with torch.no_grad():
-        for batch in tqdm(test_dataloader):
-            img, p2d, p3d, action, img_path = batch
+    handpicked_results = {}
+    for batch in tqdm(test_dataloader):
+        img, p2d, p3d, action, img_path, rawp2d = batch
+        
+
+        # if len(p3d.size()) == 3:
+        #     p3d = p3d.cpu().numpy()
+        # else:
+        #     p3d = p3d[:, -1, :, :].cpu().numpy()
+        
+        # img = img.cuda()
+        # if dict_args['model'] in ['xregopose_seq_hm_direct', 'xregopose_seq_hm_direct_avg', 'xregopose_global_trans', 'xregopose_seq_hm_direct_slice']:
+        #     hms, pose, atts = model(img)
+        #     pose = pose.data.cpu().numpy()
+
             
+            
+        # elif dict_args['model'] in ['xregopose', 'xregopose_l1']:
+        #     hms, pose, ghm = model(img)
+        #     pose = pose.data.cpu().numpy()
+        # elif dict_args['model'] in ['xregopose_direct']:
+        #     hms, pose = model(img)
+        #     pose = pose.data.cpu().numpy()
+        # elif dict_args['model'] in ['xregopose_seq']:
+        #     hms, pose, ghm, atts = model(img)
+        #     pose = pose.data.cpu().numpy()
+        # else:
+        #     raise('Unsupported model type')
 
-            if len(p3d.size()) == 3:
-                p3d = p3d.cpu().numpy()
+        # errors = np.mean(np.sqrt(np.sum(np.power(p3d - pose, 2), axis=2)), axis=1)
+        for idx in range(p3d.shape[0]):
+            if dict_args['dataloader'] == 'sequential':
+                filename = pathlib.Path(img_path[-1][idx]).stem
             else:
-                p3d = p3d[:, -1, :, :].cpu().numpy()
-                
-            img = img.cuda()
-            if dict_args['model'] in ['xregopose_seq_hm_direct', 'xregopose_seq_hm_direct_avg', 'xregopose_global_trans', 'xregopose_seq_hm_direct_slice']:
-                hms, pose, atts = model(img)
-                pose = pose.data.cpu().numpy()
-            elif dict_args['model'] in ['xregopose', 'xregopose_l1']:
-                hms, pose, ghm = model(img)
-                pose = pose.data.cpu().numpy()
-            elif dict_args['model'] in ['xregopose_direct']:
-                hms, pose = model(img)
-                pose = pose.data.cpu().numpy()
-            elif dict_args['model'] in ['xregopose_seq']:
-                hms, pose, ghm, atts = model(img)
-                pose = pose.data.cpu().numpy()
-            else:
-                raise('Unsupported model type')
+                filename = pathlib.Path(img_path[idx]).stem
+            
+            filename = str(filename).replace(".", "_")
+            # if filename in evaluate.highest_differences:
+            handpicked_results.update(
+            {
+                filename: {
+                    # "gt_pose": p3d[idx],
+                    # "pred_pose": pose[idx],
+                    "img": img.cpu().numpy()[idx],
+                    'p2d': rawp2d[-1][idx].cpu().numpy()
+                }
+            }
+            )
+            # results.update(
+            #     {
+            #         filename: {
+            #             # "gt_pose": p3d[idx],
+            #             # "pred_pose": pose[idx],
+            #             "action": baseeval.eval(None, None, action[idx]),
+            #             "full_mpjpe": errors[idx],
+            #         }
+            #     }
+            # )
 
-            errors = np.mean(np.sqrt(np.sum(np.power(p3d - pose, 2), axis=2)), axis=1)
-            for idx in range(p3d.shape[0]):
-                if dict_args['dataloader'] == 'sequential':
-                    filename = pathlib.Path(img_path[-1][idx]).stem
-                else:
-                    filename = pathlib.Path(img_path[idx]).stem
-                
-                filename = str(filename).replace(".", "_")
-                if filename in highest_differences:
-                    handpicked_results.update(
-                    {
-                        filename: {
-                            "gt_pose": p3d[idx],
-                            "pred_pose": pose[idx],
-                            "img": img.cpu().numpy()[idx]
-                        }
-                    }
-                )
-                results.update(
-                    {
-                        filename: {
-                            # "gt_pose": p3d[idx],
-                            # "pred_pose": pose[idx],
-                            "action": baseeval.eval(None, None, action[idx]),
-                            "full_mpjpe": errors[idx],
-                        }
-                    }
-                )
+
 
     # Create output directory
     now = datetime.datetime.now().strftime("%m_%d_%H_%M_%S")
@@ -177,8 +154,8 @@ def main():
     # Save results file
     results_path = os.path.join(out_dir, "results_" + dir_name + ".pkl")
     handpicked_results_path = os.path.join(out_dir, "handpicked_results_" + dir_name + ".pkl")
-    with open(results_path, "wb") as handle:
-        pickle.dump(results, handle)
+    # with open(results_path, "wb") as handle:
+    #     pickle.dump(results, handle)
 
     with open(handpicked_results_path, "wb") as handle:
         pickle.dump(handpicked_results, handle)
