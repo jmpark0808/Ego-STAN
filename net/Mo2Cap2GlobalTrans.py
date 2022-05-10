@@ -95,7 +95,13 @@ class Mo2Cap2GlobalTrans(pl.LightningModule):
         """
         
         optimizer = torch.optim.AdamW(self.parameters(), lr=self.lr)
-
+        self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer,
+            mode='min',
+            factor=0.1,
+            patience=self.es_patience-3,
+            min_lr=1e-8,
+            verbose=True)
         return optimizer
 
     def forward(self, x):
@@ -221,8 +227,10 @@ class Mo2Cap2GlobalTrans(pl.LightningModule):
             self.log("val_mpjpe_upper_body", val_mpjpe_upper["All"]["mpjpe"])
             self.log("val_mpjpe_lower_body", val_mpjpe_lower["All"]["mpjpe"])
             self.log("val_loss", self.val_loss_3d_pose_total)
+            self.scheduler.step(val_mpjpe["All"]["mpjpe"])
         else:
             self.log("val_mpjpe_full_body", 0.3-0.01*(self.iteration/self.hm_train_steps))
+            self.scheduler.step(0.3-0.01*(self.iteration/self.hm_train_steps))
 
     def on_test_start(self):
         # Initialize the mpjpe evaluation pipeline
