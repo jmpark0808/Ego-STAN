@@ -93,7 +93,13 @@ class Mo2Cap2Direct(pl.LightningModule):
         """
 
         optimizer = torch.optim.AdamW(self.parameters(), lr=self.lr)
-        
+        self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer,
+            mode='min',
+            factor=0.1,
+            patience=self.es_patience-3,
+            min_lr=1e-8,
+            verbose=True)
         return optimizer
     
       
@@ -179,8 +185,8 @@ class Mo2Cap2Direct(pl.LightningModule):
         self.val_loss_3d_pose_total += val_loss_3d_pose
 
         # Evaluate mpjpe
-        y_output = pose.data.cpu().numpy()*1000.
-        y_target = p3d.data.cpu().numpy()*1000.
+        y_output = pose.data.cpu().numpy()
+        y_target = p3d.data.cpu().numpy()
         self.eval_body.eval(y_output, y_target, action)
         self.eval_upper.eval(y_output, y_target, action)
         self.eval_lower.eval(y_output, y_target, action)
@@ -230,17 +236,16 @@ class Mo2Cap2Direct(pl.LightningModule):
         val_mpjpe = self.eval_body.get_results()
         val_mpjpe_upper = self.eval_upper.get_results()
         val_mpjpe_lower = self.eval_lower.get_results()
-        # if self.iteration >= self.hm_train_steps:
-        self.log("val_mpjpe_full_body", val_mpjpe["All"]["mpjpe"])
-        self.log("val_mpjpe_full_body_std", val_mpjpe["All"]["std_mpjpe"])
-        self.log("val_mpjpe_upper_body", val_mpjpe_upper["All"]["mpjpe"])
-        self.log("val_mpjpe_lower_body", val_mpjpe_lower["All"]["mpjpe"])
-        self.log("val_loss_3D", self.val_loss_3d_pose_total)
-        self.log("val_loss_2D", self.val_loss_2d_hm)
-        # self.scheduler.step(val_mpjpe["All"]["mpjpe"])
-        # else:
-        #     self.log("val_mpjpe_full_body", 0.3-0.01*(self.iteration/self.hm_train_steps))
-        #     self.scheduler.step(0.3-0.01*(self.iteration/self.hm_train_steps))
+        if self.iteration >= self.hm_train_steps:
+            self.log("val_mpjpe_full_body", val_mpjpe["All"]["mpjpe"])
+            self.log("val_mpjpe_full_body_std", val_mpjpe["All"]["std_mpjpe"])
+            self.log("val_mpjpe_upper_body", val_mpjpe_upper["All"]["mpjpe"])
+            self.log("val_mpjpe_lower_body", val_mpjpe_lower["All"]["mpjpe"])
+            self.log("val_loss", self.val_loss_3d_pose_total)
+            self.scheduler.step(val_mpjpe["All"]["mpjpe"])
+        else:
+            self.log("val_mpjpe_full_body", 0.3-0.01*(self.iteration/self.hm_train_steps))
+            self.scheduler.step(0.3-0.01*(self.iteration/self.hm_train_steps))
    
                     
     def on_test_start(self):
