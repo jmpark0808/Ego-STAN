@@ -181,7 +181,7 @@ class Mo2Cap2Seq(pl.LightningModule):
         sequence_imgs, p2d, p3d, action, img_path = batch
         sequence_imgs = sequence_imgs.cuda()
         p2d = p2d.cuda()
-        p2d = p2d.reshape(-1, 16, 47, 47)
+        p2d = p2d.reshape(-1, 15, 47, 47)
         p3d = p3d.cuda()
         p3d = p3d[:, -1, :, :]
         
@@ -221,7 +221,7 @@ class Mo2Cap2Seq(pl.LightningModule):
         sequence_imgs, p2d, p3d, action, img_path = batch
         sequence_imgs = sequence_imgs.cuda()
         p2d = p2d.cuda()
-        p2d = p2d.reshape(-1, 16, 47, 47)
+        p2d = p2d.reshape(-1, 15, 47, 47)
         p3d = p3d.cuda()
         p3d = p3d[:, -1, :, :]
 

@@ -97,7 +97,7 @@ if __name__ == "__main__":
     parser.add_argument('--dataloader', help="Type of dataloader", required=True, default=None)
     parser.add_argument("--load",
                         help="Directory of pre-trained model,  \n"
-                             "None --> Do not use pre-trained model. Training will start from random initialized model")
+                             "None --> Do not use pre-trained model. Training will start from random initialized model", default=None)
     parser.add_argument('--dataset_tr', help='Directory of your train Dataset', required=True, default=None)
     parser.add_argument('--dataset_val', help='Directory of your validation Dataset', required=True, default=None)
     parser.add_argument('--dataset_test', help='Directory of your test Dataset', default=None)
@@ -186,7 +186,8 @@ if __name__ == "__main__":
         logger=logger,
         max_epochs=dict_args["epoch"],
         log_every_n_steps=10,
-        gradient_clip_val=dict_args['clip_grad_norm']
+        gradient_clip_val=dict_args['clip_grad_norm'],
+        resume_from_checkpoint=dict_args['load']
     )
 
     # Trainer: train model
