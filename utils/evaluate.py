@@ -397,7 +397,7 @@ def create_results_csv(mpjpe_dict: dict, csv_path: str, mode: str = 'baseline'):
      'LeftHand', 'RightArm', 'RightForeArm', 'RightHand',
      'LeftUpLeg', 'LeftLeg','LeftFoot','LeftToeBase',
      'RightUpLeg','RightLeg','RightFoot','RightToeBase']
-    elif mode == 'mo2cap2':
+    elif mode == 'mo2cap2' or mode == 'mo2cap2_seq':
         joints = ['Neck', 'LeftArm', 'LeftForeArm',
      'LeftHand', 'RightArm', 'RightForeArm', 'RightHand',
      'LeftUpLeg', 'LeftLeg','LeftFoot','LeftToeBase',

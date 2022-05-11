@@ -84,7 +84,7 @@ def main():
         dict_args["output_directory"],
         f"{model_dir}_eval.csv",
     )
-    create_results_csv(test_mpjpe_dict, mpjpe_csv_path)
+    create_results_csv(test_mpjpe_dict, mpjpe_csv_path, mode=dict_args['dataloader'])
 
     raw_results = model.test_raw_p2ds
     results = model.test_mpjpe_samples
