@@ -23,6 +23,7 @@ class Mo2Cap2GlobalTrans(pl.LightningModule):
         self.load_resnet = kwargs.get("load_resnet")
         self.hm_train_steps = kwargs.get("hm_train_steps")
         self.dropout = kwargs.get("dropout")
+        self.es_patience = kwargs.get('es_patience')
 
         # must be defined for logging computational graph
         self.example_input_array = torch.rand((1, 3, 368, 368))

@@ -36,7 +36,7 @@ class Mo2Cap2Seq(pl.LightningModule):
         # Transformer that takes sequence of latent vector Z and outputs a single Z vector
         self.seq_transformer = PoseTransformer(seq_len=self.seq_len, dim=20, depth=3, heads=1, mlp_dim=40, dropout=self.dropout)
         # Pose decoder that takes latent vector Z and transforms to 3D pose coordinates
-        self.pose_decoder = PoseDecoder(initial_dim=20)
+        self.pose_decoder = PoseDecoder(initial_dim=20, num_classes=15)
         # Heatmap decoder that takes latent vector Z and generates the original 2D heatmap
         self.heatmap_decoder = HeatmapDecoder(15)
 
