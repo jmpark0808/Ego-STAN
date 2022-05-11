@@ -48,21 +48,13 @@ class Mo2Cap2Direct(pl.LightningModule):
 
         # Initialize weights
         self.apply(weight_init)
-        self.heatmap.update_resnet101()
+        
         
         if self.load_resnet:
-            pretrained_dict = torch.load(self.load_resnet)
-            model_dict = self.heatmap.resnet101.state_dict()
-
-            # 1. filter out unnecessary keys
-            pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
-            # 2. overwrite entries in the existing state dict
-            model_dict.update(pretrained_dict) 
-            # 3. load the new state dict
-            self.heatmap.resnet101.load_state_dict(model_dict)
+            self.heatmap.resnet101.load_state_dict(torch.load(self.load_resnet))
 
 
-        
+        self.heatmap.update_resnet101()
         self.iteration = 0
         self.save_hyperparameters()
         self.test_results = {}
@@ -190,34 +182,34 @@ class Mo2Cap2Direct(pl.LightningModule):
         self.eval_body.eval(y_output, y_target, action)
         self.eval_upper.eval(y_output, y_target, action)
         self.eval_lower.eval(y_output, y_target, action)
-        if batch_idx == 0:
+        # if batch_idx == 0:
 
-            skel_dir = os.path.join(self.logger.log_dir, 'skel_plots')
-            if not os.path.exists(skel_dir):
-                os.mkdir(skel_dir)
+        #     skel_dir = os.path.join(self.logger.log_dir, 'skel_plots')
+        #     if not os.path.exists(skel_dir):
+        #         os.mkdir(skel_dir)
 
-            # Get the procrustes aligned 3D Pose and log
-            p3d_pred_t, p3d_gt_rot_t = evaluate.get_p3ds_t(y_output, y_target)
-            fig_p3d_pred = evaluate.plot_skels(y_output, os.path.join(skel_dir, 'val_p3d_pred.png'))
-            fig_p3d_pred_t = evaluate.plot_skels(p3d_pred_t, os.path.join(skel_dir, 'val_p3d_pred_t.png'))
-            fig_p3d_gt = evaluate.plot_skels(y_target, os.path.join(skel_dir, 'val_p3d_gt.png'))
-            fig_p3d_gt_rot = evaluate.plot_skels(p3d_gt_rot_t, os.path.join(skel_dir, 'val_p3d_gt_rot.png'))
-            fig_compare_rescale = evaluate.plot_skels_compare( p3ds_1 = p3d_gt_rot_t, p3ds_2 = p3d_pred_t,
-                                label_1 = 'GT Rot + Rescale', label_2 = 'Pred Rescale', 
-                                savepath = os.path.join(skel_dir, 'val_gt_rescale_vs_pred_rescale.png'))
-            fig_compare_preds = evaluate.plot_skels_compare( p3ds_1 = y_output, p3ds_2 = p3d_pred_t,
-                                label_1 = 'Pred Raw', label_2 = 'Pred Rescale', 
-                                savepath = os.path.join(skel_dir, 'val_pred_vs_pred_rescale.png'))
+        #     # Get the procrustes aligned 3D Pose and log
+        #     p3d_pred_t, p3d_gt_rot_t = evaluate.get_p3ds_t(y_output, y_target)
+        #     fig_p3d_pred = evaluate.plot_skels(y_output, os.path.join(skel_dir, 'val_p3d_pred.png'))
+        #     fig_p3d_pred_t = evaluate.plot_skels(p3d_pred_t, os.path.join(skel_dir, 'val_p3d_pred_t.png'))
+        #     fig_p3d_gt = evaluate.plot_skels(y_target, os.path.join(skel_dir, 'val_p3d_gt.png'))
+        #     fig_p3d_gt_rot = evaluate.plot_skels(p3d_gt_rot_t, os.path.join(skel_dir, 'val_p3d_gt_rot.png'))
+        #     fig_compare_rescale = evaluate.plot_skels_compare( p3ds_1 = p3d_gt_rot_t, p3ds_2 = p3d_pred_t,
+        #                         label_1 = 'GT Rot + Rescale', label_2 = 'Pred Rescale', 
+        #                         savepath = os.path.join(skel_dir, 'val_gt_rescale_vs_pred_rescale.png'))
+        #     fig_compare_preds = evaluate.plot_skels_compare( p3ds_1 = y_output, p3ds_2 = p3d_pred_t,
+        #                         label_1 = 'Pred Raw', label_2 = 'Pred Rescale', 
+        #                         savepath = os.path.join(skel_dir, 'val_pred_vs_pred_rescale.png'))
 
-            # Tensorboard log images
-            tensorboard.add_images('Val Image', img, self.iteration)
-            tensorboard.add_figure('Val Ground Truth 3D Skeleton', fig_p3d_gt, global_step = self.iteration)
-            tensorboard.add_figure('Val Aligned Ground Truth 3D Skeleton + Rescaling', fig_p3d_gt_rot, global_step = self.iteration)
-            tensorboard.add_images('Val Predicted 2D Heatmap', torch.clip(torch.sum(heatmap, dim=1, keepdim=True), 0, 1), self.iteration)
-            tensorboard.add_figure('Val Predicted 3D Skeleton', fig_p3d_pred, global_step = self.iteration)
-            tensorboard.add_figure('Val Predicted 3D Skeleton + Rescaling', fig_p3d_pred_t, global_step = self.iteration)
-            tensorboard.add_figure('Val GT 3D Skeleton vs Predicted 3D Skeleton (Rescaled)', fig_compare_rescale, global_step = self.iteration)
-            tensorboard.add_figure('Val Comparing Predicted 3D Skeleton (Raw vs Rescaled)', fig_compare_preds, global_step = self.iteration)
+        #     # Tensorboard log images
+        #     tensorboard.add_images('Val Image', img, self.iteration)
+        #     tensorboard.add_figure('Val Ground Truth 3D Skeleton', fig_p3d_gt, global_step = self.iteration)
+        #     tensorboard.add_figure('Val Aligned Ground Truth 3D Skeleton + Rescaling', fig_p3d_gt_rot, global_step = self.iteration)
+        #     tensorboard.add_images('Val Predicted 2D Heatmap', torch.clip(torch.sum(heatmap, dim=1, keepdim=True), 0, 1), self.iteration)
+        #     tensorboard.add_figure('Val Predicted 3D Skeleton', fig_p3d_pred, global_step = self.iteration)
+        #     tensorboard.add_figure('Val Predicted 3D Skeleton + Rescaling', fig_p3d_pred_t, global_step = self.iteration)
+        #     tensorboard.add_figure('Val GT 3D Skeleton vs Predicted 3D Skeleton (Rescaled)', fig_compare_rescale, global_step = self.iteration)
+        #     tensorboard.add_figure('Val Comparing Predicted 3D Skeleton (Raw vs Rescaled)', fig_compare_preds, global_step = self.iteration)
 
         return val_loss_3d_pose
 
