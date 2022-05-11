@@ -5,14 +5,16 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import FormatStrFormatter
 
 
-colour_scheme = {'Tome et al.': 'red',
-'L1 Loss': 'deepskyblue',
-'Spatial TFM': 'purple',
-'Seq. Latent Model': 'blue',
-'Direct 3D reg.': 'magenta',
-'Ego-STAN Slice': 'teal',
-'Ego-STAN Avg': 'darkgreen',
-'Ego-STAN FMT': 'limegreen'}
+palette = sns.color_palette("plasma", 8).as_hex()
+
+colour_scheme = {'Tome et al.': palette[0],
+'L1 Loss': palette[1],
+'Spatial TFM': palette[2],
+'Seq. Latent Model': palette[3],
+'Direct 3D reg.': palette[4],
+'Ego-STAN Slice': palette[5],
+'Ego-STAN Avg': palette[6],
+'Ego-STAN FMT': palette[7]}
 
 seq_results = pd.read_pickle(r'/home/eddie/waterloo/lightning_logs/3d_plots/xregopose_seq_hm_direct_05_07_09_46_26/results_xregopose_seq_hm_direct_05_07_09_46_26')
 
@@ -112,7 +114,7 @@ for ind, l in enumerate(ax.lines):
 ax.plot(list(range(len(means))), means, linestyle='solid', marker='x', color='black', label='Mean')
 # ax.scatter(list(range(len(means))), means, c='black', marker='x')
 # ax.set_xticklabels(ax.get_xticklabels(),rotation=45, ha='right')
-ax.set_ylabel("MPJPE (mm)")
+ax.set_ylabel("MPJPE (mm)", fontsize=20)
 ax.set_ylim(0, 150)
 ax.set_xticks([])
 ax.set_xlabel('')
@@ -165,14 +167,11 @@ for i in range(9):
 
 
 
-    ax.yaxis.set_major_formatter(FormatStrFormatter('%.0f'))
-    # ax.set_xticks([])
-    if i%3 == 0:
-        ax.set_ylabel('MPJPE (mm)')
+   
 
 print(all_actions)
 fig, ax = plt.subplots(1, 1, figsize=(20,6))
-bar_plot(ax, temp_avgs, temp_stds, colors=list(colour_scheme.values()))
+bar_plot(ax, temp_avgs, temp_stds, colors=list(colour_scheme.values()), total_width=0.8, single_width=0.9)
 
 # it would of course be better with a nicer handle to the middle-bottom axis object, but since I know it is the second last one in my 3 x 3 grid...
 # plt.tight_layout()

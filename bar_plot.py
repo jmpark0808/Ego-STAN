@@ -4,14 +4,16 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 from matplotlib.ticker import FormatStrFormatter
 
-colour_scheme = {'Tome et al.': 'red',
-'L1 Loss': 'deepskyblue',
-'Spatial TFM': 'purple',
-'Seq. Latent Model': 'blue',
-'Direct 3D reg.': 'magenta',
-'Ego-STAN Slice': 'teal',
-'Ego-STAN Avg': 'darkgreen',
-'Ego-STAN FMT': 'limegreen'}
+palette = sns.color_palette("plasma", 8).as_hex()
+
+colour_scheme = {'Tome et al.': palette[0],
+'L1 Loss': palette[1],
+'Spatial TFM': palette[2],
+'Seq. Latent Model': palette[3],
+'Direct 3D reg.': palette[4],
+'Ego-STAN Slice': palette[5],
+'Ego-STAN Avg': palette[6],
+'Ego-STAN FMT': palette[7]}
 
 joints = ['Head',	'Neck',	'LeftArm',	'LeftForeArm',	'LeftHand',	'RightArm',	'RightForeArm',	'RightHand',	
 'LeftUpLeg',	'LeftLeg',	'LeftFoot',	'LeftToeBase',	'RightUpLeg',	'RightLeg',	'RightFoot',	'RightToeBase']
@@ -46,32 +48,6 @@ averages = [baseline_avg, baseline_l1_avg, spatial_tfm_avg, seq_avg, baseline_di
 stds = [baseline_std, baseline_l1_std, spatial_tfm_std, seq_std, baseline_direct_std, ego_slice_std, ego_avg_std, ego_std]
 
 
-# plt.figure(figsize=(16, 6))
-
-# for i in range(16):
-#     plt.subplot(2, 8, i+1)
-#     plt.title(joints[i])
-#     for j in range(8):
-#         if i == 0:
-#             plt.bar(j+1, averages[j][i], label=list(colour_scheme.keys())[j], color=list(colour_scheme.values())[j])
-#         else:
-#             plt.bar(j+1, averages[j][i], color=list(colour_scheme.values())[j])
-
-#     # plt.xticks(list(range(1,9)), colour_scheme.keys(), rotation=45)
-#     plt.xticks([])
-#     # plt.xlabel('Model')
-#     plt.ylabel('MPJPE (mm)')
-
-# plt.figlegend(bbox_to_anchor=(1.05, 1.0), loc='upper left')
-# plt.tight_layout()
-# plt.show()
-# # plt.savefig('/home/eddie/waterloo/lightning_logs/violin_plots/bar_plot.jpg')
-
-
-# plt.close('all')
-
-
-
 def bar_plot(ax, data, stds, idx, colors=None, total_width=0.8, single_width=1):
     if colors is None:
         colors = plt.rcParams['axes.prop_cycle'].by_key()['color']
@@ -90,9 +66,11 @@ def bar_plot(ax, data, stds, idx, colors=None, total_width=0.8, single_width=1):
         if idx == 0:
             model_data = model[:8]
             std_data = stds[i][:8]
+            # ax.set_title('Upper Body MPJPE', fontsize=20)
         else:
             model_data = model[8:]
             std_data = stds[i][8:]
+            # ax.set_title('Lower Body MPJPE', fontsize=20)
         # Draw a bar for every value of that type
         for x, y in enumerate(model_data):
             if x == 0 and idx == 0:
@@ -115,25 +93,15 @@ def bar_plot(ax, data, stds, idx, colors=None, total_width=0.8, single_width=1):
 
 fig, axlist = plt.subplots(2, 1, figsize=(20,6))
 for i, ax in enumerate(axlist.flatten()):
-    # ax.set_title(joints[i], fontsize=20)
-    # for j in range(8):
-    #     if i == 0:
-    #         ax.bar(j+1, averages[j][i], yerr=stds[j][i], label=list(colour_scheme.keys())[j], color=list(colour_scheme.values())[j], capsize=2)
-    #     else:
-    #         ax.bar(j+1, averages[j][i], yerr=stds[j][i], color=list(colour_scheme.values())[j], capsize=2)
-    # ax.yaxis.set_major_formatter(FormatStrFormatter('%.0f'))
     ax.grid(axis='y', zorder=0)
-    bar_plot(ax, averages, stds, i, colors=list(colour_scheme.values()), total_width=0.8, single_width=1)
+    bar_plot(ax, averages, stds, i, colors=list(colour_scheme.values()), total_width=0.8, single_width=0.9)
     ax.set_ylabel('MPJPE (mm)', fontsize=20)
     ax.set_ylim(0, 110)
     
 
 
-# it would of course be better with a nicer handle to the middle-bottom axis object, but since I know it is the second last one in my 3 x 3 grid...
-# plt.tight_layout()
 lines_labels = [ax.get_legend_handles_labels() for ax in fig.axes]
 lines, labels = [sum(lol, []) for lol in zip(*lines_labels)]
 legend = fig.legend(lines, labels, title='Model', bbox_to_anchor=(0.8, -0.05), ncol=4, fontsize=20)
 legend.get_title().set_fontsize('20')
 fig.savefig('/home/eddie/waterloo/lightning_logs/violin_plots/bar_plot_per_joint.pdf', bbox_inches='tight', format='pdf')
-# plt.show()
