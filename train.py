@@ -96,7 +96,10 @@ if __name__ == "__main__":
                         , default=False, type=bool)
     parser.add_argument('--dataloader', help="Type of dataloader", required=True, default=None)
     parser.add_argument("--load",
-                        help="Directory of pre-trained model,  \n"
+                        help="Directory of pre-trained model weights only,  \n"
+                             "None --> Do not use pre-trained model. Training will start from random initialized model", default=None)
+    parser.add_argument("--resume_from_checkpoint",
+                        help="Directory of pre-trained checkpoint including hyperparams,  \n"
                              "None --> Do not use pre-trained model. Training will start from random initialized model", default=None)
     parser.add_argument('--dataset_tr', help='Directory of your train Dataset', required=True, default=None)
     parser.add_argument('--dataset_val', help='Directory of your validation Dataset', required=True, default=None)
@@ -140,7 +143,10 @@ if __name__ == "__main__":
     pl.seed_everything(dict_args['seed'])
     # Initialize model to train
     assert dict_args['model'] in MODEL_DIRECTORY
-    model = MODEL_DIRECTORY[dict_args['model']](**dict_args)
+    if dict_args['load'] is not None:
+        model = MODEL_DIRECTORY[dict_args['model']].load_from_checkpoint(dict_args['load'], **dict_args)
+    else:
+        model = MODEL_DIRECTORY[dict_args['model']](**dict_args)
 
     # Initialize logging paths
     random_sec = random.randint(1, 20)
@@ -187,7 +193,7 @@ if __name__ == "__main__":
         max_epochs=dict_args["epoch"],
         log_every_n_steps=10,
         gradient_clip_val=dict_args['clip_grad_norm'],
-        resume_from_checkpoint=dict_args['load']
+        resume_from_checkpoint=dict_args['resume_from_checkpoint']
     )
 
     # Trainer: train model
