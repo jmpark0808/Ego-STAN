@@ -11,14 +11,15 @@ from pytorch_lightning.callbacks.early_stopping import EarlyStopping
 from pytorch_lightning.callbacks.lr_monitor import LearningRateMonitor
 from pytorch_lightning.profiler import SimpleProfiler
 from pytorch_lightning.loggers import TensorBoardLogger
+
 from dataset.mo2cap2 import Mo2Cap2DataModule
-
-
 from dataset.mocap import MocapDataModule
 from dataset.mo2cap2 import Mo2Cap2DataModule
 from dataset.mocap_distance import MocapDistanceDataModule
 from dataset.mocap_transformer import MocapSeqDataModule
 from dataset.mo2cap2_transformer import Mo2Cap2SeqDataModule
+from dataset.mocap_h36m import MocapH36MDataModule
+
 from net.DirectRegression import DirectRegression
 from net.Mo2Cap2BaselineL1 import Mo2Cap2BaselineL1
 from net.Mo2Cap2Direct import Mo2Cap2Direct
@@ -86,7 +87,8 @@ DATALOADER_DIRECTORY = {
     'sequential': MocapSeqDataModule,
     'distance': MocapDistanceDataModule,
     'mo2cap2': Mo2Cap2DataModule,
-    'mo2cap2_seq': Mo2Cap2SeqDataModule
+    'mo2cap2_seq': Mo2Cap2SeqDataModule,
+    'h36m_static': MocapH36MDataModule
 } 
 
 if __name__ == "__main__":
