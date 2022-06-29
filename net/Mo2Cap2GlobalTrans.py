@@ -3,15 +3,15 @@
 import pytorch_lightning as pl
 import torch
 import numpy as np
-import os
 from utils import evaluate
 from net.blocks import *
-from net.transformer import ResNetTransformerCls
+from net.transformer import GlobalPixelTransformer
 import matplotlib
+import numpy as np
 import pathlib
 
 
-class xREgoPoseSeqHMDirect(pl.LightningModule):
+class Mo2Cap2GlobalTrans(pl.LightningModule):
     def __init__(self, **kwargs):
         super().__init__()
 
@@ -22,31 +22,29 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
         self.decay_step = kwargs.get("decay_step")
         self.load_resnet = kwargs.get("load_resnet")
         self.hm_train_steps = kwargs.get("hm_train_steps")
-        self.seq_len = kwargs.get('seq_len')
+        self.dropout = kwargs.get("dropout")
         self.es_patience = kwargs.get('es_patience')
-        self.dropout = kwargs.get('dropout')
 
         # must be defined for logging computational graph
-        self.example_input_array = torch.rand((1, self.seq_len, 3, 368, 368))
+        self.example_input_array = torch.rand((1, 3, 368, 368))
 
         # Resnet 101 without last average pooling and fully connected layers
         self.resnet101 = torchvision.models.resnet101(pretrained=False)
         # First Deconvolution to obtain 2D heatmap
         self.heatmap_deconv = nn.Sequential(*[nn.ConvTranspose2d(2048, 1024, kernel_size=3,
                                                                  stride=2, dilation=1, padding=1),
-                                              nn.ConvTranspose2d(1024, 16, kernel_size=3,
+                                              nn.ConvTranspose2d(1024, 15, kernel_size=3,
                                                                  stride=2, dilation=1, padding=0)])
         # Transformer that takes sequence of heatmaps and outputs a sequence of heatmaps
-        self.resnet_transformer = ResNetTransformerCls(seq_len=self.seq_len*12*12, dim=512, depth=3, heads=8, mlp_dim=1024, dim_head=64, dropout=self.dropout)
+        self.resnet_transformer = GlobalPixelTransformer(dim=512, depth=3, heads=8, mlp_dim=1024, dim_head=64, dropout=self.dropout)
         # Direct regression from heatmap
-        self.hm2pose = HM2Pose()
+        self.hm2pose = HM2Pose(15)
 
         # Initialize the mpjpe evaluation pipeline
-        self.eval_body = evaluate.EvalBody()
-        self.eval_upper = evaluate.EvalUpperBody()
-        self.eval_lower = evaluate.EvalLowerBody()
-        self.eval_per_joint = evaluate.EvalPerJoint()
-
+        self.eval_body = evaluate.EvalBody(mode='mo2cap2')
+        self.eval_upper = evaluate.EvalUpperBody(mode='mo2cap2')
+        self.eval_lower = evaluate.EvalLowerBody(mode='mo2cap2')
+        self.eval_per_joint = evaluate.EvalPerJoint(mode='mo2cap2')
         # Initialize total validation pose loss
         self.val_loss_3d_pose_total = torch.tensor(0., device=self.device)
         self.val_loss_hm = torch.tensor(0., device=self.device)
@@ -66,6 +64,7 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
 
         # Initialize weights
         self.apply(weight_init)
+
         if self.load_resnet:
             self.resnet101.load_state_dict(torch.load(self.load_resnet))
         self.resnet101 = nn.Sequential(*[l for ind, l in enumerate(self.resnet101.children()) if ind < 8])
@@ -104,57 +103,25 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
             patience=self.es_patience-3,
             min_lr=1e-8,
             verbose=True)
-        
-        # scheduler = {'scheduler': torch.optim.lr_scheduler.LinearLR(optimizer, start_factor=0.00000001, end_factor=1.0, total_iters=int(self.hm_train_steps/self.batch_size)),
-        #                 'name': 'learning_rate',
-        #                 'interval':'step',
-        #                 'frequency': 1}
         return optimizer
-
-    # learning rate warm-up
-    def optimizer_step(
-        self,
-        epoch,
-        batch_idx,
-        optimizer,
-        optimizer_idx,
-        optimizer_closure,
-        on_tpu=False,
-        using_native_amp=False,
-        using_lbfgs=False,
-    ):
-        # skip the first 500 steps
-        if self.trainer.global_step < int(self.hm_train_steps/self.batch_size):
-            lr_scale = min(1.0, float(self.trainer.global_step + 1) / int(self.hm_train_steps/self.batch_size))
-            for pg in optimizer.param_groups:
-                pg["lr"] = lr_scale * self.lr
-
-        # update params
-        optimizer.step(closure=optimizer_closure)
-        optimizer.zero_grad()
 
     def forward(self, x):
         """
         Forward pass through model
 
-        :param x: Input sequence of image
+        :param x: Batch of images
 
-        :return: 2D heatmap, 16x3 joint inferences, 2D reconstructed heatmap
+        :return: 2D heatmap, 16x3 joint inferences
         """
-        # Flattening first two dimensions
         dim = x.shape 
-        #shape -> batch_size x len_seq x 3 x 368 x 368
+        #shape -> batch_size x 3 x 368 x 368
 
-        imgs = torch.reshape(x, (dim[0]*dim[1], dim[2], dim[3], dim[4]))
-        # imgs = # (batch_size*len_seq) x 3 x 368 x 368
-
-        resnet = self.resnet101(imgs)
-        # resnet = batch_size*len_seq x 2048 x 12 x 12
-        resnet = resnet.reshape(dim[0], dim[1], 2048, 12, 12)
-        # resnet = batch_size x len_seq x 2048 x 12 x 12
-        resnet = resnet.permute(0, 1, 3, 4, 2)
-        resnet = resnet.reshape(dim[0], -1, 2048)
-        # resnet = batch_size x len_seq*12*12 x 2048
+        resnet = self.resnet101(x)
+        # resnet = batch_size x 2048 x 12 x 12
+        resnet = resnet.reshape(dim[0], 2048, -1)
+        # resnet = batch_size x 2048 x 12*12
+        resnet = resnet.permute(0, 2, 1)
+        # resnet = batch_size x 12*12 x 2048
         
         resnet, atts = self.resnet_transformer(resnet)
         # resnet = batch_size x 144 x 2048
@@ -166,7 +133,7 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
         # hms = batch_size x 15 x 47 x 47
 
         p3d = self.hm2pose(hms)
-        # p3d = batch_size x 16 x 3
+        # p3d = batch_size x 15 x 3
 
 
         return hms, p3d, atts
@@ -179,15 +146,13 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
 
         """
         
-        sequence_imgs, p2d, p3d, action, img_path = batch
-        sequence_imgs = sequence_imgs.cuda()
+        imgs, p2d, p3d, action, img_path = batch
+        imgs = imgs.cuda()
         p2d = p2d.cuda()
-        p2d = p2d[:, -1, :, :, :]
         p3d = p3d.cuda()
-        p3d = p3d[:, -1, :, :]
 
         # forward pass
-        pred_hm, pred_3d, atts = self.forward(sequence_imgs)
+        pred_hm, pred_3d, atts = self.forward(imgs)
 
 
         if self.iteration <= self.hm_train_steps:
@@ -207,7 +172,7 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
         mpjpe_std = torch.std(torch.sqrt(torch.sum(torch.pow(p3d - pred_3d, 2), dim=2)))
         self.log("train_mpjpe_full_body", mpjpe)
         self.log("train_mpjpe_std", mpjpe_std)
-        self.iteration += sequence_imgs.size(0)
+        self.iteration += imgs.size(0)
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -216,15 +181,13 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
         validation loop: https://pytorch-lightning.readthedocs.io/en/stable/common/lightning_module.html#hooks
         """
         
-        sequence_imgs, p2d, p3d, action, img_path = batch
-        sequence_imgs = sequence_imgs.cuda()
+        imgs, p2d, p3d, action, img_path = batch
+        imgs = imgs.cuda()
         p2d = p2d.cuda()
-        p2d = p2d[:, -1, :, :, :]
         p3d = p3d.cuda()
-        p3d = p3d[:, -1, :, :]
 
         # forward pass
-        heatmap, pose, atts = self.forward(sequence_imgs)
+        heatmap, pose, atts = self.forward(imgs)
         heatmap = torch.sigmoid(heatmap)
 
         # calculate pose loss
@@ -246,9 +209,9 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
 
     def on_validation_start(self):
         # Initialize the mpjpe evaluation pipeline
-        self.eval_body = evaluate.EvalBody()
-        self.eval_upper = evaluate.EvalUpperBody()
-        self.eval_lower = evaluate.EvalLowerBody()
+        self.eval_body = evaluate.EvalBody(mode='mo2cap2')
+        self.eval_upper = evaluate.EvalUpperBody(mode='mo2cap2')
+        self.eval_lower = evaluate.EvalLowerBody(mode='mo2cap2')
 
         # Initialize total validation pose loss
         self.val_loss_3d_pose_total = torch.tensor(0., device=self.device)
@@ -258,6 +221,7 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
         val_mpjpe = self.eval_body.get_results()
         val_mpjpe_upper = self.eval_upper.get_results()
         val_mpjpe_lower = self.eval_lower.get_results()
+
         if self.iteration >= self.hm_train_steps:
             self.log("val_mpjpe_full_body", val_mpjpe["All"]["mpjpe"])
             self.log("val_mpjpe_full_body_std", val_mpjpe["All"]["std_mpjpe"])
@@ -271,48 +235,44 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
 
     def on_test_start(self):
         # Initialize the mpjpe evaluation pipeline
-        self.eval_body = evaluate.EvalBody()
-        self.eval_upper = evaluate.EvalUpperBody()
-        self.eval_lower = evaluate.EvalLowerBody()
-        self.eval_per_joint = evaluate.EvalPerJoint()
-        self.eval_samples = evaluate.EvalSamples()
-        self.filenames = []
+        self.eval_body = evaluate.EvalBody(mode='mo2cap2')
+        self.eval_upper = evaluate.EvalUpperBody(mode='mo2cap2')
+        self.eval_lower = evaluate.EvalLowerBody(mode='mo2cap2')
+        self.eval_per_joint = evaluate.EvalPerJoint(mode='mo2cap2')
+        self.handpicked_results = {}
+        self.results = {}
+        self.baseeval = evaluate.ActionMap()
+        
 
     def test_step(self, batch, batch_idx):
-        logdir = self.logger.log_dir
         tensorboard = self.logger.experiment
-        sequence_imgs, p2d, p3d, action, img_path = batch
-        sequence_imgs = sequence_imgs.cuda()
+        imgs, p2d, p3d, action, img_path = batch
+        imgs = imgs.cuda()
         p2d = p2d.cuda()
-        p2d = p2d[:, -1, :, :, :]
         p3d = p3d.cuda()
-        p3d = p3d[:, -1, :, :]
 
         # forward pass
-        heatmap, pose, atts = self.forward(sequence_imgs)
+        heatmap, pose, atts = self.forward(imgs)
         heatmap = torch.sigmoid(heatmap)
         if self.image_limit > 0 and np.random.uniform() < 0.2:
 
             for level, att in enumerate(atts):
                 for head in range(att.size(1)):
-                    img = att[:, head, :, :].reshape(att.size(0), 1, att.size(2), att.size(3)) # batch, 1, (T+1)*12*12, (T+1)*12*12
+                    img = att[:, head, :, :].reshape(att.size(0), 1, att.size(2), att.size(3))
                     img = img.detach().cpu().numpy()
-                    np.save(os.path.join(logdir, f'{batch_idx}_{level}_{head}_att'), img[0, :, :, :])
                     cmap = matplotlib.cm.get_cmap('gist_heat')
                     rgba = np.transpose(np.squeeze(cmap(img), axis=1), (0, 3, 1, 2))[0, :3, :, :]
                     tensorboard.add_image(f'Level {level}, head {head}, Attention Map', rgba, global_step=self.test_iteration)
             
             mean=[0.485, 0.456, 0.406]
             std=[0.229, 0.224, 0.225]
-            first_sample = sequence_imgs[0]
-            first_sample[:, 0, :, :] = first_sample[:, 0, :, :]*std[0]+mean[0]
-            first_sample[:, 1, :, :] = first_sample[:, 1, :, :]*std[1]+mean[1]
-            first_sample[:, 2, :, :] = first_sample[:, 2, :, :]*std[2]+mean[2]
-            first_sample_numpy = first_sample.detach().cpu().numpy()
-            np.save(os.path.join(logdir, f'{batch_idx}_images'), first_sample_numpy)
-            tensorboard.add_images('Test Images', first_sample, global_step=self.test_iteration)
-            tensorboard.add_images('Test GT Heatmap', torch.clip(p2d[0], 0, 1).reshape(16, 1, 47, 47), global_step=self.test_iteration)
-            tensorboard.add_images('Test Pred Heatmap', torch.clip(heatmap[0], 0, 1).reshape(16, 1, 47, 47), global_step=self.test_iteration)
+            first_sample = imgs[0]
+            first_sample[0, :, :] = first_sample[0, :, :]*std[0]+mean[0]
+            first_sample[1, :, :] = first_sample[1, :, :]*std[1]+mean[1]
+            first_sample[2, :, :] = first_sample[2, :, :]*std[2]+mean[2]
+            tensorboard.add_image('Test Image', first_sample, global_step=self.test_iteration)
+            tensorboard.add_image('Test GT Heatmap', torch.clip(torch.sum(torch.squeeze(p2d[0]), dim=0, keepdim=True), 0, 1), global_step=self.test_iteration)
+            tensorboard.add_image('Test Pred Heatmap', torch.clip(torch.sum(torch.squeeze(heatmap[0]), dim=0, keepdim=True), 0, 1), global_step=self.test_iteration)
             self.image_limit -= 1
         
         # Evaluate mpjpe
@@ -322,28 +282,45 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
         self.eval_upper.eval(y_output, y_target, action)
         self.eval_lower.eval(y_output, y_target, action)
         self.eval_per_joint.eval(y_output, y_target)
-        self.test_iteration += sequence_imgs.size(0)
-        filenames = []
+        self.test_iteration += imgs.size(0)
+        
+        errors = np.mean(np.sqrt(np.sum(np.power(y_target - y_output, 2), axis=2)), axis=1)
         for idx in range(y_target.shape[0]):
 
-            filename = pathlib.Path(img_path[-1][idx]).stem
+            filename = pathlib.Path(img_path[idx]).stem
             filename = str(filename).replace(".", "_")
-            filenames.append(filename)
-        self.eval_samples.eval(y_output, y_target, action, filenames)
+            if filename in evaluate.highest_differences:
+                self.handpicked_results.update(
+                {
+                    filename: {
+                        "gt_pose": y_target[idx],
+                        "pred_pose": y_output[idx],
+                        "img": img.cpu().numpy()[idx]
+                    }
+                }
+            )
+            self.results.update(
+                {
+                    filename: {
+                        "action": self.baseeval.eval(None, None, action[idx]),
+                        "full_mpjpe": errors[idx],
+                    }
+                }
+            )
+        
       
 
     def test_epoch_end(self, test_step_outputs):
         test_mpjpe = self.eval_body.get_results()
         test_mpjpe_upper = self.eval_upper.get_results()
         test_mpjpe_lower = self.eval_lower.get_results()
-        self.test_raw_p2ds = {'preds': self.eval_per_joint.pds, 'gts': self.eval_per_joint.gts}
         test_mpjpe_per_joint = self.eval_per_joint.get_results()
-        self.test_mpjpe_samples = self.eval_samples.error
+
         self.test_results = {
             "Full Body": test_mpjpe,
             "Upper Body": test_mpjpe_upper,
             "Lower Body": test_mpjpe_lower,
-            "Per Joint": test_mpjpe_per_joint,
+            "Per Joint": test_mpjpe_per_joint
         }          
 
 if __name__ == "__main__":

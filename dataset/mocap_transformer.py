@@ -215,12 +215,13 @@ class MocapTransformer(BaseDataset):
 
         all_p2d_heatmap = []
         all_p3d = []
+        all_raw_p2d = []
         for json_path in json_paths:
             data = io.read_json(json_path)
 
             p2d, p3d = self._process_points(data)
             p2d[:, 0] = p2d[:, 0]-180 # Translate p2d coordinates by 180 pixels to the left
-
+            all_raw_p2d.append(p2d)
             if self.heatmap_type == 'baseline':
                 p2d_heatmap = generate_heatmap(p2d, 3) # exclude head
             elif self.heatmap_type == 'distance':
@@ -240,7 +241,7 @@ class MocapTransformer(BaseDataset):
             p3d = np.array([self.transform({'joints3D': p3d})['joints3D'].numpy() for p3d in all_p3d])
             p2d = np.array([self.transform({'joints2D': p2d})['joints2D'].numpy() for p2d in all_p2d_heatmap])
 
-        return torch.tensor(imgs), torch.tensor(p2d), torch.tensor(p3d), action, img_paths
+        return torch.tensor(imgs), torch.tensor(p2d), torch.tensor(p3d), action, img_paths#, all_raw_p2d
 
     def __len__(self):
 

@@ -8,6 +8,7 @@ from utils import evaluate
 from net.blocks import *
 from net.transformer import PoseTransformer
 import matplotlib
+import pathlib
 
 
 class xREgoPoseSeq(pl.LightningModule):
@@ -22,6 +23,8 @@ class xREgoPoseSeq(pl.LightningModule):
         self.load_resnet = kwargs.get("load_resnet")
         self.hm_train_steps = kwargs.get("hm_train_steps")
         self.seq_len = kwargs.get('seq_len')
+        self.es_patience = kwargs.get('es_patience')
+        self.dropout = kwargs.get('dropout')
 
         # must be defined for logging computational graph
         self.example_input_array = torch.rand((1, self.seq_len, 3, 368, 368))
@@ -31,9 +34,9 @@ class xREgoPoseSeq(pl.LightningModule):
         # Encoder that takes 2D heatmap and transforms to latent vector Z
         self.encoder = Encoder()
         # Transformer that takes sequence of latent vector Z and outputs a single Z vector
-        self.seq_transformer = PoseTransformer(seq_len=self.seq_len, dim=20, depth=1, heads=1, mlp_dim=40)
+        self.seq_transformer = PoseTransformer(seq_len=self.seq_len, dim=20, depth=3, heads=1, mlp_dim=40, dropout=self.dropout)
         # Pose decoder that takes latent vector Z and transforms to 3D pose coordinates
-        self.pose_decoder = PoseDecoder(initial_dim=20*self.seq_len)
+        self.pose_decoder = PoseDecoder(initial_dim=20)
         # Heatmap decoder that takes latent vector Z and generates the original 2D heatmap
         self.heatmap_decoder = HeatmapDecoder()
 
@@ -41,11 +44,14 @@ class xREgoPoseSeq(pl.LightningModule):
         self.eval_body = evaluate.EvalBody()
         self.eval_upper = evaluate.EvalUpperBody()
         self.eval_lower = evaluate.EvalLowerBody()
+        self.eval_per_joint = evaluate.EvalPerJoint()
 
         # Initialize total validation pose loss
         self.val_loss_3d_pose_total = torch.tensor(0., device=self.device)
         self.val_loss_hm = torch.tensor(0., device=self.device)
         self.iteration = 0
+        self.test_iteration = 0
+        self.image_limit = 100
         self.save_hyperparameters()
 
         def weight_init(m):
@@ -93,12 +99,41 @@ class xREgoPoseSeq(pl.LightningModule):
         Choose what optimizers and learning-rate schedulers to use in your optimization.
         """
         
-        optimizer = torch.optim.SGD(
-        self.parameters(), lr=self.lr, momentum=0.9, nesterov=True
-        )
+        optimizer = torch.optim.AdamW(self.parameters(), lr=self.lr)
+        self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer,
+            mode='min',
+            factor=0.1,
+            patience=self.es_patience-3,
+            min_lr=1e-8,
+            verbose=True)
         
-
+        # scheduler = {'scheduler': torch.optim.lr_scheduler.LinearLR(optimizer, start_factor=0.00000001, end_factor=1.0, total_iters=int(self.hm_train_steps/self.batch_size)),
+        #                 'name': 'learning_rate',
+        #                 'interval':'step',
+        #                 'frequency': 1}
         return optimizer
+
+    def optimizer_step(
+        self,
+        epoch,
+        batch_idx,
+        optimizer,
+        optimizer_idx,
+        optimizer_closure,
+        on_tpu=False,
+        using_native_amp=False,
+        using_lbfgs=False,
+    ):
+        # skip the first 500 steps
+        if self.trainer.global_step < int(self.hm_train_steps/self.batch_size):
+            lr_scale = min(1.0, float(self.trainer.global_step + 1) / int(self.hm_train_steps/self.batch_size))
+            for pg in optimizer.param_groups:
+                pg["lr"] = lr_scale * self.lr
+
+        # update params
+        optimizer.step(closure=optimizer_closure)
+        optimizer.zero_grad()
 
     def forward(self, x):
         """
@@ -125,7 +160,7 @@ class xREgoPoseSeq(pl.LightningModule):
         # zs = batch_size x len_seq x 20
 
         z, atts = self.seq_transformer(zs)
-        # z = batch_size x len_seq*20
+        # z = batch_size x 20
 
         p3d = self.pose_decoder(z)
         # p3d = batch_size x 16 x 3
@@ -146,7 +181,7 @@ class xREgoPoseSeq(pl.LightningModule):
         sequence_imgs, p2d, p3d, action, img_path = batch
         sequence_imgs = sequence_imgs.cuda()
         p2d = p2d.cuda()
-        p2d = p2d.reshape(-1, 15, 47, 47)
+        p2d = p2d.reshape(-1, 16, 47, 47)
         p3d = p3d.cuda()
         p3d = p3d[:, -1, :, :]
         
@@ -186,7 +221,7 @@ class xREgoPoseSeq(pl.LightningModule):
         sequence_imgs, p2d, p3d, action, img_path = batch
         sequence_imgs = sequence_imgs.cuda()
         p2d = p2d.cuda()
-        p2d = p2d.reshape(-1, 15, 47, 47)
+        p2d = p2d.reshape(-1, 16, 47, 47)
         p3d = p3d.cuda()
         p3d = p3d[:, -1, :, :]
 
@@ -195,16 +230,8 @@ class xREgoPoseSeq(pl.LightningModule):
         heatmap = torch.sigmoid(heatmap)
         generated_heatmap = torch.sigmoid(generated_heatmap)
 
-        for level, att in enumerate(atts):
-            for head in range(att.size(1)):
-                img = att[:, head, :, :].reshape(att.size(0), 1, att.size(2), att.size(3))
-                img = img.detach().cpu().numpy()
-                cmap = matplotlib.cm.get_cmap('gist_heat')
-                rgba = np.transpose(np.squeeze(cmap(img), axis=1), (0, 3, 1, 2))[:, :3, :, :]
-                tensorboard.add_images(f'Level {level}, head {head}, Attention Map', rgba, global_step=self.iteration)
 
-        tensorboard.add_images('Val Ground Truth 2D Heatmap', torch.clip(torch.sum(p2d, dim=1, keepdim=True), 0, 1), self.iteration)
-        tensorboard.add_images('Val Predicted 2D Heatmap', torch.clip(torch.sum(heatmap, dim=1, keepdim=True), 0, 1), self.iteration)
+
         # calculate pose loss
         val_hm_loss = self.mse(heatmap, p2d)
         val_loss_3d_pose, _ = self.auto_encoder_loss(pose, p3d, generated_heatmap, heatmap)
@@ -242,20 +269,25 @@ class xREgoPoseSeq(pl.LightningModule):
             self.log("val_mpjpe_upper_body", val_mpjpe_upper["All"]["mpjpe"])
             self.log("val_mpjpe_lower_body", val_mpjpe_lower["All"]["mpjpe"])
             self.log("val_loss", self.val_loss_3d_pose_total)
+            self.scheduler.step(val_mpjpe["All"]["mpjpe"])
         else:
             self.log("val_mpjpe_full_body", 0.3-0.01*(self.iteration/self.hm_train_steps))
+            self.scheduler.step(0.3-0.01*(self.iteration/self.hm_train_steps))
                     
     def on_test_start(self):
         # Initialize the mpjpe evaluation pipeline
         self.eval_body = evaluate.EvalBody()
         self.eval_upper = evaluate.EvalUpperBody()
         self.eval_lower = evaluate.EvalLowerBody()
+        self.eval_per_joint = evaluate.EvalPerJoint()
+        self.eval_samples = evaluate.EvalSamples()
+        self.filenames = []
 
     def test_step(self, batch, batch_idx):
         sequence_imgs, p2d, p3d, action, img_path = batch
         sequence_imgs = sequence_imgs.cuda()
         p2d = p2d.cuda()
-        p2d = p2d.reshape(-1, 15, 47, 47)
+        p2d = p2d.reshape(-1, 16, 47, 47)
         p3d = p3d.cuda()
         p3d = p3d[:, -1, :, :]
 
@@ -270,18 +302,27 @@ class xREgoPoseSeq(pl.LightningModule):
         self.eval_body.eval(y_output, y_target, action)
         self.eval_upper.eval(y_output, y_target, action)
         self.eval_lower.eval(y_output, y_target, action)
-      
+        self.eval_per_joint.eval(y_output, y_target)
+        filenames = []
+        for idx in range(y_target.shape[0]):
+
+            filename = pathlib.Path(img_path[-1][idx]).stem
+            filename = str(filename).replace(".", "_")
+            filenames.append(filename)
+        self.eval_samples.eval(y_output, y_target, action, filenames)
 
     def test_epoch_end(self, test_step_outputs):
         test_mpjpe = self.eval_body.get_results()
         test_mpjpe_upper = self.eval_upper.get_results()
         test_mpjpe_lower = self.eval_lower.get_results()
-
+        test_mpjpe_per_joint = self.eval_per_joint.get_results()
+        self.test_mpjpe_samples = self.eval_samples.error
         self.test_results = {
             "Full Body": test_mpjpe,
             "Upper Body": test_mpjpe_upper,
             "Lower Body": test_mpjpe_lower,
-        }
+            "Per Joint": test_mpjpe_per_joint
+        } 
 
 
 if __name__ == "__main__":

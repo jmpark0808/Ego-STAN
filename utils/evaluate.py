@@ -16,11 +16,18 @@ import os
 
 __all__ = ["EvalBody", "EvalUpperBody", "EvalLowerBody"]
 
-mean3D = scipy.io.loadmat(os.path.join(os.path.expanduser('~'), 'projects/def-pfieguth/mo2cap/code/util/mean3D.mat'))['mean3D']/1000. # 3x15 shape
+mean3D = scipy.io.loadmat(os.path.join(os.path.expanduser('~'), 'projects/def-pfieguth/mo2cap/code/util/mean3D.mat'))['mean3D'] # 3x15 shape
 # mean3D = scipy.io.loadmat('/home/eddie/scripts/code/util/mean3D.mat')['mean3D']/1000.
 kinematic_parents = [ 0, 0, 1, 2, 0, 4, 5, 1, 7, 8, 9, 4, 11, 12, 13]
 bones_mean = mean3D - mean3D[:,kinematic_parents]
 bone_length = np.sqrt(np.sum(np.power(bones_mean, 2), axis=0)) # 15 shape
+highest_differences = ['female_008_a_a_rgba_001625',
+ 'female_010_a_a_rgba_003845',
+  'male_002_a_a_rgba_1812',
+   'male_006_a_a_rgba_004566',
+    'male_010_a_a_rgba_004940',
+    'male_002_a_a_rgba_1447',
+    'female_008_a_a_rgba_003302', 'male_002_a_a_rgba_1818', 'male_002_a_a_rgba_1448', 'male_002_a_a_rgba_1450', 'male_002_a_a_rgba_1447', 'male_002_a_a_rgba_1810', 'male_002_a_a_rgba_1449', 'male_002_a_a_rgba_1446', 'male_002_a_a_rgba_1178', 'male_002_a_a_rgba_1028', 'male_002_a_a_rgba_1443', 'male_002_a_a_rgba_1444', 'male_002_a_a_rgba_1813', 'male_002_a_a_rgba_1445', 'male_002_a_a_rgba_1442', 'male_002_a_a_rgba_1441', 'male_002_a_a_rgba_1180', 'male_002_a_a_rgba_1031', 'male_002_a_a_rgba_1177', 'male_002_a_a_rgba_1179', 'male_002_a_a_rgba_1440', 'male_002_a_a_rgba_1439', 'male_002_a_a_rgba_1451', 'male_002_a_a_rgba_1817', 'male_006_a_a_rgba_001429', 'male_002_a_a_rgba_001448', 'male_002_a_a_rgba_1379', 'male_002_a_a_rgba_001450', 'male_002_a_a_rgba_1377', 'male_002_a_a_rgba_001451', 'male_002_a_a_rgba_001449', 'male_002_a_a_rgba_1376', 'male_006_a_a_rgba_001422', 'male_002_a_a_rgba_1175', 'male_002_a_a_rgba_1176', 'male_002_a_a_rgba_001447', 'male_002_a_a_rgba_1181', 'male_006_a_a_rgba_001419', 'male_006_a_a_rgba_001431', 'male_006_a_a_rgba_001432', 'male_006_a_a_rgba_001430', 'male_006_a_a_rgba_001428', 'male_006_a_a_rgba_001418', 'male_002_a_a_rgba_1438', 'male_002_a_a_rgba_1375', 'female_008_a_a_rgba_003450', 'male_006_a_a_rgba_001423', 'male_006_a_a_rgba_001424', 'male_006_a_a_rgba_001421', 'male_002_a_a_rgba_1378', 'male_006_a_a_rgba_001433', 'male_006_a_a_rgba_001425', 'male_002_a_a_rgba_001439', 'male_002_a_a_rgba_001452', 'male_002_a_a_rgba_1182', 'male_002_a_a_rgba_001445', 'male_006_a_a_rgba_001444', 'male_002_a_a_rgba_1174', 'male_006_a_a_rgba_001441', 'male_002_a_a_rgba_001441', 'male_002_a_a_rgba_001444', 'male_002_a_a_rgba_1816', 'male_002_a_a_rgba_001446', 'male_002_a_a_rgba_001417', 'male_006_a_a_rgba_001446', 'male_002_a_a_rgba_001440', 'female_008_a_a_rgba_003229', 'male_002_a_a_rgba_1172', 'male_006_a_a_rgba_001443', 'male_002_a_a_rgba_001430', 'male_006_a_a_rgba_001439', 'male_006_a_a_rgba_001417', 'male_002_a_a_rgba_1452', 'male_002_a_a_rgba_1374', 'male_002_a_a_rgba_001429', 'male_002_a_a_rgba_001443', 'male_002_a_a_rgba_1173', 'male_006_a_a_rgba_001440', 'male_006_a_a_rgba_001420', 'male_002_a_a_rgba_001453', 'female_008_a_a_rgba_003303', 'male_002_a_a_rgba_1389', 'female_008_a_a_rgba_003227', 'male_002_a_a_rgba_001420', 'male_002_a_a_rgba_1183', 'male_002_a_a_rgba_001442', 'male_002_a_a_rgba_1392', 'male_002_a_a_rgba_001455', 'female_008_a_a_rgba_003230', 'female_008_a_a_rgba_003449', 'male_006_a_a_rgba_001442', 'male_002_a_a_rgba_1391', 'male_002_a_a_rgba_1357', 'male_006_a_a_rgba_001445', 'female_008_a_a_rgba_003228', 'male_006_a_a_rgba_001447', 'male_002_a_a_rgba_001454', 'female_008_a_a_rgba_003233', 'male_002_a_a_rgba_001438', 'female_008_a_a_rgba_003231', 'female_010_a_a_rgba_004332']
 
 def get_p3ds_t(p3d_preds, p3d_gts):
     """
@@ -390,7 +397,7 @@ def create_results_csv(mpjpe_dict: dict, csv_path: str, mode: str = 'baseline'):
      'LeftHand', 'RightArm', 'RightForeArm', 'RightHand',
      'LeftUpLeg', 'LeftLeg','LeftFoot','LeftToeBase',
      'RightUpLeg','RightLeg','RightFoot','RightToeBase']
-    elif mode == 'mo2cap2':
+    elif mode == 'mo2cap2' or mode == 'mo2cap2_seq':
         joints = ['Neck', 'LeftArm', 'LeftForeArm',
      'LeftHand', 'RightArm', 'RightForeArm', 'RightHand',
      'LeftUpLeg', 'LeftLeg','LeftFoot','LeftToeBase',
@@ -484,7 +491,7 @@ class EvalBody(BaseEval):
         """
 
         for pid, (pose_in, pose_target) in enumerate(zip(pred, gt)):
-            err = compute_error(pose_in, pose_target, mode=self.mode)
+            err = compute_error(pose_in, pose_target)
 
             if actions:
                 act_name = self._map_action_name(actions[pid])
@@ -501,6 +508,46 @@ class EvalBody(BaseEval):
     def desc(self):
         return "Average3DError"
 
+class EvalSamples(BaseEval):
+    """Eval entire body"""
+    def __init__(self, mode='baseline'):
+        super().__init__()
+        self.mode = mode
+
+    def eval(self, pred, gt, actions, filenames):
+        """Evaluate
+
+        Arguments:
+            pred {np.ndarray} -- predictions, format (N x 3)
+            gt {np.ndarray} -- ground truth, format (N x 3)
+
+        Keyword Arguments:
+            action {str} -- action name (default: {None})
+        """
+
+        for pid, (pose_in, pose_target) in enumerate(zip(pred, gt)):
+            err = compute_error(pose_in, pose_target)
+
+            
+            act_name = self._map_action_name(actions[pid])
+
+            # add element to dictionary if not there yet
+            if not self._is_action_stored('Actions'):
+                self._init_action('Actions')
+
+            self.error['Actions'].append(act_name)
+            
+            if not self._is_action_stored('Filenames'):
+                self._init_action('Filenames')
+
+            self.error['Filenames'].append(filenames[pid])    
+
+            # add to all
+            act_name = "All"
+            self.error[act_name].append(err)
+
+    def desc(self):
+        return "3DError"
 
 class EvalUpperBody(BaseEval):
     """Eval upper body"""
@@ -527,12 +574,8 @@ class EvalUpperBody(BaseEval):
         """
 
         for pid, (pose_in, pose_target) in enumerate(zip(pred, gt)):
-            if self.mode == 'baseline' or self.mode =='sequential':
-                err = compute_error(pose_in[self._SEL], pose_target[self._SEL], mode=self.mode)
-            elif self.mode == 'mo2cap2':
-                err = compute_error(pose_in, pose_target, return_mean=False, mode=self.mode)
-                err = np.mean(err[self._SEL])
-                
+            err = compute_error(pose_in[self._SEL], pose_target[self._SEL])
+            
 
             if actions:
                 act_name = self._map_action_name(actions[pid])
@@ -576,11 +619,8 @@ class EvalLowerBody(BaseEval):
         """
 
         for pid, (pose_in, pose_target) in enumerate(zip(pred, gt)):
-            if self.mode == 'baseline' or self.mode =='sequential':
-                err = compute_error(pose_in[self._SEL], pose_target[self._SEL], mode=self.mode)
-            elif self.mode == 'mo2cap2':
-                err = compute_error(pose_in, pose_target, return_mean=False, mode=self.mode)
-                err = np.mean(err[self._SEL])
+            err = compute_error(pose_in[self._SEL], pose_target[self._SEL])
+            
 
             if actions:
                 act_name = self._map_action_name(actions[pid])
@@ -603,6 +643,8 @@ class EvalPerJoint(object):
     def __init__(self, mode='baseline'):
         super().__init__()
         self.errors = []
+        self.gts = []
+        self.pds = []
         self.mode = mode
 
     def eval(self, pred, gt):
@@ -615,13 +657,37 @@ class EvalPerJoint(object):
         """
 
         for (pose_in, pose_target) in zip(pred, gt):
-            err = compute_error(pose_in, pose_target, return_mean=False, mode=self.mode)
+            err = compute_error(pose_in, pose_target, return_mean=False)
             # err = Error per joint
             self.errors.append(err)
+            self.pds.append(pose_in)
+            self.gts.append(pose_target)
 
     def get_results(self):
         stacked = np.array(self.errors)
         stacked = np.mean(stacked, axis=0)
         return stacked
 
-    
+
+class ActionMap(BaseEval):
+    """Eval entire body"""
+    def __init__(self):
+        super().__init__()
+
+
+    def eval(self, pred, gt, actions=None):
+        """Evaluate
+
+        Arguments:
+            pred {np.ndarray} -- predictions, format (N x 3)
+            gt {np.ndarray} -- ground truth, format (N x 3)
+
+        Keyword Arguments:
+            action {str} -- action name (default: {None})
+        """
+        return self._map_action_name(actions)
+
+ 
+
+    def desc(self):
+        return "ActionMapper"

@@ -163,7 +163,7 @@ class LSP(BaseDataset):
         if self.transform:
             img = self.transform({'image': img})['image']
 
-        return img, p2d_heatmap, p2ds, action
+        return img, p2d_heatmap, p2ds, action, img_path
 
     def __len__(self):
 

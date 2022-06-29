@@ -21,7 +21,14 @@ from dataset.mo2cap2_transformer import Mo2Cap2SeqDataModule
 from dataset.mocap_h36m import MocapH36MDataModule
 
 from net.DirectRegression import DirectRegression
+from net.Mo2Cap2BaselineL1 import Mo2Cap2BaselineL1
 from net.Mo2Cap2Direct import Mo2Cap2Direct
+from net.Mo2Cap2GlobalTrans import Mo2Cap2GlobalTrans
+from net.Mo2Cap2Seq import Mo2Cap2Seq
+from net.Mo2Cap2SeqHMDirect import Mo2Cap2SeqHMDirect
+from net.Mo2Cap2SeqHMDirectAvg import Mo2Cap2SeqHMDirectAvg
+from net.Mo2Cap2SeqHMDirectSlice import Mo2Cap2SeqHMDirectSlice
+from net.xRNetBaseLineL1 import xREgoPoseL1
 from net.xRNetDirect import xREgoPoseDirect
 from net.Mo2Cap2Baseline import Mo2Cap2Baseline
 from net.xRNetPosteriorLinear import xREgoPosePosteriorLinear
@@ -47,6 +54,7 @@ from utils.evaluate import create_results_csv
 MODEL_DIRECTORY = {
     "direct_regression": DirectRegression,
     "xregopose": xREgoPose,
+    "xregopose_l1": xREgoPoseL1,
     "xregopose_seq": xREgoPoseSeq,
     "xregopose_concat":xRNetConcat,
     "xregopose_heatmap": xREgoPoseHeatMap,
@@ -64,7 +72,15 @@ MODEL_DIRECTORY = {
     "xregopose_seq_hm_direct_avg": xREgoPoseSeqHMDirectAvg,
     "xregopose_seq_hm_direct_slice": xREgoPoseSeqHMDirectSlice,
     "mo2cap2": Mo2Cap2Baseline,
-    "mo2cap2_direct": Mo2Cap2Direct
+    "mo2cap2_l1": Mo2Cap2BaselineL1,
+    "mo2cap2_direct": Mo2Cap2Direct,
+    "mo2cap2_global_trans": Mo2Cap2GlobalTrans,
+    "mo2cap2_seq": Mo2Cap2Seq,
+    "mo2cap2_slice": Mo2Cap2SeqHMDirectSlice,
+    "mo2cap2_avg": Mo2Cap2SeqHMDirectAvg,
+    "mo2cap2_ego": Mo2Cap2SeqHMDirect
+
+
 }
 DATALOADER_DIRECTORY = {
     'baseline': MocapDataModule,
@@ -82,8 +98,11 @@ if __name__ == "__main__":
                         , default=False, type=bool)
     parser.add_argument('--dataloader', help="Type of dataloader", required=True, default=None)
     parser.add_argument("--load",
-                        help="Directory of pre-trained model,  \n"
-                             "None --> Do not use pre-trained model. Training will start from random initialized model")
+                        help="Directory of pre-trained model weights only,  \n"
+                             "None --> Do not use pre-trained model. Training will start from random initialized model", default=None)
+    parser.add_argument("--resume_from_checkpoint",
+                        help="Directory of pre-trained checkpoint including hyperparams,  \n"
+                             "None --> Do not use pre-trained model. Training will start from random initialized model", default=None)
     parser.add_argument('--dataset_tr', help='Directory of your train Dataset', required=True, default=None)
     parser.add_argument('--dataset_val', help='Directory of your validation Dataset', required=True, default=None)
     parser.add_argument('--dataset_test', help='Directory of your test Dataset', default=None)
@@ -126,7 +145,10 @@ if __name__ == "__main__":
     pl.seed_everything(dict_args['seed'])
     # Initialize model to train
     assert dict_args['model'] in MODEL_DIRECTORY
-    model = MODEL_DIRECTORY[dict_args['model']](**dict_args)
+    if dict_args['load'] is not None:
+        model = MODEL_DIRECTORY[dict_args['model']].load_from_checkpoint(dict_args['load'], **dict_args)
+    else:
+        model = MODEL_DIRECTORY[dict_args['model']](**dict_args)
 
     # Initialize logging paths
     random_sec = random.randint(1, 20)
@@ -172,7 +194,8 @@ if __name__ == "__main__":
         logger=logger,
         max_epochs=dict_args["epoch"],
         log_every_n_steps=10,
-        gradient_clip_val=dict_args['clip_grad_norm']
+        gradient_clip_val=dict_args['clip_grad_norm'],
+        resume_from_checkpoint=dict_args['resume_from_checkpoint']
     )
 
     # Trainer: train model

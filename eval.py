@@ -2,12 +2,12 @@ import argparse
 import datetime
 import os
 import pathlib
-
+import pickle
 import pytorch_lightning as pl
 from pytorch_lightning.loggers import TensorBoardLogger
 from train import DATALOADER_DIRECTORY, MODEL_DIRECTORY
 from utils.evaluate import create_results_csv
-
+import numpy as np
 
 def main():
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
@@ -42,6 +42,7 @@ def main():
                         default= 'baseline')
     parser.add_argument("--heatmap_resolution",  help='2D heatmap resolution', nargs="*", type=int, default=[47, 47])
     parser.add_argument("--image_resolution",  help='Image resolution', nargs="*", type=int, default=[368, 368])
+    parser.add_argument('--dropout', help='Dropout for transformer', type=float, default=0.)
 
 
     dict_args = vars(parser.parse_args())
@@ -83,8 +84,27 @@ def main():
         dict_args["output_directory"],
         f"{model_dir}_eval.csv",
     )
-    create_results_csv(test_mpjpe_dict, mpjpe_csv_path)
+    create_results_csv(test_mpjpe_dict, mpjpe_csv_path, mode=dict_args['dataloader'])
 
+    raw_results = model.test_raw_p2ds
+    results = model.test_mpjpe_samples
+
+
+    now = datetime.datetime.now().strftime("%m_%d_%H_%M_%S")
+    dir_name = dict_args["model"] + "_" + now
+    out_dir = os.path.join(dict_args["output_directory"], dir_name)
+    os.makedirs(out_dir, exist_ok=True)
+
+    
+    # Save results file
+    results_path = os.path.join(out_dir, "results_" + dir_name)
+    handpicked_results_path = os.path.join(out_dir, "raw_results_" + dir_name + ".pkl")
+    
+    with open(results_path, "wb") as handle:
+        pickle.dump(results, handle)
+
+    with open(handpicked_results_path, "wb") as handle:
+        pickle.dump(raw_results, handle)
 
 if __name__ == "__main__":
     main()

@@ -5,6 +5,8 @@ import torch
 import torch.nn as nn
 from utils import evaluate
 from net.blocks import *
+import numpy as np
+import pathlib
 
 
 
@@ -209,6 +211,8 @@ class xREgoPoseDirect(pl.LightningModule):
         self.eval_upper = evaluate.EvalUpperBody()
         self.eval_lower = evaluate.EvalLowerBody()
         self.eval_per_joint = evaluate.EvalPerJoint()
+        self.eval_samples = evaluate.EvalSamples()
+        self.filenames = []
 
     def test_step(self, batch, batch_idx):
         img, p2d, p3d, action, img_path = batch
@@ -226,14 +230,20 @@ class xREgoPoseDirect(pl.LightningModule):
         self.eval_upper.eval(y_output, y_target, action)
         self.eval_lower.eval(y_output, y_target, action)
         self.eval_per_joint.eval(y_output, y_target)
+        filenames = []
+        for idx in range(y_target.shape[0]):
 
+            filename = pathlib.Path(img_path[idx]).stem
+            filename = str(filename).replace(".", "_")
+            filenames.append(filename)
+        self.eval_samples.eval(y_output, y_target, action, filenames)
 
     def test_epoch_end(self, test_step_outputs):
         test_mpjpe = self.eval_body.get_results()
         test_mpjpe_upper = self.eval_upper.get_results()
         test_mpjpe_lower = self.eval_lower.get_results()
         test_mpjpe_per_joint = self.eval_per_joint.get_results()
-
+        self.test_mpjpe_samples = self.eval_samples.error
         self.test_results = {
             "Full Body": test_mpjpe,
             "Upper Body": test_mpjpe_upper,

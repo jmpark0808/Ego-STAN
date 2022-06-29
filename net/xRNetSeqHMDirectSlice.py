@@ -7,6 +7,7 @@ from utils import evaluate
 from net.blocks import *
 from net.transformer import ResNetTransformerSlice
 import matplotlib
+import pathlib
 
 
 class xREgoPoseSeqHMDirectSlice(pl.LightningModule):
@@ -274,6 +275,8 @@ class xREgoPoseSeqHMDirectSlice(pl.LightningModule):
         self.eval_upper = evaluate.EvalUpperBody()
         self.eval_lower = evaluate.EvalLowerBody()
         self.eval_per_joint = evaluate.EvalPerJoint()
+        self.eval_samples = evaluate.EvalSamples()
+        self.filenames = []
 
     def test_step(self, batch, batch_idx):
         tensorboard = self.logger.experiment
@@ -316,7 +319,13 @@ class xREgoPoseSeqHMDirectSlice(pl.LightningModule):
         self.eval_lower.eval(y_output, y_target, action)
         self.eval_per_joint.eval(y_output, y_target)
         self.test_iteration += sequence_imgs.size(0)
-        
+        filenames = []
+        for idx in range(y_target.shape[0]):
+
+            filename = pathlib.Path(img_path[-1][idx]).stem
+            filename = str(filename).replace(".", "_")
+            filenames.append(filename)
+        self.eval_samples.eval(y_output, y_target, action, filenames)
       
 
     def test_epoch_end(self, test_step_outputs):
@@ -324,7 +333,7 @@ class xREgoPoseSeqHMDirectSlice(pl.LightningModule):
         test_mpjpe_upper = self.eval_upper.get_results()
         test_mpjpe_lower = self.eval_lower.get_results()
         test_mpjpe_per_joint = self.eval_per_joint.get_results()
-
+        self.test_mpjpe_samples = self.eval_samples.error
         self.test_results = {
             "Full Body": test_mpjpe,
             "Upper Body": test_mpjpe_upper,

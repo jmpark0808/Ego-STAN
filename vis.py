@@ -3,16 +3,20 @@ import datetime
 import os
 import pathlib
 import pickle
-
+import torch
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
 from tqdm import tqdm
-
+from utils import evaluate
+from base.base_eval import BaseEval
 from train import DATALOADER_DIRECTORY, MODEL_DIRECTORY
 
+
 sns.set_theme(style="whitegrid")
+
+
 
 
 def main():
@@ -24,7 +28,8 @@ def main():
     parser.add_argument("--batch_size", default=16, type=int)
     parser.add_argument("--output_directory", required=True, type=str)
     parser.add_argument("--cuda", default="cuda", choices=["cuda", "cpu"], type=str)
-    parser.add_argument("--heatmap_type", required=True)
+    parser.add_argument("--heatmap_type", help='Type of 2D ground truth heatmap, Defaults to "baseline"', 
+                        default= 'baseline')
     parser.add_argument(
         "--heatmap_resolution",
         help="2D heatmap resolution",
@@ -40,15 +45,6 @@ def main():
         default=[368, 368],
     )
     parser.add_argument("--num_workers", type=int, required=True)
-    parser.add_argument(
-        "--clip_grad_norm",
-        help="Clipping gradient norm, 0 means no clipping",
-        type=float,
-        default=0.0,
-    )
-    parser.add_argument(
-        "--dropout", help="Dropout for transformer", type=float, default=0.0
-    )
     parser.add_argument(
         "--encoder_type",
         help='Type of encoder for concatenation, Defaults to "branch_concat"',
@@ -66,6 +62,7 @@ def main():
         default=5,
         type=int,
     )
+    parser.add_argument('--dropout', help='Dropout for transformer', type=float, default=0.)
 
     dict_args = vars(parser.parse_args())
 
@@ -74,56 +71,97 @@ def main():
     test_dataloader = data_module.test_dataloader()
 
     # Initialize model to test
-    assert dict_args["model"] in MODEL_DIRECTORY
-    model = MODEL_DIRECTORY[dict_args["model"]](**dict_args)
-    model = model.load_from_checkpoint(
-        checkpoint_path=dict_args["model_checkpoint_file"],
-        map_location=dict_args["cuda"],
-    )
-    model.eval()
-
+    # assert dict_args["model"] in MODEL_DIRECTORY
+    # # model = MODEL_DIRECTORY[dict_args["model"]].load_from_checkpoint(dict_args["model_checkpoint_file"])
+    # model = MODEL_DIRECTORY[dict_args["model"]](**dict_args)
+    # model = model.load_from_checkpoint(
+    #     dict_args["model_checkpoint_file"]
+    # )
+    # model = model.to(dict_args['cuda'])
+    # model.eval()
+    # model.freeze()
     # Store results in dict
-    results = {}
 
     # Iterate through each batch to generate visuals
     print("[p] processing batches")
+    handpicked_results = {}
     for batch in tqdm(test_dataloader):
-        img, p2d, p3d, action, img_path = batch
+        img, p2d, p3d, action, img_path, rawp2d = batch
+        
 
-        p3d = p3d.cpu().numpy()
-        img = img.cpu().numpy()
-        pose = model(img).detach().numpy()
-        errors = np.mean(np.sqrt(np.sum(np.power(p3d - pose, 2), axis=2)), axis=1)
+        # if len(p3d.size()) == 3:
+        #     p3d = p3d.cpu().numpy()
+        # else:
+        #     p3d = p3d[:, -1, :, :].cpu().numpy()
+        
+        # img = img.cuda()
+        # if dict_args['model'] in ['xregopose_seq_hm_direct', 'xregopose_seq_hm_direct_avg', 'xregopose_global_trans', 'xregopose_seq_hm_direct_slice']:
+        #     hms, pose, atts = model(img)
+        #     pose = pose.data.cpu().numpy()
 
+            
+            
+        # elif dict_args['model'] in ['xregopose', 'xregopose_l1']:
+        #     hms, pose, ghm = model(img)
+        #     pose = pose.data.cpu().numpy()
+        # elif dict_args['model'] in ['xregopose_direct']:
+        #     hms, pose = model(img)
+        #     pose = pose.data.cpu().numpy()
+        # elif dict_args['model'] in ['xregopose_seq']:
+        #     hms, pose, ghm, atts = model(img)
+        #     pose = pose.data.cpu().numpy()
+        # else:
+        #     raise('Unsupported model type')
+
+        # errors = np.mean(np.sqrt(np.sum(np.power(p3d - pose, 2), axis=2)), axis=1)
         for idx in range(p3d.shape[0]):
-            filename = pathlib.Path(img_path[idx]).stem
+            if dict_args['dataloader'] == 'sequential':
+                filename = pathlib.Path(img_path[-1][idx]).stem
+            else:
+                filename = pathlib.Path(img_path[idx]).stem
+            
             filename = str(filename).replace(".", "_")
-            results.update(
-                {
-                    filename: {
-                        "gt_pose": p3d[idx],
-                        "pred_pose": pose[idx],
-                        "action": action[idx],
-                        "full_mpjpe": errors[idx],
-                        "img": img[idx],
-                    }
+            # if filename in evaluate.highest_differences:
+            handpicked_results.update(
+            {
+                filename: {
+                    # "gt_pose": p3d[idx],
+                    # "pred_pose": pose[idx],
+                    "img": img.cpu().numpy()[idx],
+                    'p2d': rawp2d[-1][idx].cpu().numpy()
                 }
+            }
             )
+            # results.update(
+            #     {
+            #         filename: {
+            #             # "gt_pose": p3d[idx],
+            #             # "pred_pose": pose[idx],
+            #             "action": baseeval.eval(None, None, action[idx]),
+            #             "full_mpjpe": errors[idx],
+            #         }
+            #     }
+            # )
+
+
 
     # Create output directory
-    now = datetime.datetime.now().strftime("%m_%a_%H_%M_%S")
+    now = datetime.datetime.now().strftime("%m_%d_%H_%M_%S")
     dir_name = dict_args["model"] + "_" + now
     out_dir = os.path.join(dict_args["output_directory"], dir_name)
     os.makedirs(out_dir, exist_ok=True)
 
     # Save results file
     results_path = os.path.join(out_dir, "results_" + dir_name + ".pkl")
-    with open(results_path, "wb") as handle:
-        pickle.dump(results, handle)
+    handpicked_results_path = os.path.join(out_dir, "handpicked_results_" + dir_name + ".pkl")
+    # with open(results_path, "wb") as handle:
+    #     pickle.dump(results, handle)
 
+    with open(handpicked_results_path, "wb") as handle:
+        pickle.dump(handpicked_results, handle)
     # plot violin
-    violin_path = os.path.join(out_dir, "violin_" + dir_name + ".jpg")
-    plot_violin(results=results, output_file=violin_path)
+    # violin_path = os.path.join(out_dir, "violin_" + dir_name + ".jpg")
+    # plot_violin(results=results, output_file=violin_path)
 
 
 def get_errors_per_action(results: dict):
@@ -184,12 +222,13 @@ def plot_violin(results: dict, output_file: str):
 
     for key, value in results.items():
         pd_data.append([key, value["action"], value["full_mpjpe"]])
-
+    
     df = pd.DataFrame(pd_data, columns=["id", "action", "full_mpjpe"])
     ax = sns.violinplot(x="action", y="full_mpjpe", data=df, inner="quartile")
-
-    os.makedirs(output_file, exist_ok=True)
-    ax.figure.savefig(output_file)
+    ax.set_xticklabels(ax.get_xticklabels(),rotation=90)
+    ax.set_ylabel("MPJPE (mm)")
+    # os.makedirs(output_file, exist_ok=True)
+    ax.figure.savefig(output_file, bbox_inches = "tight")
 
 
 def plot_skeleton(poses: list, output_file: str):

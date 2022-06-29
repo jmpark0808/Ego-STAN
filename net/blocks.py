@@ -1,4 +1,3 @@
-from tkinter import X
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -17,6 +16,7 @@ class HeatMap(nn.Module):
                                                                  stride=2, dilation=1, padding=1),
                                               nn.ConvTranspose2d(1024, num_classes, kernel_size=3,
                                                                  stride=2, dilation=1, padding=0)])
+
 
     def update_resnet101(self):
         self.resnet101 = nn.Sequential(*[l for ind, l in enumerate(self.resnet101.children()) if ind < 8])
@@ -342,6 +342,33 @@ class HM2Pose(nn.Module):
         x = self.linear3(x)
         x = x.reshape(x.size(0), -1, 3)
         return x
+
+# class HM2Pose(nn.Module):
+#     def __init__(self, num_class=16):
+#         super(HM2Pose, self).__init__()
+#         self.num_class = num_class
+#         self.conv1 = nn.Conv2d(num_class, 32, kernel_size=4, stride=2, padding=2)
+#         self.lrelu1 = nn.PReLU()
+#         self.conv2 = nn.Conv2d(32, 64, kernel_size=4, stride=2, padding=1)
+#         self.lrelu2 = nn.PReLU()
+#         self.conv3 = nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1)
+#         self.lrelu3 = nn.PReLU()
+
+#         self.linear1 = nn.Linear(4608, num_class*3)
+
+ 
+
+#     def forward(self, x):
+#         x = self.conv1(x)
+#         x = self.lrelu1(x)
+#         x = self.conv2(x)
+#         x = self.lrelu2(x)
+#         x = self.conv3(x)
+#         x = self.lrelu3(x)
+#         x = x.reshape(x.size(0), -1) # flatten
+#         x = self.linear1(x)
+#         x = x.reshape(x.size(0), -1, 3)
+#         return x
 
 class HM2PoseDist(nn.Module):
     def __init__(self):
