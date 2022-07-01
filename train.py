@@ -19,6 +19,7 @@ from dataset.mocap_distance import MocapDistanceDataModule
 from dataset.mocap_transformer import MocapSeqDataModule
 from dataset.mo2cap2_transformer import Mo2Cap2SeqDataModule
 from dataset.mocap_h36m import MocapH36MDataModule
+from dataset.mocap_h36m_transformer import MocapH36MSeqDataModule
 
 from net.DirectRegression import DirectRegression
 from net.Mo2Cap2BaselineL1 import Mo2Cap2BaselineL1
@@ -88,7 +89,8 @@ DATALOADER_DIRECTORY = {
     'distance': MocapDistanceDataModule,
     'mo2cap2': Mo2Cap2DataModule,
     'mo2cap2_seq': Mo2Cap2SeqDataModule,
-    'h36m_static': MocapH36MDataModule
+    'h36m_static': MocapH36MDataModule,
+    'h36m_seq' : MocapH36MSeqDataModule,
 } 
 
 if __name__ == "__main__":
@@ -138,6 +140,7 @@ if __name__ == "__main__":
                         default=42, type=int)
     parser.add_argument('--clip_grad_norm', help='Clipping gradient norm, 0 means no clipping', type=float, default=0.)
     parser.add_argument('--dropout', help='Dropout for transformer', type=float, default=0.)
+    parser.add_argument('--protocol', help='Protocol for H36M, p1 for protocol 1 and p2 for protocol 2', type=str, default='p2')
 
     args = parser.parse_args()
     dict_args = vars(args)
