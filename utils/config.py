@@ -56,7 +56,10 @@ def set_action():
         'Talking', 'UpperStretching', 'Gaming',
         'LowerStretching', 'Patting', 'Walking', 
         'Sitting', 'Crawling', 'Crouching', 'Boxing',
-        'Dancing', 'Stretching', 'Waving', 'All'
+        'Dancing', 'Stretching', 'Waving', 'Direct', 
+        'Discussing', 'Eating', 'Phoning', 'Posing', 
+        'Purchasing', 'SittingDown', 'Smoking', 'TakingPhoto', 
+        'WalkingDog', 'WalkingTogether', 'Waiting', 'All'
     ]
 
     _ACTION = {
@@ -80,7 +83,10 @@ def set_action():
         'Quick_Formal_Bow': 2, 'Counting__1_': 0, 'Tpose_Take_001': 4,
         'upper_stretching': 4, 'lower_stretching': 6, 'walking': 8,
         'sitting' : 9, 'crawling' : 10, 'crouching' : 11, 'boxing' : 12, 
-        'dancing' : 13, 'stretching' : 14, 'waving' : 15
+        'dancing' : 13, 'stretching' : 14, 'waving' : 15, 'Walking': 8,
+        'Directions': 16, 'Discussion': 17, 'Eating': 18, 'Greeting': 2, 'Phoning': 19,
+        'Posing': 20, 'Purchases': 21, 'Sitting': 9, 'SittingDown': 22, 'Smoking': 23,
+        'TakingPhoto': 24, 'WalkingDog': 25, 'WalkingTogether': 26, 'Waiting': 27
     }
 
     action_map = {}

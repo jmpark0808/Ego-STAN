@@ -16,6 +16,45 @@ import os
 
 __all__ = ["EvalBody", "EvalUpperBody", "EvalLowerBody"]
 
+bone_links_map = {
+    'mo2cap2' : [
+            #    [0, 1],
+                [1, 2],
+                [1, 5],
+                [2, 3],
+                [3, 4],
+                [2, 8],
+                [8, 9],
+                [9, 10],
+                [10, 11],
+                [8, 12],
+                [5, 12],
+                [5, 6],
+                [6, 7],
+                [12, 13],
+                [13, 14],
+                [14, 15],
+            ],
+    'h36m' : [
+                #[0, 1], # Head -> Neck
+                [1, 2], # Neck -> LShoulder
+                [1, 5], # Neck -> RShoulder
+                [2, 3], # LShoulder -> LElbow
+                [3, 4], # LShoulder -> LWrist
+                [8, 9], # LHip -> LKnee
+                [9, 10], # LKnee -> LFoot
+                [5, 6], # RShoulder -> RElbow
+                [6, 7], # REblow -> RWrist
+                [11, 12], # RHip -> RKnee
+                [12, 13], # RKnee -> RFoot
+                [14, 11], # Hip -> RHip
+                [14, 8], # Hip -> LHip
+                [1, 15], # Neck -> Thorax
+                [1, 16], # Thorax -> Spine
+                [16, 14] # Spine -> Hip
+            ]
+}
+
 mean3D = scipy.io.loadmat(os.path.join(os.path.expanduser('~'), 'projects/def-pfieguth/mo2cap/code/util/mean3D.mat'))['mean3D'] # 3x15 shape
 # mean3D = scipy.io.loadmat('/home/eddie/scripts/code/util/mean3D.mat')['mean3D']/1000.
 kinematic_parents = [ 0, 0, 1, 2, 0, 4, 5, 1, 7, 8, 9, 4, 11, 12, 13]
@@ -61,7 +100,7 @@ def get_p3ds_t(p3d_preds, p3d_gts):
 
     return preds_t, gt_rots_t
 
-def plot_skels(p3ds, savepath=None):
+def plot_skels(p3ds, savepath=None, dataset='mo2cap2'):
 
     """
     Returns matplotlib figure based on inputted 3D-Pose co-ordinates.
@@ -99,24 +138,7 @@ def plot_skels(p3ds, savepath=None):
 
         ax.view_init(elev=27.0, azim=41.0)
 
-        bone_links = [
-            #    [0, 1],
-                [1, 2],
-                [1, 5],
-                [2, 3],
-                [3, 4],
-                [2, 8],
-                [8, 9],
-                [9, 10],
-                [10, 11],
-                [8, 12],
-                [5, 12],
-                [5, 6],
-                [6, 7],
-                [12, 13],
-                [13, 14],
-                [14, 15],
-            ]
+        bone_links = bone_links_map[dataset]
 
         pose = p3d_a
         xs = pose[:, 0]
@@ -145,7 +167,7 @@ def plot_skels(p3ds, savepath=None):
 
     return fig
 
-def plot_skels_compare(p3ds_1, p3ds_2, label_1, label_2, savepath=None):
+def plot_skels_compare(p3ds_1, p3ds_2, label_1, label_2, savepath=None, dataset='mo2cap2'):
 
     """
     Returns matplotlib figure based on inputted 3D-Pose co-ordinates.
@@ -186,24 +208,7 @@ def plot_skels_compare(p3ds_1, p3ds_2, label_1, label_2, savepath=None):
 
         ax.view_init(elev=27.0, azim=41.0)
 
-        bone_links = [
-            #    [0, 1],
-                [1, 2],
-                [1, 5],
-                [2, 3],
-                [3, 4],
-                [2, 8],
-                [8, 9],
-                [9, 10],
-                [10, 11],
-                [8, 12],
-                [5, 12],
-                [5, 6],
-                [6, 7],
-                [12, 13],
-                [13, 14],
-                [14, 15],
-            ]
+        bone_links = bone_links_map[dataset]
 
         pose_a = p3d_a
         xs_a = pose_a[:, 0]

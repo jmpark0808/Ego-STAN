@@ -128,7 +128,15 @@ class MocapH36M(BaseDataset):
     ROOT_DIRS = ['rgba', 'json']
     MM_TO_M = 1000
 
-    def __init__(self, *args, heatmap_type='baseline', heatmap_resolution=[47, 47], image_resolution=[368, 368], **kwargs):
+    subject_sets = {
+        'p1_train': ['S1', 'S5', 'S6', 'S7', 'S9'],
+        'p1_test' : ['S11'],
+        'p2_train' : ['S1', 'S5', 'S6', 'S7'],
+        'p2_test' : ['S9', 'S11'],
+        'val' : ['S8'],
+    }
+
+    def __init__(self, *args, heatmap_type='baseline', heatmap_resolution=[47, 47], image_resolution=[368, 368], protocol = 'p1_train', **kwargs):
         """Init class, to allow variable sequence length, inherits from Base
         Keyword Arguments:
             sequence_length -- length of image sequence (default: {5})
@@ -137,7 +145,30 @@ class MocapH36M(BaseDataset):
         self.heatmap_type = heatmap_type
         self.heatmap_resolution = heatmap_resolution
         self.image_resolution = image_resolution
+        self.protocol = protocol
         super().__init__(*args, **kwargs)
+
+    def _load_index(self):
+        """Overloading this to allow handling for more 
+        protocols. Get indexed set. If the set has already been
+        indexed, load the file, otherwise index it and save cache.
+        Returns:
+            dict -- index set
+        """
+
+        if self.protocol == 'val':
+            idx_path = os.path.join(self.path, 'index_val.h5')
+        elif self.protocol.lower() == 'p1_test' or self.protocol.lower() == 'p2_test':
+            idx_path = os.path.join(self.path, 'index_test.h5')
+        else:
+            idx_path = os.path.join(self.path, 'index_train.h5')
+
+        if io.exists(idx_path):
+            return io.read_h5(idx_path)
+
+        index = self.index_db()
+        io.write_h5(idx_path, index)
+        return index
 
     def index_db(self):
 
@@ -173,8 +204,22 @@ class MocapH36M(BaseDataset):
                         self.logger.error(
                             'Frames info in {} not matching other passes'.format(d_path))
 
-                encoded = [p.encode('utf8') for p in paths]
-                indexed_paths.update({sub_dir: encoded})
+                if path.split(os.path.sep)[-3] in self.subject_sets[self.protocol]:
+                    if self.protocol.split('_')[-1] in ['train', 'val'] :
+                        encoded = [p.encode('utf8') for p in paths]
+                        indexed_paths.update({sub_dir: encoded})
+                    elif self.protocol.split('_')[-1] in ['test']:
+                        encoded = []
+                        for p in paths:
+                            frame_idx = p.split('_')[-1].split('.')[0]
+                            if int(frame_idx)%64 == 0:
+                                encoded.append(p.encode('utf8'))
+                        indexed_paths.update({sub_dir: encoded})
+                    else:
+                        self.logger.error('Un-recognized protocol type')
+                else:
+                    indexed_paths.update({'rgba':[]})
+                    indexed_paths.update({'json':[]})
 
             return indexed_paths
 
@@ -236,8 +281,6 @@ class MocapH36M(BaseDataset):
         data = io.read_json(json_path)
 
         p2d, p3d = self._process_points(data)
-
-        
         
         if self.heatmap_type == 'baseline':
             p2d_heatmap = generate_heatmap(p2d, int(3*self.heatmap_resolution[0]/47.), resolution=self.heatmap_resolution, h=h, w=w) # exclude head
@@ -274,25 +317,30 @@ class MocapH36MDataModule(pl.LightningDataModule):
         self.heatmap_type = kwargs.get('heatmap_type')
         self.heatmap_resolution = kwargs.get('heatmap_resolution')
         self.image_resolution = kwargs.get('image_resolution')
+        self.protocol = kwargs.get('protocol')
+
+        self.p_train = f'{self.protocol}_train'
+        self.p_test = f'{self.protocol}_test'
+
         # Data: data transformation strategy
         self.data_transform = transforms.Compose(
             [trsf.ImageTrsf(), trsf.Joints3DTrsf(), trsf.ToTensor()]
         )
         
     def train_dataloader(self):
-        data_train = MocapH36M(self.train_dir, SetType.TRAIN, transform=self.data_transform, heatmap_type=self.heatmap_type, heatmap_resolution=self.heatmap_resolution, image_resolution=self.image_resolution)
+        data_train = MocapH36M(self.train_dir, SetType.TRAIN, transform=self.data_transform, heatmap_type=self.heatmap_type, heatmap_resolution=self.heatmap_resolution, image_resolution=self.image_resolution, protocol=self.p_train)
         return DataLoader(
                 data_train, batch_size=self.batch_size, 
                 num_workers=self.num_workers, shuffle=True, pin_memory=True)
 
     def val_dataloader(self):
-        data_val = MocapH36M(self.val_dir, SetType.VAL, transform=self.data_transform, heatmap_type=self.heatmap_type, heatmap_resolution=self.heatmap_resolution, image_resolution=self.image_resolution)
+        data_val = MocapH36M(self.val_dir, SetType.VAL, transform=self.data_transform, heatmap_type=self.heatmap_type, heatmap_resolution=self.heatmap_resolution, image_resolution=self.image_resolution, protocol='val')
         return DataLoader(
                 data_val, batch_size=self.batch_size, 
                 num_workers=self.num_workers, pin_memory=True)
 
     def test_dataloader(self):
-        data_test = MocapH36M(self.test_dir, SetType.TEST, transform=self.data_transform, heatmap_type=self.heatmap_type, heatmap_resolution=self.heatmap_resolution, image_resolution=self.image_resolution)
+        data_test = MocapH36M(self.test_dir, SetType.TEST, transform=self.data_transform, heatmap_type=self.heatmap_type, heatmap_resolution=self.heatmap_resolution, image_resolution=self.image_resolution, protocol=self.p_test)
         return DataLoader(
                 data_test, batch_size=self.batch_size, 
                 num_workers=self.num_workers, pin_memory=True)
