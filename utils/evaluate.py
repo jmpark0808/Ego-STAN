@@ -579,6 +579,8 @@ class EvalBody(BaseEval):
                     self._init_action(act_name)
                 self.error[act_name].append(err)
             else:
+                if not self._is_action_stored(actions[pid]):
+                    self._init_action(actions[pid])
                 self.error[actions[pid]].append(err)
 
             # add to all
@@ -668,6 +670,8 @@ class EvalUpperBody(BaseEval):
                     self._init_action(act_name)
                 self.error[act_name].append(err)
             else:
+                if not self._is_action_stored(actions[pid]):
+                    self._init_action(actions[pid])
                 self.error[actions[pid]].append(err)
 
             # add to all
@@ -718,6 +722,8 @@ class EvalLowerBody(BaseEval):
                     self._init_action(act_name)
                 self.error[act_name].append(err)
             else:
+                if not self._is_action_stored(actions[pid]):
+                    self._init_action(actions[pid])
                 self.error[actions[pid]].append(err)
 
             # add to all
