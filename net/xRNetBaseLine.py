@@ -23,12 +23,13 @@ class xREgoPose(pl.LightningModule):
         self.hm_train_steps = kwargs.get("hm_train_steps")
         self.es_patience = kwargs.get("es_patience")
         self.which_data = kwargs.get('dataloader')
-        if self.which_data == 'baseline':
-            num_class = 16
-        elif self.which_data == 'sequential':
+        self.protocol = kwargs.get('protocol')
+        if self.which_data in ['baseline', 'sequential'] :
             num_class = 16
         elif self.which_data == 'mo2cap2':
             num_class = 15
+        elif self.which_data in ['h36m_static', 'h36m_seq']:
+            num_class = 17
 
         # must be defined for logging computational graph
         self.example_input_array = torch.rand((1, 3, 368, 368))

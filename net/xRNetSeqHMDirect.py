@@ -25,7 +25,14 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
         self.seq_len = kwargs.get('seq_len')
         self.es_patience = kwargs.get('es_patience')
         self.dropout = kwargs.get('dropout')
-
+        self.which_data = kwargs.get('dataloader')
+        self.protocol = kwargs.get('protocol')
+        if self.which_data in ['baseline', 'sequential'] :
+            num_class = 16
+        elif self.which_data == 'mo2cap2':
+            num_class = 15
+        elif self.which_data in ['h36m_static', 'h36m_seq']:
+            num_class = 17
         # must be defined for logging computational graph
         self.example_input_array = torch.rand((1, self.seq_len, 3, 368, 368))
 
@@ -34,18 +41,18 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
         # First Deconvolution to obtain 2D heatmap
         self.heatmap_deconv = nn.Sequential(*[nn.ConvTranspose2d(2048, 1024, kernel_size=3,
                                                                  stride=2, dilation=1, padding=1),
-                                              nn.ConvTranspose2d(1024, 16, kernel_size=3,
+                                              nn.ConvTranspose2d(1024, num_class, kernel_size=3,
                                                                  stride=2, dilation=1, padding=0)])
         # Transformer that takes sequence of heatmaps and outputs a sequence of heatmaps
         self.resnet_transformer = ResNetTransformerCls(seq_len=self.seq_len*12*12, dim=512, depth=3, heads=8, mlp_dim=1024, dim_head=64, dropout=self.dropout)
         # Direct regression from heatmap
-        self.hm2pose = HM2Pose()
+        self.hm2pose = HM2Pose(num_class)
 
         # Initialize the mpjpe evaluation pipeline
-        self.eval_body = evaluate.EvalBody()
-        self.eval_upper = evaluate.EvalUpperBody()
-        self.eval_lower = evaluate.EvalLowerBody()
-        self.eval_per_joint = evaluate.EvalPerJoint()
+        self.eval_body = evaluate.EvalBody(mode=self.which_data)
+        self.eval_upper = evaluate.EvalUpperBody(mode=self.which_data)
+        self.eval_lower = evaluate.EvalLowerBody(mode=self.which_data)
+        self.eval_per_joint = evaluate.EvalPerJoint(mode=self.which_data)
 
         # Initialize total validation pose loss
         self.val_loss_3d_pose_total = torch.tensor(0., device=self.device)
