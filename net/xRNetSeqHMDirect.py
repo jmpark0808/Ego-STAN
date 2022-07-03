@@ -49,10 +49,10 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
         self.hm2pose = HM2Pose(num_class)
 
         # Initialize the mpjpe evaluation pipeline
-        self.eval_body = evaluate.EvalBody(mode=self.which_data)
-        self.eval_upper = evaluate.EvalUpperBody(mode=self.which_data)
-        self.eval_lower = evaluate.EvalLowerBody(mode=self.which_data)
-        self.eval_per_joint = evaluate.EvalPerJoint(mode=self.which_data)
+        self.eval_body = evaluate.EvalBody(mode=self.which_data, protocol=self.protocol)
+        self.eval_upper = evaluate.EvalUpperBody(mode=self.which_data, protocol=self.protocol)
+        self.eval_lower = evaluate.EvalLowerBody(mode=self.which_data, protocol=self.protocol)
+        self.eval_per_joint = evaluate.EvalPerJoint(mode=self.which_data, protocol=self.protocol)
 
         # Initialize total validation pose loss
         self.val_loss_3d_pose_total = torch.tensor(0., device=self.device)
@@ -186,7 +186,7 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
 
         """
         
-        sequence_imgs, p2d, p3d, action, img_path = batch
+        sequence_imgs, p2d, p3d, action = batch
         sequence_imgs = sequence_imgs.cuda()
         p2d = p2d.cuda()
         p2d = p2d[:, -1, :, :, :]
@@ -223,7 +223,7 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
         validation loop: https://pytorch-lightning.readthedocs.io/en/stable/common/lightning_module.html#hooks
         """
         
-        sequence_imgs, p2d, p3d, action, img_path = batch
+        sequence_imgs, p2d, p3d, action = batch
         sequence_imgs = sequence_imgs.cuda()
         p2d = p2d.cuda()
         p2d = p2d[:, -1, :, :, :]
@@ -253,9 +253,9 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
 
     def on_validation_start(self):
         # Initialize the mpjpe evaluation pipeline
-        self.eval_body = evaluate.EvalBody()
-        self.eval_upper = evaluate.EvalUpperBody()
-        self.eval_lower = evaluate.EvalLowerBody()
+        self.eval_body = evaluate.EvalBody(mode=self.which_data, protocol=self.protocol)
+        self.eval_upper = evaluate.EvalUpperBody(mode=self.which_data, protocol=self.protocol)
+        self.eval_lower = evaluate.EvalLowerBody(mode=self.which_data, protocol=self.protocol)
 
         # Initialize total validation pose loss
         self.val_loss_3d_pose_total = torch.tensor(0., device=self.device)
@@ -278,17 +278,17 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
 
     def on_test_start(self):
         # Initialize the mpjpe evaluation pipeline
-        self.eval_body = evaluate.EvalBody()
-        self.eval_upper = evaluate.EvalUpperBody()
-        self.eval_lower = evaluate.EvalLowerBody()
-        self.eval_per_joint = evaluate.EvalPerJoint()
-        self.eval_samples = evaluate.EvalSamples()
+        self.eval_body = evaluate.EvalBody(mode=self.which_data, protocol=self.protocol)
+        self.eval_upper = evaluate.EvalUpperBody(mode=self.which_data, protocol=self.protocol)
+        self.eval_lower = evaluate.EvalLowerBody(mode=self.which_data, protocol=self.protocol)
+        self.eval_per_joint = evaluate.EvalPerJoint(mode=self.which_data, protocol=self.protocol)
+        # self.eval_samples = evaluate.EvalSamples()
         self.filenames = []
 
     def test_step(self, batch, batch_idx):
         logdir = self.logger.log_dir
         tensorboard = self.logger.experiment
-        sequence_imgs, p2d, p3d, action, img_path = batch
+        sequence_imgs, p2d, p3d, action = batch
         sequence_imgs = sequence_imgs.cuda()
         p2d = p2d.cuda()
         p2d = p2d[:, -1, :, :, :]
@@ -330,13 +330,13 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
         self.eval_lower.eval(y_output, y_target, action)
         self.eval_per_joint.eval(y_output, y_target)
         self.test_iteration += sequence_imgs.size(0)
-        filenames = []
-        for idx in range(y_target.shape[0]):
+        # filenames = []
+        # for idx in range(y_target.shape[0]):
 
-            filename = pathlib.Path(img_path[-1][idx]).stem
-            filename = str(filename).replace(".", "_")
-            filenames.append(filename)
-        self.eval_samples.eval(y_output, y_target, action, filenames)
+        #     filename = pathlib.Path(img_path[-1][idx]).stem
+        #     filename = str(filename).replace(".", "_")
+        #     filenames.append(filename)
+        # self.eval_samples.eval(y_output, y_target, action, filenames)
       
 
     def test_epoch_end(self, test_step_outputs):
@@ -345,7 +345,7 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
         test_mpjpe_lower = self.eval_lower.get_results()
         self.test_raw_p2ds = {'preds': self.eval_per_joint.pds, 'gts': self.eval_per_joint.gts}
         test_mpjpe_per_joint = self.eval_per_joint.get_results()
-        self.test_mpjpe_samples = self.eval_samples.error
+        # self.test_mpjpe_samples = self.eval_samples.error
         self.test_results = {
             "Full Body": test_mpjpe,
             "Upper Body": test_mpjpe_upper,
