@@ -571,13 +571,15 @@ class EvalBody(BaseEval):
         for pid, (pose_in, pose_target) in enumerate(zip(pred, gt)):
             err = compute_error(pose_in, pose_target, mode=self.mode, protocol=self.protocol)
 
-            if actions:
+            if actions and (self.mode == 'baseline' or self.mode == 'sequential'):
                 act_name = self._map_action_name(actions[pid])
 
                 # add element to dictionary if not there yet
                 if not self._is_action_stored(act_name):
                     self._init_action(act_name)
                 self.error[act_name].append(err)
+            else:
+                self.error[actions[pid]].append(err)
 
             # add to all
             act_name = "All"
@@ -666,7 +668,7 @@ class EvalUpperBody(BaseEval):
                     self._init_action(act_name)
                 self.error[act_name].append(err)
             else:
-                self.error[act_name].append(err)
+                self.error[actions[pid]].append(err)
 
             # add to all
             act_name = "All"
@@ -716,7 +718,7 @@ class EvalLowerBody(BaseEval):
                     self._init_action(act_name)
                 self.error[act_name].append(err)
             else:
-                self.error[act_name].append(err)
+                self.error[actions[pid]].append(err)
 
             # add to all
             act_name = "All"
