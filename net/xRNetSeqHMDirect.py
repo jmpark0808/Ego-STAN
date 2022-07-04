@@ -50,9 +50,9 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
 
         # Initialize the mpjpe evaluation pipeline
         self.eval_body = evaluate.EvalBody(mode=self.which_data, protocol=self.protocol)
-        self.eval_upper = evaluate.EvalUpperBody(mode=self.which_data, protocol=self.protocol)
-        self.eval_lower = evaluate.EvalLowerBody(mode=self.which_data, protocol=self.protocol)
-        self.eval_per_joint = evaluate.EvalPerJoint(mode=self.which_data, protocol=self.protocol)
+        # self.eval_upper = evaluate.EvalUpperBody(mode=self.which_data, protocol=self.protocol)
+        # self.eval_lower = evaluate.EvalLowerBody(mode=self.which_data, protocol=self.protocol)
+        # self.eval_per_joint = evaluate.EvalPerJoint(mode=self.which_data, protocol=self.protocol)
 
         # Initialize total validation pose loss
         self.val_loss_3d_pose_total = torch.tensor(0., device=self.device)
@@ -246,16 +246,16 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
         y_output = pose.data.cpu().numpy()
         y_target = p3d.data.cpu().numpy()
         self.eval_body.eval(y_output, y_target, action)
-        self.eval_upper.eval(y_output, y_target, action)
-        self.eval_lower.eval(y_output, y_target, action)
+        # self.eval_upper.eval(y_output, y_target, action)
+        # self.eval_lower.eval(y_output, y_target, action)
 
         return val_loss_3d_pose
 
     def on_validation_start(self):
         # Initialize the mpjpe evaluation pipeline
         self.eval_body = evaluate.EvalBody(mode=self.which_data, protocol=self.protocol)
-        self.eval_upper = evaluate.EvalUpperBody(mode=self.which_data, protocol=self.protocol)
-        self.eval_lower = evaluate.EvalLowerBody(mode=self.which_data, protocol=self.protocol)
+        # self.eval_upper = evaluate.EvalUpperBody(mode=self.which_data, protocol=self.protocol)
+        # self.eval_lower = evaluate.EvalLowerBody(mode=self.which_data, protocol=self.protocol)
 
         # Initialize total validation pose loss
         self.val_loss_3d_pose_total = torch.tensor(0., device=self.device)
@@ -263,13 +263,13 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
 
     def validation_epoch_end(self, validation_step_outputs):
         val_mpjpe = self.eval_body.get_results()
-        val_mpjpe_upper = self.eval_upper.get_results()
-        val_mpjpe_lower = self.eval_lower.get_results()
+        # val_mpjpe_upper = self.eval_upper.get_results()
+        # val_mpjpe_lower = self.eval_lower.get_results()
         if self.iteration >= self.hm_train_steps:
             self.log("val_mpjpe_full_body", val_mpjpe["All"]["mpjpe"])
             self.log("val_mpjpe_full_body_std", val_mpjpe["All"]["std_mpjpe"])
-            self.log("val_mpjpe_upper_body", val_mpjpe_upper["All"]["mpjpe"])
-            self.log("val_mpjpe_lower_body", val_mpjpe_lower["All"]["mpjpe"])
+            # self.log("val_mpjpe_upper_body", val_mpjpe_upper["All"]["mpjpe"])
+            # self.log("val_mpjpe_lower_body", val_mpjpe_lower["All"]["mpjpe"])
             self.log("val_loss", self.val_loss_3d_pose_total)
             self.scheduler.step(val_mpjpe["All"]["mpjpe"])
         else:
