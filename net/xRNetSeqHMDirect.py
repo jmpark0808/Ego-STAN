@@ -185,7 +185,7 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
         https://pytorch-lightning.readthedocs.io/en/latest/starter/introduction_guide.html
 
         """
-        
+        tensorboard = self.logger.experiment
         sequence_imgs, p2d, p3d, action = batch
         sequence_imgs = sequence_imgs.cuda()
         p2d = p2d.cuda()
@@ -214,7 +214,19 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
         mpjpe_std = torch.std(torch.sqrt(torch.sum(torch.pow(p3d - pred_3d, 2), dim=2)))
         self.log("train_mpjpe_full_body", mpjpe)
         self.log("train_mpjpe_std", mpjpe_std)
-        self.iteration += sequence_imgs.size(0)
+        self.iteration += 1
+
+        if batch_idx % 2500 == 0:
+            mean=[0.485, 0.456, 0.406]
+            std=[0.229, 0.224, 0.225]
+            img_plot = sequence_imgs[:, -1, :, :, :].clone()
+            img_plot[:, 0, :, :] = img_plot[:, 0, :, :]*std[0]+mean[0]
+            img_plot[:, 1, :, :] = img_plot[:, 1, :, :]*std[1]+mean[1]
+            img_plot[:, 2, :, :] = img_plot[:, 2, :, :]*std[2]+mean[2]
+            tensorboard.add_images('TR Images', img_plot, self.iteration)
+            tensorboard.add_images('TR Ground Truth 2D Heatmap', torch.clip(torch.sum(p2d, dim=1, keepdim=True), 0, 1), self.iteration)
+            tensorboard.add_images('TR Predicted 2D Heatmap', torch.clip(torch.sum(pred_hm, dim=1, keepdim=True), 0, 1), self.iteration)
+
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -222,7 +234,7 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
         Compute the metrics for validation batch
         validation loop: https://pytorch-lightning.readthedocs.io/en/stable/common/lightning_module.html#hooks
         """
-        
+        tensorboard = self.logger.experiment
         sequence_imgs, p2d, p3d, action = batch
         sequence_imgs = sequence_imgs.cuda()
         p2d = p2d.cuda()
@@ -249,6 +261,18 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
         # self.eval_upper.eval(y_output, y_target, action)
         # self.eval_lower.eval(y_output, y_target, action)
 
+                # Log images if needed
+        if batch_idx == 0:
+            mean=[0.485, 0.456, 0.406]
+            std=[0.229, 0.224, 0.225]
+            img_plot = sequence_imgs[:, -1, :, :, :].clone()
+            img_plot[:, 0, :, :] = img_plot[:, 0, :, :]*std[0]+mean[0]
+            img_plot[:, 1, :, :] = img_plot[:, 1, :, :]*std[1]+mean[1]
+            img_plot[:, 2, :, :] = img_plot[:, 2, :, :]*std[2]+mean[2]
+            tensorboard.add_images('Val Images', img_plot, self.iteration)
+            tensorboard.add_images('Val Ground Truth 2D Heatmap', torch.clip(torch.sum(p2d, dim=1, keepdim=True), 0, 1), self.iteration)
+            tensorboard.add_images('Val Predicted 2D Heatmap', torch.clip(torch.sum(heatmap, dim=1, keepdim=True), 0, 1), self.iteration)
+ 
         return val_loss_3d_pose
 
     def on_validation_start(self):
