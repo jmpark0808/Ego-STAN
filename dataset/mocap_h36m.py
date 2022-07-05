@@ -129,10 +129,10 @@ class MocapH36M(BaseDataset):
     MM_TO_M = 1000
 
     subject_sets = {
-        'p1_train': ['S1', 'S5', 'S6', 'S7', 'S9'],
-        'p1_test' : ['S11'],
-        'p2_train' : ['S1', 'S5', 'S6', 'S7'],
-        'p2_test' : ['S9', 'S11'],
+        'p2_train': ['S1', 'S5', 'S6', 'S7', 'S9'],
+        'p2_test' : ['S11'],
+        'p1_train' : ['S1', 'S5', 'S6', 'S7'],
+        'p1_test' : ['S9', 'S11'],
         'val' : ['S8'],
     }
 
