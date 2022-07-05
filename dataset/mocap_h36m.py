@@ -324,7 +324,7 @@ class MocapH36MDataModule(pl.LightningDataModule):
 
         # Data: data transformation strategy
         self.data_transform = transforms.Compose(
-            [trsf.ImageTrsf(), trsf.Joints3DTrsf(), trsf.ToTensor()]
+            [trsf.ImageTrsf(), trsf.ToTensor()]
         )
         
     def train_dataloader(self):
