@@ -36,7 +36,7 @@ bone_links_map = {
                 [14, 15],
             ],
     'h36m' : [
-                #[0, 1], # Head -> Neck
+                [0, 1], # Head -> Neck
                 [1, 2], # Neck -> LShoulder
                 [1, 5], # Neck -> RShoulder
                 [2, 3], # LShoulder -> LElbow
@@ -435,7 +435,7 @@ def create_results_csv(mpjpe_dict: dict, csv_path: str, mode: str = 'baseline'):
         mpjpe_writer.writerow((mpjpe_dict['Per Joint']*m_to_mm).tolist())
 
         
-def p_mpjpe(predicted, target):
+def p_mpjpe(predicted, target, return_error=True):
     """
     Pose error: MPJPE after rigid alignment (scale, rotation, and translation),
     often referred to as "Protocol #2" in many papers.
@@ -474,7 +474,10 @@ def p_mpjpe(predicted, target):
     predicted_aligned = a*np.matmul(predicted, R) + t
     
     # Return MPJPE
-    return np.linalg.norm(predicted_aligned - target, axis=len(target.shape)-1)
+    if return_error:
+        return np.linalg.norm(predicted_aligned - target, axis=len(target.shape)-1)
+    else:
+        return predicted_aligned
 
     
 

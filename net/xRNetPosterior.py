@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 from utils import evaluate
 from net.blocks import *
-
+import os
 
 
 class xREgoPosePosterior(pl.LightningModule):
@@ -115,7 +115,7 @@ class xREgoPosePosterior(pl.LightningModule):
         https://pytorch-lightning.readthedocs.io/en/latest/starter/introduction_guide.html
 
         """
-          
+        tensorboard = self.logger.experiment
         img, p2d, p3d, action = batch
         p2d = p2d.cuda()
         p3d = p3d.cuda()
@@ -132,6 +132,36 @@ class xREgoPosePosterior(pl.LightningModule):
         self.log("train_mpjpe_full_body", mpjpe)
         self.log("train_mpjpe_std", mpjpe_std)
         self.iteration += 1
+
+        if self.iteration % 2500 == 0 and self.protocol in ['p1', 'p2'] \
+        and self.which_data in ['h36m_static', 'h36m_seq']:
+            y_output = pose.data.cpu().numpy()
+            y_target = p3d.data.cpu().numpy()
+            skel_dir = os.path.join(self.logger.log_dir, 'skel_plots')
+            if not os.path.exists(skel_dir):
+                os.mkdir(skel_dir)
+
+            # Get the procrustes aligned 3D Pose and log
+            if self.protocol == 'p1':
+                fig_compare_preds = evaluate.plot_skels_compare( p3ds_1 = y_output, p3ds_2 = y_target,
+                                label_1 = 'Pred Raw', label_2 = 'Ground Truth', 
+                                savepath = os.path.join(skel_dir, 'train_pred_raw_vs_GT.png'))
+            elif self.protocol == 'p2':
+                y_output = evaluate.p_mpjpe(y_output, y_target, False)
+                fig_compare_preds = evaluate.plot_skels_compare( p3ds_1 = y_output, p3ds_2 = y_target,
+                                label_1 = 'Pred PA', label_2 = 'Ground Truth', 
+                                savepath = os.path.join(skel_dir, 'train_pred_PA_vs_GT.png'))
+            else:
+                raise('Not a valid protocol')
+            
+
+            # Tensorboard log images
+            tensorboard.add_images('TR Image', img, self.iteration)
+            tensorboard.add_figure('TR GT 3D Skeleton vs Predicted 3D Skeleton', fig_compare_preds, global_step = self.iteration)
+
+
+
+
         return loss_3d_pose
 
     def validation_step(self, batch, batch_idx):
@@ -139,7 +169,7 @@ class xREgoPosePosterior(pl.LightningModule):
         Compute the metrics for validation batch
         validation loop: https://pytorch-lightning.readthedocs.io/en/stable/common/lightning_module.html#hooks
         """
-  
+        tensorboard = self.logger.experiment
         img, p2d, p3d, action = batch
         p2d = p2d.cuda()
         p3d = p3d.cuda()
@@ -156,6 +186,35 @@ class xREgoPosePosterior(pl.LightningModule):
         self.eval_body.eval(y_output, y_target, action)
         # self.eval_upper.eval(y_output, y_target, action)
         # self.eval_lower.eval(y_output, y_target, action)
+
+        if batch_idx == 0 and self.protocol in ['p1', 'p2'] \
+        and self.which_data in ['h36m_static', 'h36m_seq']:
+            y_output = pose.data.cpu().numpy()
+            y_target = p3d.data.cpu().numpy()
+            skel_dir = os.path.join(self.logger.log_dir, 'skel_plots')
+            if not os.path.exists(skel_dir):
+                os.mkdir(skel_dir)
+
+            # Get the procrustes aligned 3D Pose and log
+            if self.protocol == 'p1':
+                fig_compare_preds = evaluate.plot_skels_compare( p3ds_1 = y_output, p3ds_2 = y_target,
+                                label_1 = 'Pred Raw', label_2 = 'Ground Truth', 
+                                savepath = os.path.join(skel_dir, 'val_pred_raw_vs_GT.png'))
+            elif self.protocol == 'p2':
+                y_output = evaluate.p_mpjpe(y_output, y_target, False)
+                fig_compare_preds = evaluate.plot_skels_compare( p3ds_1 = y_output, p3ds_2 = y_target,
+                                label_1 = 'Pred PA', label_2 = 'Ground Truth', 
+                                savepath = os.path.join(skel_dir, 'val_pred_PA_vs_GT.png'))
+            else:
+                raise('Not a valid protocol')
+            
+
+            # Tensorboard log images
+            tensorboard.add_images('Val Image', img, self.iteration)
+            tensorboard.add_figure('Val GT 3D Skeleton vs Predicted 3D Skeleton', fig_compare_preds, global_step = self.iteration)
+
+
+
         return loss_3d_pose
 
     def on_validation_start(self):

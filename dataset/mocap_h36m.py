@@ -129,9 +129,9 @@ class MocapH36M(BaseDataset):
     MM_TO_M = 1000
 
     subject_sets = {
-        'p2_train': ['S1', 'S5', 'S6', 'S7', 'S9'],
+        'p2_train': ['S1', 'S5', 'S6', 'S7', 'S8', 'S9'],
         'p2_test' : ['S11'],
-        'p1_train' : ['S1', 'S5', 'S6', 'S7'],
+        'p1_train' : ['S1', 'S5', 'S6', 'S7', 'S8'],
         'p1_test' : ['S9', 'S11'],
         'val' : ['S8'],
     }
@@ -334,7 +334,7 @@ class MocapH36MDataModule(pl.LightningDataModule):
                 num_workers=self.num_workers, shuffle=True, pin_memory=True)
 
     def val_dataloader(self):
-        data_val = MocapH36M(self.val_dir, SetType.VAL, transform=self.data_transform, heatmap_type=self.heatmap_type, heatmap_resolution=self.heatmap_resolution, image_resolution=self.image_resolution, protocol='val')
+        data_val = MocapH36M(self.val_dir, SetType.VAL, transform=self.data_transform, heatmap_type=self.heatmap_type, heatmap_resolution=self.heatmap_resolution, image_resolution=self.image_resolution, protocol=self.p_test)
         return DataLoader(
                 data_val, batch_size=self.batch_size, 
                 num_workers=self.num_workers, pin_memory=True)
