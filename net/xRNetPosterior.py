@@ -137,6 +137,12 @@ class xREgoPosePosterior(pl.LightningModule):
         and self.which_data in ['h36m_static', 'h36m_seq']:
             y_output = pose.data.cpu().numpy()
             y_target = p3d.data.cpu().numpy()
+            mean=[0.485, 0.456, 0.406]
+            std=[0.229, 0.224, 0.225]
+            img_plot = img.clone()
+            img_plot[:, 0, :, :] = img_plot[:, 0, :, :]*std[0]+mean[0]
+            img_plot[:, 1, :, :] = img_plot[:, 1, :, :]*std[1]+mean[1]
+            img_plot[:, 2, :, :] = img_plot[:, 2, :, :]*std[2]+mean[2]
             skel_dir = os.path.join(self.logger.log_dir, 'skel_plots')
             if not os.path.exists(skel_dir):
                 os.mkdir(skel_dir)
@@ -145,18 +151,18 @@ class xREgoPosePosterior(pl.LightningModule):
             if self.protocol == 'p1':
                 fig_compare_preds = evaluate.plot_skels_compare( p3ds_1 = y_output, p3ds_2 = y_target,
                                 label_1 = 'Pred Raw', label_2 = 'Ground Truth', 
-                                savepath = os.path.join(skel_dir, 'train_pred_raw_vs_GT.png'))
+                                savepath = os.path.join(skel_dir, 'train_pred_raw_vs_GT.png'), dataset='h36m')
             elif self.protocol == 'p2':
                 y_output = evaluate.p_mpjpe(y_output, y_target, False)
                 fig_compare_preds = evaluate.plot_skels_compare( p3ds_1 = y_output, p3ds_2 = y_target,
                                 label_1 = 'Pred PA', label_2 = 'Ground Truth', 
-                                savepath = os.path.join(skel_dir, 'train_pred_PA_vs_GT.png'))
+                                savepath = os.path.join(skel_dir, 'train_pred_PA_vs_GT.png'), dataset='h36m')
             else:
                 raise('Not a valid protocol')
             
 
             # Tensorboard log images
-            tensorboard.add_images('TR Image', img, self.iteration)
+            tensorboard.add_images('TR Image', img_plot, self.iteration)
             tensorboard.add_figure('TR GT 3D Skeleton vs Predicted 3D Skeleton', fig_compare_preds, global_step = self.iteration)
 
 
@@ -191,6 +197,12 @@ class xREgoPosePosterior(pl.LightningModule):
         and self.which_data in ['h36m_static', 'h36m_seq']:
             y_output = pose.data.cpu().numpy()
             y_target = p3d.data.cpu().numpy()
+            mean=[0.485, 0.456, 0.406]
+            std=[0.229, 0.224, 0.225]
+            img_plot = img.clone()
+            img_plot[:, 0, :, :] = img_plot[:, 0, :, :]*std[0]+mean[0]
+            img_plot[:, 1, :, :] = img_plot[:, 1, :, :]*std[1]+mean[1]
+            img_plot[:, 2, :, :] = img_plot[:, 2, :, :]*std[2]+mean[2]
             skel_dir = os.path.join(self.logger.log_dir, 'skel_plots')
             if not os.path.exists(skel_dir):
                 os.mkdir(skel_dir)
@@ -210,7 +222,7 @@ class xREgoPosePosterior(pl.LightningModule):
             
 
             # Tensorboard log images
-            tensorboard.add_images('Val Image', img, self.iteration)
+            tensorboard.add_images('Val Image', img_plot, self.iteration)
             tensorboard.add_figure('Val GT 3D Skeleton vs Predicted 3D Skeleton', fig_compare_preds, global_step = self.iteration)
 
 
