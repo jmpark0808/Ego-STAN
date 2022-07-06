@@ -19,17 +19,25 @@ class xREgoPosePosterior(pl.LightningModule):
         self.decay_step = kwargs.get("decay_step")
         self.load_resnet = kwargs.get("load_resnet")
         self.hm_train_steps = kwargs.get("hm_train_steps")
-
+        self.es_patience = kwargs.get("es_patience")
+        self.which_data = kwargs.get('dataloader')
+        self.protocol = kwargs.get('protocol')
+        if self.which_data in ['baseline', 'sequential'] :
+            num_class = 16
+        elif self.which_data == 'mo2cap2':
+            num_class = 15
+        elif self.which_data in ['h36m_static', 'h36m_seq']:
+            num_class = 17
         # must be defined for logging computational graph
-        self.example_input_array = torch.rand((1, 16, 47, 47))
+        self.example_input_array = torch.rand((1, num_class, 47, 47))
 
         # Generator that produces the HeatMap
-        self.hm2pose = HM2Pose()
+        self.hm2pose = HM2Pose(num_class)
 
         # Initialize the mpjpe evaluation pipeline
-        self.eval_body = evaluate.EvalBody()
-        self.eval_upper = evaluate.EvalUpperBody()
-        self.eval_lower = evaluate.EvalLowerBody()
+        self.eval_body = evaluate.EvalBody(mode=self.which_data, protocol=self.protocol)
+        # self.eval_upper = evaluate.EvalUpperBody()
+        # self.eval_lower = evaluate.EvalLowerBody()
 
         # Initialize total validation pose loss
         self.val_loss_3d_pose_total = torch.tensor(0., device=self.device)
@@ -74,7 +82,13 @@ class xREgoPosePosterior(pl.LightningModule):
         optimizer = torch.optim.SGD(
         self.parameters(), lr=self.lr, momentum=0.9, nesterov=True
         )
-        
+        self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer,
+            mode='min',
+            factor=0.1,
+            patience=self.es_patience-3,
+            min_lr=1e-8,
+            verbose=True)
         return optimizer
       
 
@@ -117,7 +131,7 @@ class xREgoPosePosterior(pl.LightningModule):
         mpjpe_std = torch.std(torch.sqrt(torch.sum(torch.pow(p3d - pose, 2), dim=2)))
         self.log("train_mpjpe_full_body", mpjpe)
         self.log("train_mpjpe_std", mpjpe_std)
-        self.iteration += img.size(0)
+        self.iteration += 1
         return loss_3d_pose
 
     def validation_step(self, batch, batch_idx):
@@ -140,37 +154,38 @@ class xREgoPosePosterior(pl.LightningModule):
         y_output = pose.data.cpu().numpy()
         y_target = p3d.data.cpu().numpy()
         self.eval_body.eval(y_output, y_target, action)
-        self.eval_upper.eval(y_output, y_target, action)
-        self.eval_lower.eval(y_output, y_target, action)
+        # self.eval_upper.eval(y_output, y_target, action)
+        # self.eval_lower.eval(y_output, y_target, action)
         return loss_3d_pose
 
     def on_validation_start(self):
         # Initialize the mpjpe evaluation pipeline
-        self.eval_body = evaluate.EvalBody()
-        self.eval_upper = evaluate.EvalUpperBody()
-        self.eval_lower = evaluate.EvalLowerBody()
+        self.eval_body = evaluate.EvalBody(mode=self.which_data, protocol=self.protocol)
+        # self.eval_upper = evaluate.EvalUpperBody()
+        # self.eval_lower = evaluate.EvalLowerBody()
 
         # Initialize total validation pose loss
         self.val_loss_3d_pose_total = torch.tensor(0., device=self.device)
 
     def validation_epoch_end(self, validation_step_outputs):
         val_mpjpe = self.eval_body.get_results()
-        val_mpjpe_upper = self.eval_upper.get_results()
-        val_mpjpe_lower = self.eval_lower.get_results()
+        # val_mpjpe_upper = self.eval_upper.get_results()
+        # val_mpjpe_lower = self.eval_lower.get_results()
 
         self.log("val_mpjpe_full_body", val_mpjpe["All"]["mpjpe"])
         self.log("val_mpjpe_full_body_std", val_mpjpe["All"]["std_mpjpe"])
-        self.log("val_mpjpe_upper_body", val_mpjpe_upper["All"]["mpjpe"])
-        self.log("val_mpjpe_lower_body", val_mpjpe_lower["All"]["mpjpe"])
+        # self.log("val_mpjpe_upper_body", val_mpjpe_upper["All"]["mpjpe"])
+        # self.log("val_mpjpe_lower_body", val_mpjpe_lower["All"]["mpjpe"])
         self.log("val_loss", self.val_loss_3d_pose_total)
-    
+        self.scheduler.step(val_mpjpe["All"]["mpjpe"])
+
     def on_test_start(self):
         # Initialize the mpjpe evaluation pipeline
-        self.eval_body = evaluate.EvalBody()
-        self.eval_upper = evaluate.EvalUpperBody()
-        self.eval_lower = evaluate.EvalLowerBody()
-        self.eval_per_joint = evaluate.EvalPerJoint()
-
+        self.eval_body = evaluate.EvalBody(mode=self.which_data, protocol=self.protocol)
+        self.eval_upper = evaluate.EvalUpperBody(mode=self.which_data, protocol=self.protocol)
+        self.eval_lower = evaluate.EvalLowerBody(mode=self.which_data, protocol=self.protocol)
+        self.eval_per_joint = evaluate.EvalPerJoint(mode=self.which_data, protocol=self.protocol)
+        
     def test_step(self, batch, batch_idx):
         img, p2d, p3d, action, img_path = batch
         p2d = p2d.cuda()
