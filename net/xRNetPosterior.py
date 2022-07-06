@@ -199,12 +199,12 @@ class xREgoPosePosterior(pl.LightningModule):
             if self.protocol == 'p1':
                 fig_compare_preds = evaluate.plot_skels_compare( p3ds_1 = y_output, p3ds_2 = y_target,
                                 label_1 = 'Pred Raw', label_2 = 'Ground Truth', 
-                                savepath = os.path.join(skel_dir, 'val_pred_raw_vs_GT.png'))
+                                savepath = os.path.join(skel_dir, 'val_pred_raw_vs_GT.png'), dataset='h36m')
             elif self.protocol == 'p2':
                 y_output = evaluate.p_mpjpe(y_output, y_target, False)
                 fig_compare_preds = evaluate.plot_skels_compare( p3ds_1 = y_output, p3ds_2 = y_target,
                                 label_1 = 'Pred PA', label_2 = 'Ground Truth', 
-                                savepath = os.path.join(skel_dir, 'val_pred_PA_vs_GT.png'))
+                                savepath = os.path.join(skel_dir, 'val_pred_PA_vs_GT.png'), dataset='h36m')
             else:
                 raise('Not a valid protocol')
             
