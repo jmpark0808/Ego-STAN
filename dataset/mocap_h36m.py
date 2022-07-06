@@ -283,7 +283,7 @@ class MocapH36M(BaseDataset):
         p2d, p3d = self._process_points(data)
         
         if self.heatmap_type == 'baseline':
-            p2d_heatmap = generate_heatmap(p2d, int(3*self.heatmap_resolution[0]/47.), resolution=self.heatmap_resolution, h=h, w=w) # exclude head
+            p2d_heatmap = generate_heatmap(p2d, int(1*self.heatmap_resolution[0]/47.), resolution=self.heatmap_resolution, h=h, w=w) # exclude head
         elif self.heatmap_type == 'distance':
             distances = np.sqrt(np.sum(p3d**2, axis=1))
             p2d_heatmap = generate_heatmap_distance(p2d, distances, h, w) # exclude head
