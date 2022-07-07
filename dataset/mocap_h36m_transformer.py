@@ -202,7 +202,7 @@ class MocapH36MTransformer(BaseDataset):
         p3d = world_to_camera(p3d, orientation, translation)
         p3d = np.squeeze(p3d)
         # Normalize
-        p3d[:, ~14] -= p3d[:, 14]
+        p3d[~14, :] -= p3d[14, :]
 
         return p2d, p3d
 
