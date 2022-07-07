@@ -44,24 +44,7 @@ class MocapH36MTransformer(BaseDataset):
         self.image_resolution = image_resolution
         self.protocol = protocol
         self._cameras = copy.deepcopy(h36m_cameras_extrinsic_params)
-        for cameras in self._cameras.values():
-            for i, cam in enumerate(cameras):
-                cam.update(h36m_cameras_intrinsic_params[i])
-                for k, v in cam.items():
-                    if k not in ['id', 'res_w', 'res_h']:
-                        cam[k] = np.array(v, dtype='float32')
-                
-                # Normalize camera frame
-                cam['center'] = normalize_screen_coordinates(cam['center'], w=cam['res_w'], h=cam['res_h']).astype('float32')
-                cam['focal_length'] = cam['focal_length']/cam['res_w']*2
-                if 'translation' in cam:
-                    cam['translation'] = cam['translation']/1000 # mm to meters
-                
-                # Add intrinsic parameters vector
-                cam['intrinsic'] = np.concatenate((cam['focal_length'],
-                                                   cam['center'],
-                                                   cam['radial_distortion'],
-                                                   cam['tangential_distortion']))
+ 
         super().__init__(*args, **kwargs)
 
     def _load_index(self):
@@ -215,7 +198,7 @@ class MocapH36MTransformer(BaseDataset):
         subject = data['subject']
         camera = data['camera']
         orientation = self._cameras[f'S{subject}'][camera]['orientation']
-        translation = self._cameras[f'S{subject}'][camera]['translation']
+        translation = self._cameras[f'S{subject}'][camera]['translation']/1000.
         p3d = world_to_camera(p3d, orientation, translation)
         p3d = np.squeeze(p3d)
         # Normalize
