@@ -10,9 +10,11 @@ from base import BaseDataset
 from utils import io, config
 from base import SetType
 import dataset.transform as trsf
-from dataset.mocap_h36m import generate_heatmap, generate_heatmap_distance
+from dataset.mocap_h36m import generate_heatmap, generate_heatmap_distance, world_to_camera, h36m_cameras_extrinsic_params, h36m_cameras_intrinsic_params, normalize_screen_coordinates
 from torch.utils.data import DataLoader
 from torchvision import transforms
+import copy 
+
 
 class MocapH36MTransformer(BaseDataset):
     """Mocap Dataset loader"""
@@ -41,6 +43,25 @@ class MocapH36MTransformer(BaseDataset):
         self.heatmap_resolution = heatmap_resolution
         self.image_resolution = image_resolution
         self.protocol = protocol
+        self._cameras = copy.deepcopy(h36m_cameras_extrinsic_params)
+        for cameras in self._cameras.values():
+            for i, cam in enumerate(cameras):
+                cam.update(h36m_cameras_intrinsic_params[i])
+                for k, v in cam.items():
+                    if k not in ['id', 'res_w', 'res_h']:
+                        cam[k] = np.array(v, dtype='float32')
+                
+                # Normalize camera frame
+                cam['center'] = normalize_screen_coordinates(cam['center'], w=cam['res_w'], h=cam['res_h']).astype('float32')
+                cam['focal_length'] = cam['focal_length']/cam['res_w']*2
+                if 'translation' in cam:
+                    cam['translation'] = cam['translation']/1000 # mm to meters
+                
+                # Add intrinsic parameters vector
+                cam['intrinsic'] = np.concatenate((cam['focal_length'],
+                                                   cam['center'],
+                                                   cam['radial_distortion'],
+                                                   cam['tangential_distortion']))
         super().__init__(*args, **kwargs)
 
     def _load_index(self):
@@ -189,6 +210,16 @@ class MocapH36MTransformer(BaseDataset):
 
         #p3d[0, :] = p3d[1, :] # Set artifical head value to neck value
         p3d /= self.MM_TO_M
+        # World to camera
+        p3d = np.expand_dims(p3d, 0)
+        subject = data['subject']
+        camera = data['camera']
+        orientation = self._cameras[f'S{subject}'][camera]['orientation']
+        translation = self._cameras[f'S{subject}'][camera]['translation']
+        p3d = world_to_camera(p3d, orientation, translation)
+        p3d = np.squeeze(p3d)
+        # Normalize
+        p3d[:, ~14] -= p3d[:, 14]
 
         return p2d, p3d
 
