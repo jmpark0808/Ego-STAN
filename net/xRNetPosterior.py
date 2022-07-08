@@ -180,7 +180,8 @@ class xREgoPosePosterior(pl.LightningModule):
         img, p2d, p3d, action = batch
         p2d = p2d.cuda()
         p3d = p3d.cuda()
-
+        if self.which_data in ['h36m_static', 'h36m_seq']:
+            p3d[:, 14, :] = 0
         # forward pass
         pose = self.forward(p2d)
 
