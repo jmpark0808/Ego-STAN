@@ -545,13 +545,13 @@ class MocapH36M(BaseDataset):
 
         p3d /= self.MM_TO_M
         # World to camera
-        p3d = np.expand_dims(p3d, 0)
-        subject = data['subject']
-        camera = data['camera']
-        orientation = np.array(self._cameras[f'S{subject}'][camera]['orientation'])
-        translation = np.array(self._cameras[f'S{subject}'][camera]['translation'])/1000.
-        p3d = world_to_camera(p3d, orientation, translation)
-        p3d = np.squeeze(p3d)
+        # p3d = np.expand_dims(p3d, 0)
+        # subject = data['subject']
+        # camera = data['camera']
+        # orientation = np.array(self._cameras[f'S{subject}'][camera]['orientation'])
+        # translation = np.array(self._cameras[f'S{subject}'][camera]['translation'])/1000.
+        # p3d = world_to_camera(p3d, orientation, translation)
+        # p3d = np.squeeze(p3d)
         # Normalize
         p3d[[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15, 16], :] -= p3d[14, :]
  
