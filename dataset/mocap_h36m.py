@@ -587,11 +587,11 @@ class MocapH36M(BaseDataset):
         
         # get action name
         action = data['action']
-
         if self.transform:
-            img = self.transform({'image': img})['image']
-            p3d = self.transform({'joints3D': p3d})['joints3D']
-            p2d = self.transform({'joints2D': p2d})['joints2D']
+            random_dice = np.random.uniform(0, 1, [1])
+            img = self.transform({'image': img, 'random_dice': random_dice})['image']
+            p3d = self.transform({'joints3D': p3d, 'random_dice': random_dice})['joints3D']
+            p2d_heatmap = self.transform({'joints2D_heatmap': p2d_heatmap, 'random_dice': random_dice})['joints2D_heatmap']
 
         return img, p2d_heatmap, p3d, action
 
@@ -618,24 +618,27 @@ class MocapH36MDataModule(pl.LightningDataModule):
         self.p_test = f'{self.protocol}_test'
 
         # Data: data transformation strategy
-        self.data_transform = transforms.Compose(
+        self.data_transform_train = transforms.Compose(
+            [trsf.ImageTrsf(), trsf.HorizontalFlip(), trsf.ToTensor()]
+        )
+        self.data_transform_test = transforms.Compose(
             [trsf.ImageTrsf(), trsf.ToTensor()]
         )
         
     def train_dataloader(self):
-        data_train = MocapH36M(self.train_dir, SetType.TRAIN, transform=self.data_transform, heatmap_type=self.heatmap_type, heatmap_resolution=self.heatmap_resolution, image_resolution=self.image_resolution, protocol=self.p_train)
+        data_train = MocapH36M(self.train_dir, SetType.TRAIN, transform=self.data_transform_train, heatmap_type=self.heatmap_type, heatmap_resolution=self.heatmap_resolution, image_resolution=self.image_resolution, protocol=self.p_train)
         return DataLoader(
                 data_train, batch_size=self.batch_size, 
                 num_workers=self.num_workers, shuffle=True, pin_memory=True)
 
     def val_dataloader(self):
-        data_val = MocapH36M(self.val_dir, SetType.VAL, transform=self.data_transform, heatmap_type=self.heatmap_type, heatmap_resolution=self.heatmap_resolution, image_resolution=self.image_resolution, protocol=self.p_test)
+        data_val = MocapH36M(self.val_dir, SetType.VAL, transform=self.data_transform_test, heatmap_type=self.heatmap_type, heatmap_resolution=self.heatmap_resolution, image_resolution=self.image_resolution, protocol=self.p_test)
         return DataLoader(
                 data_val, batch_size=self.batch_size, 
                 num_workers=self.num_workers, pin_memory=True)
 
     def test_dataloader(self):
-        data_test = MocapH36M(self.test_dir, SetType.TEST, transform=self.data_transform, heatmap_type=self.heatmap_type, heatmap_resolution=self.heatmap_resolution, image_resolution=self.image_resolution, protocol=self.p_test)
+        data_test = MocapH36M(self.test_dir, SetType.TEST, transform=self.data_transform_test, heatmap_type=self.heatmap_type, heatmap_resolution=self.heatmap_resolution, image_resolution=self.image_resolution, protocol=self.p_test)
         return DataLoader(
                 data_test, batch_size=self.batch_size, 
                 num_workers=self.num_workers, pin_memory=True)

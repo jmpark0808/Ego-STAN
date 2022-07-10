@@ -83,6 +83,44 @@ class Joints3DTrsf(BaseTransform):
 
         return data
 
+class HorizontalFlip(BaseTransform):
+    """Image Transform"""
+
+    def __init__(self, probability=0.5):
+
+        super().__init__()
+        self.prob = probability
+
+    def __call__(self, data):
+        """Perform transformation
+
+        Arguments:
+            data {dict} -- frame data
+        """
+        random_dice = data['random_dice'][0]
+        if 'image' in list(data.keys()):
+            img = data['image']
+            if random_dice<=self.prob:
+                img = np.fliplr(img).copy()
+            data.update({'image': img})
+        elif 'joints2D_heatmap' in list(data.keys()):
+            p2d = data['joints2D_heatmap']
+            if random_dice<=self.prob:
+                p2d = np.fliplr(p2d).copy()
+            data.update({'joints2D_heatmap': p2d})
+        elif 'joints3D' in list(data.keys()):
+            p3d = data['joints3D']
+            if random_dice<=self.prob:
+                left = [2, 3, 4, 8, 9, 10]
+                right = [5, 6, 7, 11, 12, 13]
+                p3d[:, 0] *= -1
+                p3d[left+right] = p3d[right+left]
+            data.update({'joints3D': p3d})
+        else:
+            raise('Wrong keys')
+        # get image from all data
+               
+        return data
 
 class ToTensor(BaseTransform):
     """Convert ndarrays to Tensors."""
