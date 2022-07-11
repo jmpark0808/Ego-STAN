@@ -10,7 +10,7 @@ import torch
 import numpy as np
 from base import BaseTransform
 from utils import config
-
+import matplotlib.pyplot as plt
 
 class ImageTrsf(BaseTransform):
     """Image Transform"""
@@ -101,12 +101,12 @@ class HorizontalFlip(BaseTransform):
         if 'image' in list(data.keys()):
             img = data['image']
             if random_dice<=self.prob:
-                img = np.fliplr(img).copy()
+                img = np.flip(img, axis=2).copy()
             data.update({'image': img})
         elif 'joints2D_heatmap' in list(data.keys()):
             p2d = data['joints2D_heatmap']
             if random_dice<=self.prob:
-                p2d = np.fliplr(p2d).copy()
+                p2d = np.flip(p2d, axis=2).copy()
             data.update({'joints2D_heatmap': p2d})
         elif 'joints3D' in list(data.keys()):
             p3d = data['joints3D']

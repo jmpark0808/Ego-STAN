@@ -417,7 +417,7 @@ class MocapH36M(BaseDataset):
         'val' : ['S8'],
     }
 
-    def __init__(self, *args, heatmap_type='baseline', heatmap_resolution=[47, 47], image_resolution=[368, 368], protocol = 'p1_train', **kwargs):
+    def __init__(self, *args, heatmap_type='baseline', heatmap_resolution=[47, 47], image_resolution=[368, 368], protocol = 'p1_train', w2c=True, **kwargs):
         """Init class, to allow variable sequence length, inherits from Base
         Keyword Arguments:
             sequence_length -- length of image sequence (default: {5})
@@ -428,7 +428,7 @@ class MocapH36M(BaseDataset):
         self.image_resolution = image_resolution
         self.protocol = protocol
         self._cameras = copy.deepcopy(h36m_cameras_extrinsic_params)
-
+        self.w2c = w2c
         super().__init__(*args, **kwargs)
 
     def _load_index(self):
@@ -545,13 +545,14 @@ class MocapH36M(BaseDataset):
 
         p3d /= self.MM_TO_M
         # World to camera
-        p3d = np.expand_dims(p3d, 0)
-        subject = data['subject']
-        camera = data['camera']
-        orientation = np.array(self._cameras[f'S{subject}'][camera]['orientation'])
-        translation = np.array(self._cameras[f'S{subject}'][camera]['translation'])/1000.
-        p3d = world_to_camera(p3d, orientation, translation)
-        p3d = np.squeeze(p3d)
+        if self.w2c:
+            p3d = np.expand_dims(p3d, 0)
+            subject = data['subject']
+            camera = data['camera']
+            orientation = np.array(self._cameras[f'S{subject}'][camera]['orientation'])
+            translation = np.array(self._cameras[f'S{subject}'][camera]['translation'])/1000.
+            p3d = world_to_camera(p3d, orientation, translation)
+            p3d = np.squeeze(p3d)
         # Normalize
         p3d[[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15, 16], :] -= p3d[14, :]
  
@@ -613,7 +614,7 @@ class MocapH36MDataModule(pl.LightningDataModule):
         self.heatmap_resolution = kwargs.get('heatmap_resolution')
         self.image_resolution = kwargs.get('image_resolution')
         self.protocol = kwargs.get('protocol')
-
+        self.w2c = kwargs.get('w2c')
         self.p_train = f'{self.protocol}_train'
         self.p_test = f'{self.protocol}_test'
 
@@ -626,19 +627,25 @@ class MocapH36MDataModule(pl.LightningDataModule):
         )
         
     def train_dataloader(self):
-        data_train = MocapH36M(self.train_dir, SetType.TRAIN, transform=self.data_transform_train, heatmap_type=self.heatmap_type, heatmap_resolution=self.heatmap_resolution, image_resolution=self.image_resolution, protocol=self.p_train)
+        data_train = MocapH36M(self.train_dir, SetType.TRAIN, transform=self.data_transform_train,
+         heatmap_type=self.heatmap_type, heatmap_resolution=self.heatmap_resolution,
+          image_resolution=self.image_resolution, protocol=self.p_train, w2c=self.w2c)
         return DataLoader(
                 data_train, batch_size=self.batch_size, 
                 num_workers=self.num_workers, shuffle=True, pin_memory=True)
 
     def val_dataloader(self):
-        data_val = MocapH36M(self.val_dir, SetType.VAL, transform=self.data_transform_test, heatmap_type=self.heatmap_type, heatmap_resolution=self.heatmap_resolution, image_resolution=self.image_resolution, protocol=self.p_test)
+        data_val = MocapH36M(self.val_dir, SetType.VAL, transform=self.data_transform_test,
+         heatmap_type=self.heatmap_type, heatmap_resolution=self.heatmap_resolution,
+          image_resolution=self.image_resolution, protocol=self.p_test, w2c=self.w2c)
         return DataLoader(
                 data_val, batch_size=self.batch_size, 
                 num_workers=self.num_workers, pin_memory=True)
 
     def test_dataloader(self):
-        data_test = MocapH36M(self.test_dir, SetType.TEST, transform=self.data_transform_test, heatmap_type=self.heatmap_type, heatmap_resolution=self.heatmap_resolution, image_resolution=self.image_resolution, protocol=self.p_test)
+        data_test = MocapH36M(self.test_dir, SetType.TEST, transform=self.data_transform_test,
+         heatmap_type=self.heatmap_type, heatmap_resolution=self.heatmap_resolution,
+          image_resolution=self.image_resolution, protocol=self.p_test, w2c=self.w2c)
         return DataLoader(
                 data_test, batch_size=self.batch_size, 
                 num_workers=self.num_workers, pin_memory=True)
