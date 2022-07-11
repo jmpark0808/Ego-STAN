@@ -97,7 +97,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('--model', help='Model name to train', required=True, default=None)
     parser.add_argument('--eval', help='Whether to test model on the best iteration after training'
-                        , default=False, type=bool)
+                        , action=argparse.BooleanOptionalAction, default=False)
     parser.add_argument('--dataloader', help="Type of dataloader", required=True, default=None)
     parser.add_argument("--load",
                         help="Directory of pre-trained model weights only,  \n"
@@ -141,11 +141,10 @@ if __name__ == "__main__":
     parser.add_argument('--clip_grad_norm', help='Clipping gradient norm, 0 means no clipping', type=float, default=0.)
     parser.add_argument('--dropout', help='Dropout for transformer', type=float, default=0.)
     parser.add_argument('--protocol', help='Protocol for H36M, p1 for protocol 1 and p2 for protocol 2', type=str, default='p2')
-    parser.add_argument('--w2c', help='Whether to apply world to camera transformation', type=bool, default='True')
-
+    parser.add_argument('--w2c', action=argparse.BooleanOptionalAction, default=False)
     args = parser.parse_args()
     dict_args = vars(args)
-    
+
     pl.seed_everything(dict_args['seed'])
     # Initialize model to train
     assert dict_args['model'] in MODEL_DIRECTORY
