@@ -620,7 +620,7 @@ class MocapH36MDataModule(pl.LightningDataModule):
 
         # Data: data transformation strategy
         self.data_transform_train = transforms.Compose(
-            [trsf.ImageTrsf(), trsf.HorizontalFlip(), trsf.ToTensor()]
+            [trsf.ImageTrsf(), trsf.ToTensor()]
         )
         self.data_transform_test = transforms.Compose(
             [trsf.ImageTrsf(), trsf.ToTensor()]
