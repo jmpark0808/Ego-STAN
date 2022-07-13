@@ -83,7 +83,7 @@ def generate_heatmap(joints, heatmap_sigma, resolution=[47, 47], h=940, w=800):
                       dtype=np.float32)
     target_weight = np.ones((num_joints, 1), dtype=np.float32)
     tmp_size = heatmap_sigma * 3 
-
+    
     for joint_id in range(num_joints):
         feat_stride = np.asarray([h, w]) / np.asarray([heatmap_size[0], heatmap_size[1]])
         mu_x = int(joints[joint_id][0] / feat_stride[0] + 0.5)
@@ -543,7 +543,8 @@ class MocapH36M(BaseDataset):
             p3d[jid][1] = data['joints'][joint_name]['3d'][1]
             p3d[jid][2] = data['joints'][joint_name]['3d'][2]
 
-        p3d /= self.MM_TO_M
+        # p3d /= self.MM_TO_M
+
         # World to camera
         if self.w2c:
             p3d = np.expand_dims(p3d, 0)
@@ -553,9 +554,10 @@ class MocapH36M(BaseDataset):
             translation = np.array(self._cameras[f'S{subject}'][camera]['translation'])/1000.
             p3d = world_to_camera(p3d, orientation, translation)
             p3d = np.squeeze(p3d)
+
         # Normalize
         p3d[[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15, 16], :] -= p3d[14, :]
- 
+
         #p3d[0, :] = p3d[1, :] # Set artifical head value to neck value
         
 
@@ -577,7 +579,7 @@ class MocapH36M(BaseDataset):
         data = io.read_json(json_path)
 
         p2d, p3d = self._process_points(data)
-        
+
         if self.heatmap_type == 'baseline':
             p2d_heatmap = generate_heatmap(p2d, int(1*self.heatmap_resolution[0]/47.), resolution=self.heatmap_resolution, h=h, w=w) # exclude head
         elif self.heatmap_type == 'distance':
