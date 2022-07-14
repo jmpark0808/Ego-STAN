@@ -30,7 +30,7 @@ class xREgoPosePosterior(pl.LightningModule):
         elif self.which_data in ['h36m_static', 'h36m_seq']:
             num_class = 17
         # must be defined for logging computational graph
-        self.example_input_array = torch.rand((1, num_class, self.heatmap_resolution, self.heatmap_resolution))
+        self.example_input_array = torch.rand((1, num_class, self.heatmap_resolution[0], self.heatmap_resolution[1]))
 
         # Generator that produces the HeatMap
         self.hm2pose = HM2Pose(num_class)
