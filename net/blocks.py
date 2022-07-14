@@ -317,7 +317,7 @@ class HM2Pose(nn.Module):
         self.lrelu1 = nn.PReLU()
         self.conv2 = nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1)
         self.lrelu2 = nn.PReLU()
-        self.conv3 = nn.Conv2d(128, 512, kernel_size=4, stride=2, padding=1)
+        self.conv3 = nn.Conv2d(128, 128, kernel_size=4, stride=2, padding=1)
         self.lrelu3 = nn.PReLU()
 
         self.linear1 = nn.Linear(18432, 2048)

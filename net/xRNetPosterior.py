@@ -22,6 +22,7 @@ class xREgoPosePosterior(pl.LightningModule):
         self.es_patience = kwargs.get("es_patience")
         self.which_data = kwargs.get('dataloader')
         self.protocol = kwargs.get('protocol')
+        self.heatmap_resolution = kwargs.get('heatmap_resolution')
         if self.which_data in ['baseline', 'sequential'] :
             num_class = 16
         elif self.which_data == 'mo2cap2':
@@ -29,7 +30,7 @@ class xREgoPosePosterior(pl.LightningModule):
         elif self.which_data in ['h36m_static', 'h36m_seq']:
             num_class = 17
         # must be defined for logging computational graph
-        self.example_input_array = torch.rand((1, num_class, 47, 47))
+        self.example_input_array = torch.rand((1, num_class, self.heatmap_resolution, self.heatmap_resolution))
 
         # Generator that produces the HeatMap
         self.hm2pose = HM2Pose(num_class)
