@@ -1,6 +1,7 @@
 # Code based off of that of Dennis Tome's xREgoPose repo but with many changes to accomodate human3.6m
 
 import os
+from cv2 import norm
 import pytorch_lightning as pl
 from skimage import io as sio
 from skimage.transform import resize
@@ -416,6 +417,13 @@ class MocapH36M(BaseDataset):
         'p1_test' : ['S9', 'S11'],
         'val' : ['S8'],
     }
+    # subject_sets = {
+    #     'p2_train': ['S1', 'S5', 'S6', 'S7', 'S8', 'S9'],
+    #     'p2_test' : ['S11'],
+    #     'p1_train' : ['S5'],
+    #     'p1_test' : ['S5'],
+    #     'val' : ['S5'],
+    # }
 
     def __init__(self, *args, heatmap_type='baseline', heatmap_resolution=[47, 47], image_resolution=[368, 368], protocol = 'p1_train', w2c=True, **kwargs):
         """Init class, to allow variable sequence length, inherits from Base
@@ -580,13 +588,15 @@ class MocapH36M(BaseDataset):
 
         p2d, p3d = self._process_points(data)
 
-        if self.heatmap_type == 'baseline':
-            p2d_heatmap = generate_heatmap(p2d, int(1*self.heatmap_resolution[0]/47.), resolution=self.heatmap_resolution, h=h, w=w) # exclude head
-        elif self.heatmap_type == 'distance':
-            distances = np.sqrt(np.sum(p3d**2, axis=1))
-            p2d_heatmap = generate_heatmap_distance(p2d, distances, h, w) # exclude head
-        else:
-            self.logger.error('Unrecognized heatmap type')
+        p2d_heatmap = np.squeeze(normalize_screen_coordinates(np.expand_dims(p2d, 0), w=w, h=h))
+
+        # if self.heatmap_type == 'baseline':
+        #     p2d_heatmap = generate_heatmap(p2d, int(1*self.heatmap_resolution[0]/47.), resolution=self.heatmap_resolution, h=h, w=w) # exclude head
+        # elif self.heatmap_type == 'distance':
+        #     distances = np.sqrt(np.sum(p3d**2, axis=1))
+        #     p2d_heatmap = generate_heatmap_distance(p2d, distances, h, w) # exclude head
+        # else:
+        #     self.logger.error('Unrecognized heatmap type')
         
         # get action name
         action = data['action']

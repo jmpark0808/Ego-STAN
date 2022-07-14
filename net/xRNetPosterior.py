@@ -29,10 +29,10 @@ class xREgoPosePosterior(pl.LightningModule):
         elif self.which_data in ['h36m_static', 'h36m_seq']:
             num_class = 17
         # must be defined for logging computational graph
-        self.example_input_array = torch.rand((1, num_class, 47, 47))
+        self.example_input_array = torch.rand((1, 17, 2))
 
         # Generator that produces the HeatMap
-        self.hm2pose = HM2Pose(num_class)
+        self.hm2pose = LinearModel()
 
         # Initialize the mpjpe evaluation pipeline
         self.eval_body = evaluate.EvalBody(mode=self.which_data, protocol=self.protocol)
@@ -42,14 +42,18 @@ class xREgoPosePosterior(pl.LightningModule):
         # Initialize total validation pose loss
         self.val_loss_3d_pose_total = torch.tensor(0., device=self.device)
 
+        # def weight_init(m):
+        #     """
+        #     Xavier Initialization
+        #     """
+        #     if isinstance(m, torch.nn.Conv2d) or isinstance(m, torch.nn.Linear):
+        #         torch.nn.init.xavier_uniform_(m.weight)
+        #         if m.bias is not None:
+        #             torch.nn.init.zeros_(m.bias)
+    
         def weight_init(m):
-            """
-            Xavier Initialization
-            """
-            if isinstance(m, torch.nn.Conv2d) or isinstance(m, torch.nn.Linear):
-                torch.nn.init.xavier_uniform_(m.weight)
-                if m.bias is not None:
-                    torch.nn.init.zeros_(m.bias)
+            if isinstance(m, nn.Linear):
+                nn.init.kaiming_normal(m.weight)
 
         # Initialize weights
         self.apply(weight_init)
