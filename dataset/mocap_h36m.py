@@ -1,7 +1,6 @@
 # Code based off of that of Dennis Tome's xREgoPose repo but with many changes to accomodate human3.6m
 
 import os
-from cv2 import norm
 import pytorch_lightning as pl
 from skimage import io as sio
 from skimage.transform import resize
