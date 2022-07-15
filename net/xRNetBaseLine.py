@@ -154,7 +154,8 @@ class xREgoPose(pl.LightningModule):
         img = img.cuda()
         p2d = p2d.cuda()
         p3d = p3d.cuda()
-
+        if self.which_data in ['h36m_static', 'h36m_seq']:
+            p3d[:, 14, :] = 0
         # forward pass
         
 
@@ -207,7 +208,8 @@ class xREgoPose(pl.LightningModule):
         img = img.cuda()
         p2d = p2d.cuda()
         p3d = p3d.cuda()
-
+        if self.which_data in ['h36m_static', 'h36m_seq']:
+            p3d[:, 14, :] = 0
         # forward pass  
         heatmap, pose, generated_heatmap = self.forward(img)
         heatmap = torch.sigmoid(heatmap)
@@ -280,7 +282,8 @@ class xREgoPose(pl.LightningModule):
         img = img.cuda()
         p2d = p2d.cuda()
         p3d = p3d.cuda()
-
+        if self.which_data in ['h36m_static', 'h36m_seq']:
+            p3d[:, 14, :] = 0
         # forward pass
         heatmap, pose, generated_heatmap = self.forward(img)
    

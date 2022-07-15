@@ -192,7 +192,8 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
         p2d = p2d[:, -1, :, :, :]
         p3d = p3d.cuda()
         p3d = p3d[:, -1, :, :]
-
+        if self.which_data in ['h36m_static', 'h36m_seq']:
+            p3d[:, 14, :] = 0
         # forward pass
         pred_hm, pred_3d, atts = self.forward(sequence_imgs)
 
@@ -241,7 +242,8 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
         p2d = p2d[:, -1, :, :, :]
         p3d = p3d.cuda()
         p3d = p3d[:, -1, :, :]
-
+        if self.which_data in ['h36m_static', 'h36m_seq']:
+            p3d[:, 14, :] = 0
         # forward pass
         heatmap, pose, atts = self.forward(sequence_imgs)
         heatmap = torch.sigmoid(heatmap)
@@ -318,7 +320,8 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
         p2d = p2d[:, -1, :, :, :]
         p3d = p3d.cuda()
         p3d = p3d[:, -1, :, :]
-
+        if self.which_data in ['h36m_static', 'h36m_seq']:
+            p3d[:, 14, :] = 0
         # forward pass
         heatmap, pose, atts = self.forward(sequence_imgs)
         heatmap = torch.sigmoid(heatmap)

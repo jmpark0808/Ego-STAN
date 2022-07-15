@@ -550,7 +550,7 @@ class MocapH36M(BaseDataset):
             p3d[jid][1] = data['joints'][joint_name]['3d'][1]
             p3d[jid][2] = data['joints'][joint_name]['3d'][2]
 
-        # p3d /= self.MM_TO_M
+        p3d /= self.MM_TO_M
 
         # World to camera
         if self.w2c:
