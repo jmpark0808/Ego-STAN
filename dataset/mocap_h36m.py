@@ -409,20 +409,20 @@ class MocapH36M(BaseDataset):
     ROOT_DIRS = ['rgba', 'json']
     MM_TO_M = 1000
 
-    # subject_sets = {
-    #     'p2_train': ['S1', 'S5', 'S6', 'S7', 'S8', 'S9'],
-    #     'p2_test' : ['S11'],
-    #     'p1_train' : ['S1', 'S5', 'S6', 'S7', 'S8'],
-    #     'p1_test' : ['S9', 'S11'],
-    #     'val' : ['S8'],
-    # }
     subject_sets = {
         'p2_train': ['S1', 'S5', 'S6', 'S7', 'S8', 'S9'],
         'p2_test' : ['S11'],
-        'p1_train' : ['S5'],
-        'p1_test' : ['S5'],
-        'val' : ['S5'],
+        'p1_train' : ['S1', 'S5', 'S6', 'S7', 'S8'],
+        'p1_test' : ['S9', 'S11'],
+        'val' : ['S8'],
     }
+    # subject_sets = {
+    #     'p2_train': ['S1', 'S5', 'S6', 'S7', 'S8', 'S9'],
+    #     'p2_test' : ['S11'],
+    #     'p1_train' : ['S5'],
+    #     'p1_test' : ['S5'],
+    #     'val' : ['S5'],
+    # }
 
     def __init__(self, *args, heatmap_type='baseline', heatmap_resolution=[47, 47], image_resolution=[368, 368], protocol = 'p1_train', w2c=True, **kwargs):
         """Init class, to allow variable sequence length, inherits from Base

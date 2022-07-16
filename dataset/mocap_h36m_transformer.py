@@ -29,6 +29,13 @@ class MocapH36MTransformer(BaseDataset):
         'p2_test' : ['S9', 'S11'],
         'val' : ['S8'],
     }
+    # subject_sets = {
+    #     'p1_train': ['S5'],
+    #     'p1_test' : ['S5'],
+    #     'p2_train' : ['S1', 'S5', 'S6', 'S7'],
+    #     'p2_test' : ['S9', 'S11'],
+    #     'val' : ['S5'],
+    # }
 
     def __init__(self, *args, sequence_length=5, skip =0, heatmap_type='baseline', heatmap_resolution=[47, 47], image_resolution=[368, 368], protocol = 'p1_train', **kwargs):
         """Init class, to allow variable sequence length, inherits from Base
@@ -66,6 +73,7 @@ class MocapH36MTransformer(BaseDataset):
             return io.read_h5(idx_path)
 
         index = self.index_db()
+
         io.write_h5(idx_path, index)
         return index
 
@@ -342,7 +350,7 @@ class MocapH36MSeqDataModule(pl.LightningDataModule):
             sequence_length = self.seq_len,
             skip = self.skip,
             heatmap_type=self.heatmap_type,
-            protocol='val')
+            protocol=self.p_test)
         return DataLoader(
                 data_val, batch_size=self.batch_size, 
                 num_workers=self.num_workers, pin_memory=True)
