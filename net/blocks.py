@@ -310,7 +310,7 @@ class HeatmapDecoder(nn.Module):
         return x
 
 class HM2Pose(nn.Module):
-    def __init__(self, num_class=16):
+    def __init__(self, num_class=16, dropout=1.0):
         super(HM2Pose, self).__init__()
         self.num_class = num_class
         self.conv1 = nn.Conv2d(num_class, 64, kernel_size=4, stride=2, padding=2)
@@ -322,8 +322,10 @@ class HM2Pose(nn.Module):
 
         self.linear1 = nn.Linear(18432, 2048)
         self.lrelu4 = nn.PReLU()
+        self.dropout1 = nn.Dropout(dropout)
         self.linear2 = nn.Linear(2048, 512)
         self.lrelu5 = nn.PReLU()
+        self.dropout2 = nn.Dropout(dropout)
         self.linear3 = nn.Linear(512, num_class*3)
  
 
@@ -337,8 +339,10 @@ class HM2Pose(nn.Module):
         x = x.reshape(x.size(0), -1) # flatten
         x = self.linear1(x)
         x = self.lrelu4(x)
+        x = self.dropout1(x)
         x = self.linear2(x)
         x = self.lrelu5(x)
+        x = self.dropout2(x)
         x = self.linear3(x)
         x = x.reshape(x.size(0), -1, 3)
         return x

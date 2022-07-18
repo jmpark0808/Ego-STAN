@@ -29,10 +29,13 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
         self.protocol = kwargs.get('protocol')
         if self.which_data in ['baseline', 'sequential'] :
             num_class = 16
+            dropout = 1.0
         elif self.which_data == 'mo2cap2':
             num_class = 15
+            dropout = 1.0
         elif self.which_data in ['h36m_static', 'h36m_seq']:
             num_class = 17
+            dropout = 0.5
         # must be defined for logging computational graph
         self.example_input_array = torch.rand((1, self.seq_len, 3, 368, 368))
 
@@ -46,7 +49,7 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
         # Transformer that takes sequence of heatmaps and outputs a sequence of heatmaps
         self.resnet_transformer = ResNetTransformerCls(seq_len=self.seq_len*12*12, dim=512, depth=3, heads=8, mlp_dim=1024, dim_head=64, dropout=self.dropout)
         # Direct regression from heatmap
-        self.hm2pose = HM2Pose(num_class)
+        self.hm2pose = HM2Pose(num_class, dropout)
 
         # Initialize the mpjpe evaluation pipeline
         self.eval_body = evaluate.EvalBody(mode=self.which_data, protocol=self.protocol)
