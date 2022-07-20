@@ -35,7 +35,7 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
             dropout = 1.0
         elif self.which_data in ['h36m_static', 'h36m_seq']:
             num_class = 17
-            dropout = 1.0
+            dropout = 0.0
         # must be defined for logging computational graph
         self.example_input_array = torch.rand((1, self.seq_len, 3, 368, 368))
 
