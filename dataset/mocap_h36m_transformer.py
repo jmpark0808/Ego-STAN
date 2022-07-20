@@ -23,9 +23,9 @@ class MocapH36MTransformer(BaseDataset):
     MM_TO_M = 1000
 
     subject_sets = {
-        'p1_train': ['S1', 'S5', 'S6', 'S7', 'S9'],
+        'p1_train': ['S1', 'S5', 'S6', 'S7', 'S8', 'S9'],
         'p1_test' : ['S11'],
-        'p2_train' : ['S1', 'S5', 'S6', 'S7'],
+        'p2_train' : ['S1', 'S5', 'S6', 'S7', 'S8'],
         'p2_test' : ['S9', 'S11'],
         'val' : ['S8'],
     }
@@ -243,6 +243,16 @@ class MocapH36MTransformer(BaseDataset):
         img_shapes = [img.shape for img in imgs]
         imgs = np.array([resize(img, (self.image_resolution[0], self.image_resolution[1])) for img in imgs])
 
+        # import matplotlib.pyplot as plt
+        # fig = plt.figure(figsize=(10, 2))
+        # columns = 5
+        # rows = 1
+        # for i in range(1, columns*rows +1):
+        #     img = imgs[i-1]
+        #     fig.add_subplot(rows, columns, i)
+        #     plt.imshow(img)
+        # plt.show()
+        # assert(0)
         # read joint positions
         json_paths = [path.decode('utf8') for path in self.index['json'][index]]
        
@@ -288,7 +298,7 @@ class MocapH36MTransformer(BaseDataset):
                 p2d_heatmap = generate_heatmap_distance(p2d, distances, h, w) # exclude head
             else:
                 self.logger.error('Unrecognized heatmap type')
-
+  
             all_p2d_heatmap.append(p2d_heatmap)
             all_p3d.append(p3d)
             # get action name
