@@ -102,8 +102,8 @@ class xREgoPose(pl.LightningModule):
         Choose what optimizers and learning-rate schedulers to use in your optimization.
         """
         
-        optimizer = torch.optim.SGD(
-        self.parameters(), lr=self.lr, momentum=0.9, nesterov=True
+        optimizer = torch.optim.AdamW(
+        self.parameters(), lr=self.lr 
         )
         self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
             optimizer,
@@ -240,7 +240,7 @@ class xREgoPose(pl.LightningModule):
             tensorboard.add_images('Val Ground Truth 2D Heatmap', torch.clip(torch.sum(p2d, dim=1, keepdim=True), 0, 1), self.iteration)
             tensorboard.add_images('Val Predicted 2D Heatmap', torch.clip(torch.sum(heatmap, dim=1, keepdim=True), 0, 1), self.iteration)
  
-
+        self.num_batches += 1
         return val_loss_3d_pose
 
     def on_validation_start(self):
@@ -252,6 +252,7 @@ class xREgoPose(pl.LightningModule):
         # Initialize total validation pose loss
         self.val_loss_3d_pose_total = torch.tensor(0., device=self.device)
         self.val_loss_hm = torch.tensor(0., device=self.device)
+        self.num_batches = 0
 
     def validation_epoch_end(self, validation_step_outputs):
         val_mpjpe = self.eval_body.get_results()
@@ -262,7 +263,8 @@ class xREgoPose(pl.LightningModule):
             self.log("val_mpjpe_full_body_std", val_mpjpe["All"]["std_mpjpe"])
             # self.log("val_mpjpe_upper_body", val_mpjpe_upper["All"]["mpjpe"])
             # self.log("val_mpjpe_lower_body", val_mpjpe_lower["All"]["mpjpe"])
-            self.log("val_loss", self.val_loss_3d_pose_total)
+            self.log("val_loss_3d", self.val_loss_3d_pose_total/self.num_batches)
+            self.log("val_loss_2d", self.val_loss_hm/self.num_batches)
             self.scheduler.step(val_mpjpe["All"]["mpjpe"])
         else:
             self.log("val_mpjpe_full_body", 0.3-0.01*(self.iteration/self.hm_train_steps))
