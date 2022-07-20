@@ -7,7 +7,7 @@ from utils import evaluate
 from net.blocks import *
 import numpy as np
 import pathlib
-
+import os
 
 
 class xREgoPose(pl.LightningModule):
@@ -239,7 +239,27 @@ class xREgoPose(pl.LightningModule):
             tensorboard.add_images('Val Images', img_plot, self.iteration)
             tensorboard.add_images('Val Ground Truth 2D Heatmap', torch.clip(torch.sum(p2d, dim=1, keepdim=True), 0, 1), self.iteration)
             tensorboard.add_images('Val Predicted 2D Heatmap', torch.clip(torch.sum(heatmap, dim=1, keepdim=True), 0, 1), self.iteration)
- 
+            if self.which_data in ['h36m_static', 'h36m_seq']:
+                skel_dir = os.path.join(self.logger.log_dir, 'skel_plots')
+                if not os.path.exists(skel_dir):
+                    os.mkdir(skel_dir)
+
+                # Get the procrustes aligned 3D Pose and log
+                if self.protocol == 'p1':
+                    fig_compare_preds = evaluate.plot_skels_compare( p3ds_1 = y_output, p3ds_2 = y_target,
+                                    label_1 = 'Pred Raw', label_2 = 'Ground Truth', 
+                                    savepath = os.path.join(skel_dir, 'train_pred_raw_vs_GT.png'), dataset='h36m')
+                elif self.protocol == 'p2':
+                    y_output = evaluate.p_mpjpe(y_output, y_target, False)
+                    fig_compare_preds = evaluate.plot_skels_compare( p3ds_1 = y_output, p3ds_2 = y_target,
+                                    label_1 = 'Pred PA', label_2 = 'Ground Truth', 
+                                    savepath = os.path.join(skel_dir, 'train_pred_PA_vs_GT.png'), dataset='h36m')
+                else:
+                    raise('Not a valid protocol')
+                
+
+                # Tensorboard log images
+                tensorboard.add_figure('Val GT 3D Skeleton vs Predicted 3D Skeleton', fig_compare_preds, global_step = self.iteration)
         self.num_batches += 1
         return val_loss_3d_pose
 
