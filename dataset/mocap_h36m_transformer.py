@@ -147,11 +147,8 @@ class MocapH36MTransformer(BaseDataset):
                     len(encoded_rgba_sequence) == len_seq
                 ):
                     if self.protocol.split('_')[-1] in ['train', 'val'] :
-                        last_frame = encoded_json_sequence[-1]
-                        last_frame_idx = last_frame.decode('utf8').split('_')[-1].split('.json')[0]
-                        if int(last_frame_idx)%16 == 0:
-                            encoded_json.append(encoded_json_sequence)
-                            encoded_rgba.append(encoded_rgba_sequence)
+                        encoded_json.append(encoded_json_sequence)
+                        encoded_rgba.append(encoded_rgba_sequence)
                     elif self.protocol.split('_')[-1] in ['test']:
                         last_frame = encoded_json_sequence[-1]
                         last_frame_idx = last_frame.decode('utf8').split('_')[-1].split('.json')[0]
