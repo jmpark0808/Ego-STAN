@@ -127,7 +127,7 @@ class xREgoPose(pl.LightningModule):
         heatmap = self.heatmap(x)
 
         # heatmap = 15 x 47 x 47
-        
+        heatmap = torch.sigmoid(heatmap)
         if gt_heatmap is not None:
             z = self.encoder(gt_heatmap)
         else:
@@ -162,13 +162,13 @@ class xREgoPose(pl.LightningModule):
 
         if self.iteration <= self.hm_train_steps:
             heatmap, pose, generated_heatmap = self.forward(img)
-            heatmap = torch.sigmoid(heatmap)
+            # heatmap = torch.sigmoid(heatmap)
             hm_loss = self.mse(heatmap, p2d)
             loss = hm_loss
             self.log('Total HM loss', hm_loss.item())
         else:
             heatmap, pose, generated_heatmap = self.forward(img)
-            heatmap = torch.sigmoid(heatmap)
+            # heatmap = torch.sigmoid(heatmap)
             generated_heatmap = torch.sigmoid(generated_heatmap)
             hm_loss = self.mse(heatmap, p2d)
             loss_3d_pose, loss_2d_ghm = self.auto_encoder_loss(pose, p3d, generated_heatmap, heatmap)
@@ -212,7 +212,7 @@ class xREgoPose(pl.LightningModule):
             p3d[:, 14, :] = 0
         # forward pass  
         heatmap, pose, generated_heatmap = self.forward(img)
-        heatmap = torch.sigmoid(heatmap)
+        # heatmap = torch.sigmoid(heatmap)
         generated_heatmap = torch.sigmoid(generated_heatmap)
         # calculate pose loss
         val_hm_loss = self.mse(heatmap, p2d)
