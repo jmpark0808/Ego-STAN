@@ -107,7 +107,7 @@ class FeatureHeatMaps(nn.Module):
 
 
 class Encoder(nn.Module):
-    def __init__(self, num_classes=16):
+    def __init__(self, num_classes=16, heatmap_resolution=47):
         super(Encoder, self).__init__()
         self.conv1 = nn.Conv2d(num_classes, 64, kernel_size=4, stride=2, padding=2)
         self.lrelu1 = nn.LeakyReLU(0.2)
@@ -116,7 +116,7 @@ class Encoder(nn.Module):
         self.conv3 = nn.Conv2d(128, 512, kernel_size=4, stride=2, padding=1)
         self.lrelu3 = nn.LeakyReLU(0.2)
 
-        self.linear1 = nn.Linear(18432, 2048)
+        self.linear1 = nn.Linear(512*math.ceil(heatmap_resolution/8)**2, 2048)
         self.lrelu4 = nn.LeakyReLU(0.2)
         self.linear2 = nn.Linear(2048, 512)
         self.lrelu5 = nn.LeakyReLU(0.2)
@@ -285,13 +285,14 @@ class PoseDecoder(nn.Module):
         return x
 
 class HeatmapDecoder(nn.Module):
-    def __init__(self, num_classes=16):
+    def __init__(self, num_classes=16, heatmap_resolution=47):
         super(HeatmapDecoder, self).__init__()
         self.linear1 = nn.Linear(20, 512)
         self.lrelu1 = nn.LeakyReLU(0.2)
         self.linear2 = nn.Linear(512, 2048)
         self.lrelu2 = nn.LeakyReLU(0.2)
-        self.linear3 = nn.Linear(2048, 18432)
+        self.spatial_resolution = math.ceil(heatmap_resolution/8.)
+        self.linear3 = nn.Linear(2048, self.spatial_resolution**2*512)
         self.lrelu3 = nn.LeakyReLU(0.2)
         self.deconv1 = nn.ConvTranspose2d(512, 128, kernel_size=4, stride=2, padding=1)
         self.deconv2 = nn.ConvTranspose2d(128, 64, kernel_size=4, stride=2, padding=1)
@@ -303,7 +304,7 @@ class HeatmapDecoder(nn.Module):
         x = self.lrelu2(x)
         x = self.linear3(x)
         x = self.lrelu3(x)
-        x = x.reshape(x.size(0), 512, 6, 6)
+        x = x.reshape(x.size(0), 512, self.spatial_resolution, self.spatial_resolution)
         x = self.deconv1(x)
         x = self.deconv2(x)
         x = self.deconv3(x)

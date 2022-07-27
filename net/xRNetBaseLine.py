@@ -24,6 +24,8 @@ class xREgoPose(pl.LightningModule):
         self.es_patience = kwargs.get("es_patience")
         self.which_data = kwargs.get('dataloader')
         self.protocol = kwargs.get('protocol')
+        self.heatmap_resolution = kwargs.get('heatmap_resolution')
+        self.image_resolution = kwargs.get('image_resolution')
         if self.which_data in ['baseline', 'sequential'] :
             num_class = 16
         elif self.which_data == 'mo2cap2':
@@ -32,16 +34,16 @@ class xREgoPose(pl.LightningModule):
             num_class = 17
 
         # must be defined for logging computational graph
-        self.example_input_array = torch.rand((1, 3, 368, 368))
+        self.example_input_array = torch.rand((1, 3, self.image_resolution[0], self.image_resolution[1]))
 
         # Generator that produces the HeatMap
         self.heatmap = HeatMap(num_class)
         # Encoder that takes 2D heatmap and transforms to latent vector Z
-        self.encoder = Encoder(num_class)
+        self.encoder = Encoder(num_class, self.heatmap_resolution[0])
         # Pose decoder that takes latent vector Z and transforms to 3D pose coordinates
         self.pose_decoder = PoseDecoder(num_classes = num_class)
         # Heatmap decoder that takes latent vector Z and generates the original 2D heatmap
-        self.heatmap_decoder = HeatmapDecoder(num_class)
+        self.heatmap_decoder = HeatmapDecoder(num_class, self.heatmap_resolution[0])
 
         # Initialize the mpjpe evaluation pipeline
         self.eval_body = evaluate.EvalBody(mode=self.which_data, protocol=self.protocol)
@@ -171,6 +173,7 @@ class xREgoPose(pl.LightningModule):
             # heatmap = torch.sigmoid(heatmap)
             generated_heatmap = torch.sigmoid(generated_heatmap)
             hm_loss = self.mse(heatmap, p2d)
+            
             loss_3d_pose, loss_2d_ghm = self.auto_encoder_loss(pose, p3d, generated_heatmap, heatmap)
             ae_loss = loss_2d_ghm + loss_3d_pose
             loss = hm_loss + ae_loss
@@ -212,12 +215,14 @@ class xREgoPose(pl.LightningModule):
         p3d = p3d.cuda()
         if self.which_data in ['h36m_static', 'h36m_seq']:
             p3d[:, 14, :] = 0
-        # forward pass  
+        # forward pass 
         heatmap, pose, generated_heatmap = self.forward(img)
+
         # heatmap = torch.sigmoid(heatmap)
         generated_heatmap = torch.sigmoid(generated_heatmap)
         # calculate pose loss
         val_hm_loss = self.mse(heatmap, p2d)
+
         val_loss_3d_pose, _ = self.auto_encoder_loss(pose, p3d, generated_heatmap, heatmap)
         # update 3d pose loss
         self.val_loss_hm += val_hm_loss
