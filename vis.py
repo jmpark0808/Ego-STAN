@@ -1,22 +1,16 @@
 import argparse
-import datetime
+import glob
 import os
 import pathlib
-import pickle
-import torch
+
+import cv2
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
-import seaborn as sns
 from tqdm import tqdm
-from utils import evaluate
-from base.base_eval import BaseEval
+
 from train import DATALOADER_DIRECTORY, MODEL_DIRECTORY
 
-
-sns.set_theme(style="whitegrid")
-
-
+VIDEO_LIST = set()
 
 
 def main():
@@ -24,32 +18,12 @@ def main():
     parser.add_argument("--model", required=True, type=str)
     parser.add_argument("--model_checkpoint_file", required=True, type=str)
     parser.add_argument("--dataloader", required=True)
-    parser.add_argument("--dataset_test", required=True, type=str)
+    parser.add_argument("--dataset_val", required=True, type=str)
     parser.add_argument("--batch_size", default=16, type=int)
     parser.add_argument("--output_directory", required=True, type=str)
     parser.add_argument("--cuda", default="cuda", choices=["cuda", "cpu"], type=str)
-    parser.add_argument("--heatmap_type", help='Type of 2D ground truth heatmap, Defaults to "baseline"', 
-                        default= 'baseline')
-    parser.add_argument(
-        "--heatmap_resolution",
-        help="2D heatmap resolution",
-        nargs="*",
-        type=int,
-        default=[47, 47],
-    )
-    parser.add_argument(
-        "--image_resolution",
-        help="Image resolution",
-        nargs="*",
-        type=int,
-        default=[368, 368],
-    )
+    parser.add_argument("--heatmap_type", required=True)
     parser.add_argument("--num_workers", type=int, required=True)
-    parser.add_argument(
-        "--encoder_type",
-        help='Type of encoder for concatenation, Defaults to "branch_concat"',
-        default="branch_concat",
-    )
     parser.add_argument(
         "--skip",
         help="# of images/frames to skip in between frames",
@@ -62,201 +36,65 @@ def main():
         default=5,
         type=int,
     )
-    parser.add_argument('--dropout', help='Dropout for transformer', type=float, default=0.)
 
     dict_args = vars(parser.parse_args())
 
+    # Create output directory
+    img_dir = os.path.join(dict_args["output_directory"], "frames")
+    vid_dir = os.path.join(dict_args["output_directory"], "videos")
+    os.makedirs(img_dir, exist_ok=True)
+    os.makedirs(vid_dir, exist_ok=True)
+
+    # Data: load validation dataloader
+    print("[p] getting val_dataloader")
     assert dict_args["dataloader"] in DATALOADER_DIRECTORY
     data_module = DATALOADER_DIRECTORY[dict_args["dataloader"]](**dict_args)
-    test_dataloader = data_module.test_dataloader()
+    val_dataloader = data_module.val_dataloader()
 
     # Initialize model to test
-    # assert dict_args["model"] in MODEL_DIRECTORY
-    # # model = MODEL_DIRECTORY[dict_args["model"]].load_from_checkpoint(dict_args["model_checkpoint_file"])
-    # model = MODEL_DIRECTORY[dict_args["model"]](**dict_args)
-    # model = model.load_from_checkpoint(
-    #     dict_args["model_checkpoint_file"]
-    # )
-    # model = model.to(dict_args['cuda'])
-    # model.eval()
-    # model.freeze()
-    # Store results in dict
+    assert dict_args["model"] in MODEL_DIRECTORY
+    model = MODEL_DIRECTORY[dict_args["model"]](**dict_args)
+    model = model.load_from_checkpoint(
+        checkpoint_path=dict_args["model_checkpoint_file"],
+        map_location=dict_args["cuda"],
+    )
+    model.eval()
 
     # Iterate through each batch to generate visuals
     print("[p] processing batches")
-    handpicked_results = {}
-    for batch in tqdm(test_dataloader):
-        img, p2d, p3d, action, img_path, rawp2d = batch
-        
+    for batch in tqdm(val_dataloader):
+        img, p2d, p3d, action, img_path = batch
 
-        # if len(p3d.size()) == 3:
-        #     p3d = p3d.cpu().numpy()
-        # else:
-        #     p3d = p3d[:, -1, :, :].cpu().numpy()
-        
-        # img = img.cuda()
-        # if dict_args['model'] in ['xregopose_seq_hm_direct', 'xregopose_seq_hm_direct_avg', 'xregopose_global_trans', 'xregopose_seq_hm_direct_slice']:
-        #     hms, pose, atts = model(img)
-        #     pose = pose.data.cpu().numpy()
+        p3d = p3d.cpu().numpy()
+        pose = model(img).detach().numpy()
 
-            
-            
-        # elif dict_args['model'] in ['xregopose', 'xregopose_l1']:
-        #     hms, pose, ghm = model(img)
-        #     pose = pose.data.cpu().numpy()
-        # elif dict_args['model'] in ['xregopose_direct']:
-        #     hms, pose = model(img)
-        #     pose = pose.data.cpu().numpy()
-        # elif dict_args['model'] in ['xregopose_seq']:
-        #     hms, pose, ghm, atts = model(img)
-        #     pose = pose.data.cpu().numpy()
-        # else:
-        #     raise('Unsupported model type')
-
-        # errors = np.mean(np.sqrt(np.sum(np.power(p3d - pose, 2), axis=2)), axis=1)
+        print("[p] rendering skeletons")
         for idx in range(p3d.shape[0]):
-            if dict_args['dataloader'] == 'sequential':
-                filename = pathlib.Path(img_path[-1][idx]).stem
-            else:
-                filename = pathlib.Path(img_path[idx]).stem
-            
+            filename = pathlib.Path(img_path[idx]).stem
+            # Remove periods in filename
             filename = str(filename).replace(".", "_")
-            # if filename in evaluate.highest_differences:
-            handpicked_results.update(
-            {
-                filename: {
-                    # "gt_pose": p3d[idx],
-                    # "pred_pose": pose[idx],
-                    "img": img.cpu().numpy()[idx],
-                    'p2d': rawp2d[-1][idx].cpu().numpy()
-                }
-            }
+            save_skeleton(
+                p3d[idx],
+                pose[idx],
+                filename,
+                action[idx],
+                img_dir,
             )
-            # results.update(
-            #     {
-            #         filename: {
-            #             # "gt_pose": p3d[idx],
-            #             # "pred_pose": pose[idx],
-            #             "action": baseeval.eval(None, None, action[idx]),
-            #             "full_mpjpe": errors[idx],
-            #         }
-            #     }
-            # )
+
+    create_videos(input_frame_dir=img_dir, output_video_dir=vid_dir)
 
 
-
-    # Create output directory
-    now = datetime.datetime.now().strftime("%m_%d_%H_%M_%S")
-    dir_name = dict_args["model"] + "_" + now
-    out_dir = os.path.join(dict_args["output_directory"], dir_name)
-    os.makedirs(out_dir, exist_ok=True)
-
-    # Save results file
-    results_path = os.path.join(out_dir, "results_" + dir_name + ".pkl")
-    handpicked_results_path = os.path.join(out_dir, "handpicked_results_" + dir_name + ".pkl")
-    # with open(results_path, "wb") as handle:
-    #     pickle.dump(results, handle)
-
-    with open(handpicked_results_path, "wb") as handle:
-        pickle.dump(handpicked_results, handle)
-    # plot violin
-    # violin_path = os.path.join(out_dir, "violin_" + dir_name + ".jpg")
-    # plot_violin(results=results, output_file=violin_path)
-
-
-def get_errors_per_action(results: dict):
-    """
-    Seperate the full body mpjpe errors generated by action type
-
-    @param results (dict):
-        A dict with the mpjpe and action types per image
-        {
-            "id_1" : {"action": clapping, "full_mpjpe": 0.3},
-            "id_2" : {"action": jumping, "full_mpjpe": 0.15},
-            ...
-        }
-    @returns action_mpjpe (dict):
-        A dict with keys being actions and a list of 2-element list
-        of the corresponding mpjpe errors with the id
-        {
-            "clapping": [[id_1, 0.3], ...],
-            "jumping": [[id_2, 0.15], ...],
-            ...
-        }
-    """
-    action_mpjpe = {}
-
-    for key, value in results.items():
-        action = value["action"]
-        full_mpjpe = value["full_mpjpe"]
-
-        if action in action_mpjpe:
-            action_mpjpe[action].append([key, full_mpjpe])
-        else:
-            action_mpjpe.update({action: [[key, full_mpjpe]]})
-
-    return action_mpjpe
-
-
-def plot_violin(results: dict, output_file: str):
-    """
-    Create and save one figure with violin plots per action
-    full-body mpjpe errors. Refer to the url for seaborn
-    violin plot configurations:
-    https://seaborn.pydata.org/generated/seaborn.violinplot.html
-
-    @param results (dict):
-        A dict with the mpjpe and action types per image
-        {
-            "id_1" : {"action": clapping, "full_mpjpe": 0.3},
-            "id_2" : {"action": jumping, "full_mpjpe": 0.15},
-            ...
-        }
-
-    @param output_file (str):
-        The file path and name to save the figure. Include
-        'jpg' file extension
-
-    """
-    pd_data = []
-
-    for key, value in results.items():
-        pd_data.append([key, value["action"], value["full_mpjpe"]])
-    
-    df = pd.DataFrame(pd_data, columns=["id", "action", "full_mpjpe"])
-    ax = sns.violinplot(x="action", y="full_mpjpe", data=df, inner="quartile")
-    ax.set_xticklabels(ax.get_xticklabels(),rotation=90)
-    ax.set_ylabel("MPJPE (mm)")
-    # os.makedirs(output_file, exist_ok=True)
-    ax.figure.savefig(output_file, bbox_inches = "tight")
-
-
-def plot_skeleton(poses: list, output_file: str):
-    """
-    Plot, overlay and save joint skeletons for comparison
-
-    @param poses (list):
-        A list of different skeletons to overlay and plot.
-        This allows for multiple pose inferences to be
-        viewed concurrently. Each item in the list is
-        required to have the following information:
-        [
-            {
-                "legend_name": "...",
-                "plot_color": "...",
-                "pose": < num_joints by 3 array >
-            },
-            ...
-        ]
-
-    @param output_file (str):
-        The file path and name to save the figure
-
-    """
+def save_skeleton(
+    gt_pose: np.ndarray,
+    pred_pose: np.ndarray,
+    img_filename: str,
+    action: str,
+    output_directory: str,
+):
     fig = plt.figure(figsize=(16, 9))
     ax = plt.axes(projection="3d")
 
-    BONE_LINKS = [
+    bone_links = [
         [0, 1],
         [1, 2],
         [1, 5],
@@ -274,38 +112,76 @@ def plot_skeleton(poses: list, output_file: str):
         [13, 14],
         [14, 15],
     ]
+    skeletons = [
+        {"pose": gt_pose, "color": "blue"},
+        {"pose": pred_pose, "color": "green"},
+    ]
 
-    for item in poses:
-        xs = item["pose"][:, 0]
-        ys = item["pose"][:, 1]
-        zs = -item["pose"][:, 2]
+    for item in skeletons:
+        pose = item["pose"]
+        color = item["color"]
+        xs = pose[:, 0]
+        ys = pose[:, 1]
+        zs = -pose[:, 2]
+
         # draw bones
-        for bone in BONE_LINKS:
+        for bone in bone_links:
             index1, index2 = bone[0], bone[1]
             ax.plot3D(
                 [xs[index1], xs[index2]],
                 [ys[index1], ys[index2]],
                 [zs[index1], zs[index2]],
                 linewidth=1,
-                color=item["plot_color"],
-                label=item["legend_name"],
+                color=color,
             )
         # draw joints
-        ax.scatter(xs, ys, zs, color=item["plot_color"])
+        ax.scatter(xs, ys, zs, color=color)
 
     ax.set_xlim(-1, 1)
     ax.set_ylim(-1, 1)
     ax.set_zlim(-1, 1)
-    ax.legend()
-    ax.title.set_text(f"{output_file}")
+    ax.title.set_text(f"{img_filename}")
     plt.axis("off")
     fig.tight_layout()
     ax.view_init(elev=27.0, azim=41.0)
-
-    os.makedirs(output_file, exist_ok=True)
-    fig.savefig(output_file)
+    frame_count = img_filename.split("_")[-1]
+    video_name = "_".join(img_filename.split("_")[:-1]) + f"_{action}"
+    frame_file_path = os.path.join(
+        output_directory, f"{video_name}_{frame_count}_3d.png"
+    )
+    fig.savefig(frame_file_path)
     plt.close()
+
+    # update video name set for later video creation
+    VIDEO_LIST.add(video_name)
+
+
+def create_videos(input_frame_dir, output_video_dir):
+    for count, video_name in enumerate(VIDEO_LIST):
+        img_array = []
+        file_pattern = os.path.join(input_frame_dir, f"{video_name}*.png")
+        file_list = sorted(glob.glob(file_pattern))
+        print(
+            f"[p][{count+1}/{len(VIDEO_LIST)}] creating '{video_name}' video with {len(file_list)} files"
+        )
+
+        size = None
+        for filename in file_list:
+            img = cv2.imread(filename)
+            height, width, layers = img.shape
+            size = (width, height)
+            img_array.append(img)
+
+        # create video object
+        video_path = os.path.join(output_video_dir, f"{video_name}.avi")
+        out = cv2.VideoWriter(video_path, cv2.VideoWriter_fourcc(*"DIVX"), 15, size)
+
+        # write frames to video
+        for i in range(len(img_array)):
+            out.write(img_array[i])
+        out.release()
 
 
 if __name__ == "__main__":
     main()
+    print(f"[p] VIDEO_LIST = {VIDEO_LIST}")
