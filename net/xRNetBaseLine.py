@@ -194,7 +194,7 @@ class xREgoPose(pl.LightningModule):
             tensorboard.add_images('TR Images', img_plot, self.iteration)
             tensorboard.add_images('TR Ground Truth 2D Heatmap', torch.clip(torch.sum(p2d, dim=1, keepdim=True), 0, 1), self.iteration)
             tensorboard.add_images('TR Predicted 2D Heatmap', torch.clip(torch.sum(heatmap, dim=1, keepdim=True), 0, 1), self.iteration)
-            l2_norm = sum(torch.linalg.norm(p, 2) for p in self.parameters())
+            l2_norm = sum(torch.norm(p) for p in self.parameters())
             self.log('L2 regularization', l2_norm)
 
         return loss
