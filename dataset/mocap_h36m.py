@@ -550,7 +550,7 @@ class MocapH36M(BaseDataset):
             p3d[jid][1] = data['joints'][joint_name]['3d'][1]
             p3d[jid][2] = data['joints'][joint_name]['3d'][2]
 
-        p3d /= self.MM_TO_M
+        
 
         # World to camera
         if self.w2c:
@@ -561,6 +561,8 @@ class MocapH36M(BaseDataset):
             translation = np.array(self._cameras[f'S{subject}'][camera]['translation'])/1000.
             p3d = world_to_camera(p3d, orientation, translation)
             p3d = np.squeeze(p3d)
+        else:
+            p3d /= self.MM_TO_M
 
         # Normalize
         p3d[[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15, 16], :] -= p3d[14, :]
