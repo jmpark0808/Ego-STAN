@@ -311,7 +311,7 @@ class HeatmapDecoder(nn.Module):
         return x
 
 class HM2Pose(nn.Module):
-    def __init__(self, num_class=16, dropout=1.0):
+    def __init__(self, num_class=16, heatmap_resolution=47, dropout=0.0):
         super(HM2Pose, self).__init__()
         self.num_class = num_class
         self.conv1 = nn.Conv2d(num_class, 64, kernel_size=4, stride=2, padding=2)
@@ -320,8 +320,8 @@ class HM2Pose(nn.Module):
         self.lrelu2 = nn.PReLU()
         self.conv3 = nn.Conv2d(128, 512, kernel_size=4, stride=2, padding=1)
         self.lrelu3 = nn.PReLU()
-
-        self.linear1 = nn.Linear(18432, 2048)
+        self.spatial_resolution = math.ceil(heatmap_resolution/8.)
+        self.linear1 = nn.Linear(self.spatial_resolution**2*512, 2048)
         self.lrelu4 = nn.PReLU()
         self.dropout1 = nn.Dropout(dropout)
         self.linear2 = nn.Linear(2048, 512)

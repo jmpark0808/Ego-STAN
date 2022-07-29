@@ -33,7 +33,7 @@ class xREgoPosePosterior(pl.LightningModule):
         self.example_input_array = torch.rand((1, num_class, self.heatmap_resolution[0], self.heatmap_resolution[1]))
 
         # Generator that produces the HeatMap
-        self.hm2pose = HM2Pose(num_class)
+        self.hm2pose = HM2Pose(num_class, self.heatmap_resolution[0])
 
         # Initialize the mpjpe evaluation pipeline
         self.eval_body = evaluate.EvalBody(mode=self.which_data, protocol=self.protocol)
