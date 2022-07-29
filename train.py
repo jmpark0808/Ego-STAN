@@ -20,6 +20,7 @@ from dataset.mocap_transformer import MocapSeqDataModule
 from dataset.mo2cap2_transformer import Mo2Cap2SeqDataModule
 from dataset.mocap_h36m import MocapH36MDataModule
 from dataset.mocap_h36m_transformer import MocapH36MSeqDataModule
+from dataset.mocap_h36m_2d import Mocap2DH36MDataModule
 
 from net.DirectRegression import DirectRegression
 from net.Mo2Cap2BaselineL1 import Mo2Cap2BaselineL1
@@ -32,6 +33,7 @@ from net.Mo2Cap2SeqHMDirectSlice import Mo2Cap2SeqHMDirectSlice
 from net.xRNetBaseLineL1 import xREgoPoseL1
 from net.xRNetDirect import xREgoPoseDirect
 from net.Mo2Cap2Baseline import Mo2Cap2Baseline
+from net.xRNetPosterior2D import xREgoPosePosterior2D
 from net.xRNetPosteriorLinear import xREgoPosePosteriorLinear
 from net.xRNetSeq import xREgoPoseSeq
 from net.xRNetBaseLine import xREgoPose
@@ -61,6 +63,7 @@ MODEL_DIRECTORY = {
     "xregopose_heatmap": xREgoPoseHeatMap,
     "xregopose_seq_hm": xREgoPoseSeqHM,
     "xregopose_posterior": xREgoPosePosterior,
+    "xregopose_posterior_2d": xREgoPosePosterior2D,
     "xregopose_posterior_dist": xREgoPosePosteriorDist,
     "xregopose_posterior_linear": xREgoPosePosteriorLinear,
     "xregopose_seq_hm_direct": xREgoPoseSeqHMDirect,
@@ -91,6 +94,7 @@ DATALOADER_DIRECTORY = {
     'mo2cap2_seq': Mo2Cap2SeqDataModule,
     'h36m_static': MocapH36MDataModule,
     'h36m_seq' : MocapH36MSeqDataModule,
+    'h36m_2d' : Mocap2DH36MDataModule
 } 
 
 if __name__ == "__main__":
@@ -142,6 +146,7 @@ if __name__ == "__main__":
     parser.add_argument('--dropout', help='Dropout for transformer', type=float, default=0.)
     parser.add_argument('--protocol', help='Protocol for H36M, p1 for protocol 1 and p2 for protocol 2', type=str, default='p2')
     parser.add_argument('--w2c', action=argparse.BooleanOptionalAction, default=False)
+    parser.add_argument('--weight_regularization', help='Weight regularization hyperparameter', type=float, default=0.01)
     args = parser.parse_args()
     dict_args = vars(args)
 
@@ -188,6 +193,12 @@ if __name__ == "__main__":
     profiler = SimpleProfiler()
     lr_monitor = LearningRateMonitor(logging_interval='step')
     logger = TensorBoardLogger(save_dir=dict_args['logdir'], version=now, name='lightning_logs', log_graph=True)
+    if dict_args['gpus'] > 1:
+        accelerator = 'dp'
+    elif dict_args['gpus'] == 1:
+        accelerator = 'gpu'
+    elif dict_args['gpus'] == 0:
+        accelerator = 'cpu'
     trainer = pl.Trainer(
         callbacks=[early_stopping_callback, checkpoint_callback, lr_monitor],
         val_check_interval=dict_args['val_freq'],
@@ -198,7 +209,8 @@ if __name__ == "__main__":
         max_epochs=dict_args["epoch"],
         log_every_n_steps=10,
         gradient_clip_val=dict_args['clip_grad_norm'],
-        resume_from_checkpoint=dict_args['resume_from_checkpoint']
+        resume_from_checkpoint=dict_args['resume_from_checkpoint'],
+        accelerator=accelerator
     )
 
     # Trainer: train model

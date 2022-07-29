@@ -27,6 +27,9 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
         self.dropout = kwargs.get('dropout')
         self.which_data = kwargs.get('dataloader')
         self.protocol = kwargs.get('protocol')
+        self.heatmap_resolution = kwargs.get('heatmap_resolution')
+        self.weight_regularization = kwargs.get('weight_regularization')
+
         if self.which_data in ['baseline', 'sequential'] :
             num_class = 16
             dropout = 1.0
@@ -35,7 +38,7 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
             dropout = 1.0
         elif self.which_data in ['h36m_static', 'h36m_seq']:
             num_class = 17
-            dropout = 0.0
+            dropout = 0.5
         # must be defined for logging computational graph
         self.example_input_array = torch.rand((1, self.seq_len, 3, 368, 368))
 
@@ -49,7 +52,7 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
         # Transformer that takes sequence of heatmaps and outputs a sequence of heatmaps
         self.resnet_transformer = ResNetTransformerCls(seq_len=self.seq_len*12*12, dim=512, depth=3, heads=8, mlp_dim=1024, dim_head=64, dropout=self.dropout)
         # Direct regression from heatmap
-        self.hm2pose = HM2Pose(num_class, dropout)
+        self.hm2pose = HM2Pose(num_class, self.heatmap_resolution[0], dropout)
 
         # Initialize the mpjpe evaluation pipeline
         self.eval_body = evaluate.EvalBody(mode=self.which_data, protocol=self.protocol)
@@ -106,7 +109,7 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
         Choose what optimizers and learning-rate schedulers to use in your optimization.
         """
         
-        optimizer = torch.optim.AdamW(self.parameters(), lr=self.lr)
+        optimizer = torch.optim.AdamW(self.parameters(), lr=self.lr, weight_decay=self.weight_regularization)
         self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
             optimizer,
             mode='min',
@@ -172,7 +175,7 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
         resnet = resnet.permute(0, 3, 1, 2) 
         # resnet = batch_size x 2048 x 12 x 12
 
-        hms = self.heatmap_deconv(resnet)
+        hms = torch.sigmoid(self.heatmap_deconv(resnet))
         # hms = batch_size x 15 x 47 x 47
 
         p3d = self.hm2pose(hms)
@@ -202,11 +205,11 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
 
 
         if self.iteration <= self.hm_train_steps:
-            pred_hm = torch.sigmoid(pred_hm)
+            # pred_hm = torch.sigmoid(pred_hm)
             loss = self.mse(pred_hm, p2d)
             self.log('Total HM loss', loss.item())
         else:
-            pred_hm = torch.sigmoid(pred_hm)
+            # pred_hm = torch.sigmoid(pred_hm)
             hm_loss = self.mse(pred_hm, p2d)
             loss_3d_pose = self.auto_encoder_loss(pred_3d, p3d)
             loss = hm_loss + loss_3d_pose
@@ -272,7 +275,7 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
             p3d[:, 14, :] = 0
         # forward pass
         heatmap, pose, atts = self.forward(sequence_imgs)
-        heatmap = torch.sigmoid(heatmap)
+        # heatmap = torch.sigmoid(heatmap)
 
         # calculate pose loss
         val_hm_loss = self.mse(heatmap, p2d)
@@ -375,7 +378,7 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
             p3d[:, 14, :] = 0
         # forward pass
         heatmap, pose, atts = self.forward(sequence_imgs)
-        heatmap = torch.sigmoid(heatmap)
+        # heatmap = torch.sigmoid(heatmap)
         if self.image_limit > 0 and np.random.uniform() < 0.2:
 
             for level, att in enumerate(atts):
