@@ -30,6 +30,7 @@ from net.Mo2Cap2Seq import Mo2Cap2Seq
 from net.Mo2Cap2SeqHMDirect import Mo2Cap2SeqHMDirect
 from net.Mo2Cap2SeqHMDirectAvg import Mo2Cap2SeqHMDirectAvg
 from net.Mo2Cap2SeqHMDirectSlice import Mo2Cap2SeqHMDirectSlice
+from net.xRNetBaseLine2D import xREgoPose2D
 from net.xRNetBaseLineL1 import xREgoPoseL1
 from net.xRNetDirect import xREgoPoseDirect
 from net.Mo2Cap2Baseline import Mo2Cap2Baseline
@@ -82,7 +83,8 @@ MODEL_DIRECTORY = {
     "mo2cap2_seq": Mo2Cap2Seq,
     "mo2cap2_slice": Mo2Cap2SeqHMDirectSlice,
     "mo2cap2_avg": Mo2Cap2SeqHMDirectAvg,
-    "mo2cap2_ego": Mo2Cap2SeqHMDirect
+    "mo2cap2_ego": Mo2Cap2SeqHMDirect,
+    "xregopose_2d": xREgoPose2D,
 
 
 }

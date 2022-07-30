@@ -582,20 +582,17 @@ class Mocap2DH36M(BaseDataset):
 
         # load image
 
-        # img_path = self.index['rgba'][index].decode('utf8')
-        # img = sio.imread(img_path).astype(np.float32)
-        # img /= 255.0
-        # h, w, c = img.shape
-        # img = resize(img, (self.image_resolution[0], self.image_resolution[1]))
+        img_path = self.index['rgba'][index].decode('utf8')
+        img = sio.imread(img_path).astype(np.float32)
+        img /= 255.0
+        h, w, c = img.shape
+        img = resize(img, (self.image_resolution[0], self.image_resolution[1]))
 
         # read joint positions
         json_path = self.index['json'][index].decode('utf8')
 
         data = io.read_json(json_path)
 
-        camera = data['camera']
-        w, h = camera2res[camera]
-        img = np.zeros([self.image_resolution[0], self.image_resolution[1], 3])
         p2d, p3d = self._process_points(data)
         p2d[:, 0] /= w
         p2d[:, 1] /= h
