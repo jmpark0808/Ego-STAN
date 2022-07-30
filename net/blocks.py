@@ -318,35 +318,29 @@ class HM2Pose(nn.Module):
         super(HM2Pose, self).__init__()
         self.num_class = num_class
         self.conv1 = nn.Conv2d(num_class, 64, kernel_size=4, stride=2, padding=2)
-        self.bn1 = nn.BatchNorm2d(64)
-        self.lrelu1 = nn.ReLU()
+        self.lrelu1 = nn.PReLU()
         self.conv2 = nn.Conv2d(64, 128, kernel_size=4, stride=2, padding=1)
-        self.bn2 = nn.BatchNorm2d(128)
-        self.lrelu2 = nn.ReLU()
+        self.lrelu2 = nn.PReLU()
         self.conv3 = nn.Conv2d(128, 512, kernel_size=4, stride=2, padding=1)
-        self.bn3 = nn.BatchNorm2d(512)
-        self.lrelu3 = nn.ReLU()
+        self.lrelu3 = nn.PReLU()
         self.spatial_resolution = math.ceil(heatmap_resolution/8.)
         self.linear1 = nn.Linear(self.spatial_resolution**2*512, 2048)
-        self.lrelu4 = nn.ReLU()
+        self.lrelu4 = nn.PReLU()
         self.dropout1 = nn.Dropout(dropout)
         self.linear2 = nn.Linear(2048, 512)
-        self.lrelu5 = nn.ReLU()
+        self.lrelu5 = nn.PReLU()
         self.dropout2 = nn.Dropout(dropout)
         self.linear3 = nn.Linear(512, num_class*3)
  
 
     def forward(self, x):
         x = self.conv1(x)
-        x = self.bn1(x)
         x = self.lrelu1(x)
 
         x = self.conv2(x)
-        x = self.bn2(x)
         x = self.lrelu2(x)
 
         x = self.conv3(x)
-        x = self.bn3(x)
         x = self.lrelu3(x)
 
         x = x.reshape(x.size(0), -1) # flatten

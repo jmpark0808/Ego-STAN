@@ -123,6 +123,12 @@ def generate_heatmap(joints, heatmap_sigma, resolution=[47, 47], h=940, w=800):
 
     return target
 
+camera2res = {'54138969':[1000, 1002],
+            '55011271': [1000, 1000],
+            '58860488': [1000, 1000],
+            '60457274': [1000, 1002]}
+
+
 h36m_cameras_intrinsic_params = [
     {
         'id': '54138969',
@@ -496,7 +502,13 @@ class MocapH36M(BaseDataset):
 
                 if path.split(os.path.sep)[-3] in self.subject_sets[self.protocol]:
                     if self.protocol.split('_')[-1] in ['train', 'val'] :
-                        encoded = [p.encode('utf8') for p in paths]
+                        # encoded = [p.encode('utf8') for p in paths]
+                        # indexed_paths.update({sub_dir: encoded})
+                        encoded = []
+                        for p in paths:
+                            frame_idx = p.split('_')[-1].split('.')[0]
+                            if int(frame_idx)%16 == 0:
+                                encoded.append(p.encode('utf8'))
                         indexed_paths.update({sub_dir: encoded})
                     elif self.protocol.split('_')[-1] in ['test']:
                         encoded = []

@@ -169,7 +169,7 @@ class xREgoPosePosterior(pl.LightningModule):
             
 
             # Tensorboard log images
-            tensorboard.add_images('TR Image', img_plot, self.iteration)
+            tensorboard.add_images('TR Image', torch.clip(torch.sum(p2d, dim=1, keepdim=True), 0, 1), self.iteration)
             tensorboard.add_figure('TR GT 3D Skeleton vs Predicted 3D Skeleton', fig_compare_preds, global_step = self.iteration)
             l2_norm = sum(torch.norm(p) for p in self.parameters())
             self.log('L2 regularization', l2_norm)
@@ -231,7 +231,7 @@ class xREgoPosePosterior(pl.LightningModule):
             
 
             # Tensorboard log images
-            tensorboard.add_images('Val Image', img_plot, self.iteration)
+            tensorboard.add_images('Val Image', torch.clip(torch.sum(p2d, dim=1, keepdim=True), 0, 1), self.iteration)
             tensorboard.add_figure('Val GT 3D Skeleton vs Predicted 3D Skeleton', fig_compare_preds, global_step = self.iteration)
 
 

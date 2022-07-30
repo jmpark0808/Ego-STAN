@@ -149,8 +149,13 @@ class MocapH36MTransformer(BaseDataset):
                     len(encoded_rgba_sequence) == len_seq
                 ):
                     if self.protocol.split('_')[-1] in ['train', 'val'] :
-                        encoded_json.append(encoded_json_sequence)
-                        encoded_rgba.append(encoded_rgba_sequence)
+                        last_frame = encoded_json_sequence[-1]
+                        last_frame_idx = last_frame.decode('utf8').split('_')[-1].split('.json')[0]
+                        if int(last_frame_idx)%16 == 0:
+                            encoded_json.append(encoded_json_sequence)
+                            encoded_rgba.append(encoded_rgba_sequence)
+                        # encoded_json.append(encoded_json_sequence)
+                        # encoded_rgba.append(encoded_rgba_sequence)
                     elif self.protocol.split('_')[-1] in ['test']:
                         last_frame = encoded_json_sequence[-1]
                         last_frame_idx = last_frame.decode('utf8').split('_')[-1].split('.json')[0]
@@ -356,7 +361,7 @@ class MocapH36MSeqDataModule(pl.LightningDataModule):
             protocol=self.p_train, w2c=self.w2c)
         return DataLoader(
                 data_train, batch_size=self.batch_size, 
-                num_workers=self.num_workers, shuffle=True, pin_memory=True)
+                num_workers=self.num_workers, shuffle=True, pin_memory=False)
 
     def val_dataloader(self):
         data_val =  MocapH36MTransformer(
@@ -369,7 +374,7 @@ class MocapH36MSeqDataModule(pl.LightningDataModule):
             protocol=self.p_test, w2c=self.w2c)
         return DataLoader(
                 data_val, batch_size=self.batch_size, 
-                num_workers=self.num_workers, pin_memory=True)
+                num_workers=self.num_workers, pin_memory=False)
 
     def test_dataloader(self):
         data_test =  MocapH36MTransformer(
@@ -382,6 +387,6 @@ class MocapH36MSeqDataModule(pl.LightningDataModule):
             protocol=self.p_test, w2c=self.w2c)
         return DataLoader(
                 data_test, batch_size=self.batch_size, 
-                num_workers=self.num_workers, pin_memory=True)
+                num_workers=self.num_workers, pin_memory=False)
 
 

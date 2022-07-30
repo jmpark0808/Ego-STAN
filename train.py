@@ -48,6 +48,7 @@ from net.xRNetSeqHMDirect import xREgoPoseSeqHMDirect
 from net.xRNetGlobalTrans import xREgoPoseGlobalTrans
 from net.xRNetDist import xREgoPoseDist
 from net.xRNetSeqHMDirectAvg import xREgoPoseSeqHMDirectAvg
+from net.xRNetSeqHMDirectED import xREgoPoseSeqHMDirectED
 from net.xRNetSeqHMDirectRevPos import xREgoPoseSeqHMDirectRevPos
 from net.xRNetSeqHMDirectSlice import xREgoPoseSeqHMDirectSlice
 from net.xRNetUNet import xREgoPoseUNet
@@ -68,6 +69,7 @@ MODEL_DIRECTORY = {
     "xregopose_posterior_dist": xREgoPosePosteriorDist,
     "xregopose_posterior_linear": xREgoPosePosteriorLinear,
     "xregopose_seq_hm_direct": xREgoPoseSeqHMDirect,
+    "xregopose_seq_hm_direct_ed": xREgoPoseSeqHMDirectED,
     "xregopose_seq_direct": xREgoPoseSeqDirect,
     "xregopose_global_trans": xREgoPoseGlobalTrans,
     "xregopose_dist": xREgoPoseDist,
@@ -146,6 +148,7 @@ if __name__ == "__main__":
                         default=42, type=int)
     parser.add_argument('--clip_grad_norm', help='Clipping gradient norm, 0 means no clipping', type=float, default=0.)
     parser.add_argument('--dropout', help='Dropout for transformer', type=float, default=0.)
+    parser.add_argument('--dropout_linear', help='Dropout for linear layers in 2D to 3D', type=float, default=0.)
     parser.add_argument('--protocol', help='Protocol for H36M, p1 for protocol 1 and p2 for protocol 2', type=str, default='p2')
     parser.add_argument('--w2c', action=argparse.BooleanOptionalAction, default=False)
     parser.add_argument('--weight_regularization', help='Weight regularization hyperparameter', type=float, default=0.01)
