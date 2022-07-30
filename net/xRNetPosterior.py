@@ -24,6 +24,8 @@ class xREgoPosePosterior(pl.LightningModule):
         self.protocol = kwargs.get('protocol')
         self.heatmap_resolution = kwargs.get('heatmap_resolution')
         self.weight_regularization = kwargs.get('weight_regularization')
+        self.dropout = kwargs.get('dropout')
+
         if self.which_data in ['baseline', 'sequential'] :
             num_class = 16
         elif self.which_data == 'mo2cap2':
@@ -34,7 +36,7 @@ class xREgoPosePosterior(pl.LightningModule):
         self.example_input_array = torch.rand((1, num_class, self.heatmap_resolution[0], self.heatmap_resolution[1]))
 
         # Generator that produces the HeatMap
-        self.hm2pose = HM2Pose(num_class, self.heatmap_resolution[0], dropout=0.0)
+        self.hm2pose = HM2Pose(num_class, self.heatmap_resolution[0], dropout=self.dropout)
 
         # Initialize the mpjpe evaluation pipeline
         self.eval_body = evaluate.EvalBody(mode=self.which_data, protocol=self.protocol)
