@@ -14,8 +14,11 @@ class HeatMap(nn.Module):
         # First Deconvolution to obtain 2D heatmap
         self.heatmap_deconv = nn.Sequential(*[nn.ConvTranspose2d(2048, 1024, kernel_size=3,
                                                                  stride=2, dilation=1, padding=1),
+                                              nn.Batchnorm2d(1024),
+                                              nn.ReLU(),
                                               nn.ConvTranspose2d(1024, num_classes, kernel_size=3,
-                                                                 stride=2, dilation=1, padding=0)])
+                                                                 stride=2, dilation=1, padding=0),
+                                                                 ])
 
 
     def update_resnet101(self):
