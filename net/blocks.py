@@ -14,7 +14,7 @@ class HeatMap(nn.Module):
         # First Deconvolution to obtain 2D heatmap
         self.heatmap_deconv = nn.Sequential(*[nn.ConvTranspose2d(2048, 1024, kernel_size=3,
                                                                  stride=2, dilation=1, padding=1),
-                                              nn.Batchnorm2d(1024),
+                                              nn.BatchNorm2d(1024),
                                               nn.ReLU(),
                                               nn.ConvTranspose2d(1024, num_classes, kernel_size=3,
                                                                  stride=2, dilation=1, padding=0),
@@ -348,7 +348,7 @@ class HM2Pose(nn.Module):
         x = self.conv3(x)
         x = self.bn3(x)
         x = self.lrelu3(x)
-        
+
         x = x.reshape(x.size(0), -1) # flatten
         x = self.linear1(x)
         x = self.lrelu4(x)
