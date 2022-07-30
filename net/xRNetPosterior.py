@@ -23,6 +23,7 @@ class xREgoPosePosterior(pl.LightningModule):
         self.which_data = kwargs.get('dataloader')
         self.protocol = kwargs.get('protocol')
         self.heatmap_resolution = kwargs.get('heatmap_resolution')
+        self.weight_regularization = kwargs.get('weight_regularization')
         if self.which_data in ['baseline', 'sequential'] :
             num_class = 16
         elif self.which_data == 'mo2cap2':
@@ -33,7 +34,7 @@ class xREgoPosePosterior(pl.LightningModule):
         self.example_input_array = torch.rand((1, num_class, self.heatmap_resolution[0], self.heatmap_resolution[1]))
 
         # Generator that produces the HeatMap
-        self.hm2pose = HM2Pose(num_class, self.heatmap_resolution[0])
+        self.hm2pose = HM2Pose(num_class, self.heatmap_resolution[0], dropout=0.0)
 
         # Initialize the mpjpe evaluation pipeline
         self.eval_body = evaluate.EvalBody(mode=self.which_data, protocol=self.protocol)
@@ -84,7 +85,7 @@ class xREgoPosePosterior(pl.LightningModule):
         Choose what optimizers and learning-rate schedulers to use in your optimization.
         """
         
-        optimizer = torch.optim.AdamW(self.parameters(), lr=self.lr)
+        optimizer = torch.optim.AdamW(self.parameters(), lr=self.lr, weight_decay=self.weight_regularization)
         self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
             optimizer,
             mode='min',
@@ -168,7 +169,8 @@ class xREgoPosePosterior(pl.LightningModule):
             # Tensorboard log images
             tensorboard.add_images('TR Image', img_plot, self.iteration)
             tensorboard.add_figure('TR GT 3D Skeleton vs Predicted 3D Skeleton', fig_compare_preds, global_step = self.iteration)
-
+            l2_norm = sum(torch.norm(p) for p in self.parameters())
+            self.log('L2 regularization', l2_norm)
 
 
 
