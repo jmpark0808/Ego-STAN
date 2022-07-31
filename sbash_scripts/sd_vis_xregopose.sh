@@ -1,7 +1,7 @@
-module load python/3.9 cuda cudnn
+module load python/3.8 cuda cudnn
 
 # Prepare virtualenv
-source ~/torch/bin/activate
+source ~/torch38/bin/activate
 
 
 # Prepare data
@@ -92,19 +92,19 @@ download_set () {
 set -e
 
 # Create the destination directory if it doesn't exist yet
-mkdir -p ${dataset_dir}
-cd ${dataset_dir}
+#mkdir -p ${dataset_dir}
+#cd ${dataset_dir}
 
 # Download and process
-download_set "TestSet"
+#download_set "TestSet"
 
 # Start testing
 python ~/projects/def-pfieguth/s42hossa/xREgoPose/vis.py \
     --model xregopose_seq_hm_direct \
-    --model_checkpoint_file /home/s42hossa/scratch/0505211830/epoch=3-step=46820.ckpt \
+    --model_checkpoint_file /home/s42hossa/scratch/0505211830/epoch=4-step=57227.ckpt \
     --output_directory /home/s42hossa/scratch/ \
     --dataloader sequential \
-    --dataset_test $SLURM_TMPDIR/TestSet \
+    --dataset_val $SLURM_TMPDIR/TestSet \
     --batch_size 16 \
     --num_workers 24 \
     --heatmap_type baseline \

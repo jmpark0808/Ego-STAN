@@ -38,6 +38,7 @@ def main():
     )
 
     dict_args = vars(parser.parse_args())
+    dict_args.update({"dropout":0, "load_resnet":'/home/s42hossa/projects/def-pfieguth/s42hossa/resnet101-63fe2227.pth'})
 
     # Create output directory
     img_dir = os.path.join(dict_args["output_directory"], "frames")
@@ -62,25 +63,32 @@ def main():
 
     # Iterate through each batch to generate visuals
     print("[p] processing batches")
+    sx = 0
     for batch in tqdm(val_dataloader):
         img, p2d, p3d, action, img_path = batch
 
         p3d = p3d.cpu().numpy()
-        pose = model(img).detach().numpy()
-
+        pose = model(img)[1].detach().numpy()
+        #print(p3d.shape)
+        #print(pose.shape)
+        #print(len(img_path))
         print("[p] rendering skeletons")
         for idx in range(p3d.shape[0]):
+            #print(idx)
+            #print(img_path[idx])
             filename = pathlib.Path(img_path[idx]).stem
             # Remove periods in filename
             filename = str(filename).replace(".", "_")
             save_skeleton(
-                p3d[idx],
+                p3d[idx][-1],
                 pose[idx],
                 filename,
                 action[idx],
                 img_dir,
             )
-
+        sx += 1
+        if sx > 50:
+            break
     create_videos(input_frame_dir=img_dir, output_video_dir=vid_dir)
 
 
@@ -123,7 +131,10 @@ def save_skeleton(
         xs = pose[:, 0]
         ys = pose[:, 1]
         zs = -pose[:, 2]
-
+        #print(pose.shape)
+        #print(xs.shape)
+        #print(ys.shape)
+        #print(zs.shape)
         # draw bones
         for bone in bone_links:
             index1, index2 = bone[0], bone[1]
