@@ -135,8 +135,8 @@ class xREgoPoseSeqHMDirectED(pl.LightningModule):
         using_lbfgs=False,
     ):
         # skip the first 500 steps
-        if self.trainer.global_step < int(self.hm_train_steps/self.batch_size):
-            lr_scale = min(1.0, float(self.trainer.global_step + 1) / int(self.hm_train_steps/self.batch_size))
+        if self.trainer.global_step < int(self.hm_train_steps):
+            lr_scale = min(1.0, float(self.trainer.global_step + 1) / int(self.hm_train_steps))
             for pg in optimizer.param_groups:
                 pg["lr"] = lr_scale * self.lr
 
@@ -173,7 +173,7 @@ class xREgoPoseSeqHMDirectED(pl.LightningModule):
         resnet = resnet.permute(0, 3, 1, 2) 
         # resnet = batch_size x 2048 x 12 x 12
 
-        hms = torch.sigmoid(self.heatmap_deconv(resnet))
+        hms = self.heatmap_deconv(resnet)
         # hms = batch_size x 15 x 47 x 47
 
         p3d = self.hm2pose(hms)
@@ -203,11 +203,11 @@ class xREgoPoseSeqHMDirectED(pl.LightningModule):
 
 
         if self.iteration <= self.hm_train_steps:
-            # pred_hm = torch.sigmoid(pred_hm)
+            pred_hm = torch.sigmoid(pred_hm)
             loss = self.mse(pred_hm, p2d)
             self.log('Total HM loss', loss.item())
         else:
-            # pred_hm = torch.sigmoid(pred_hm)
+            pred_hm = torch.sigmoid(pred_hm)
             hm_loss = self.mse(pred_hm, p2d)
             loss_3d_pose = self.auto_encoder_loss(pred_3d, p3d)
             loss = hm_loss + loss_3d_pose
@@ -233,6 +233,8 @@ class xREgoPoseSeqHMDirectED(pl.LightningModule):
             tensorboard.add_images('TR Predicted 2D Heatmap', torch.clip(torch.sum(pred_hm, dim=1, keepdim=True), 0, 1), self.iteration)
             y_output = pred_3d.data.cpu().numpy()
             y_target = p3d.data.cpu().numpy()
+            l2_norm = sum(torch.norm(p) for p in self.parameters())
+            self.log('L2 regularization', l2_norm)
             if self.which_data in ['h36m_static', 'h36m_seq']:
                 skel_dir = os.path.join(self.logger.log_dir, 'skel_plots')
                 if not os.path.exists(skel_dir):
@@ -277,7 +279,7 @@ class xREgoPoseSeqHMDirectED(pl.LightningModule):
             p3d[:, 14, :] = 0
         # forward pass
         heatmap, pose, atts = self.forward(sequence_imgs)
-        # heatmap = torch.sigmoid(heatmap)
+        heatmap = torch.sigmoid(heatmap)
 
         # calculate pose loss
         val_hm_loss = self.mse(heatmap, p2d)
@@ -378,7 +380,7 @@ class xREgoPoseSeqHMDirectED(pl.LightningModule):
             p3d[:, 14, :] = 0
         # forward pass
         heatmap, pose, atts = self.forward(sequence_imgs)
-        # heatmap = torch.sigmoid(heatmap)
+        heatmap = torch.sigmoid(heatmap)
         if self.image_limit > 0 and np.random.uniform() < 0.2:
 
             for level, att in enumerate(atts):
