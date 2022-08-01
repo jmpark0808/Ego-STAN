@@ -16,6 +16,7 @@ from dataset.mo2cap2 import Mo2Cap2DataModule
 from dataset.mocap import MocapDataModule
 from dataset.mo2cap2 import Mo2Cap2DataModule
 from dataset.mocap_distance import MocapDistanceDataModule
+from dataset.mocap_h36m_hm import MocapH36MHMDataModule
 from dataset.mocap_transformer import MocapSeqDataModule
 from dataset.mo2cap2_transformer import Mo2Cap2SeqDataModule
 from dataset.mocap_h36m import MocapH36MDataModule
@@ -49,6 +50,7 @@ from net.xRNetGlobalTrans import xREgoPoseGlobalTrans
 from net.xRNetDist import xREgoPoseDist
 from net.xRNetSeqHMDirectAvg import xREgoPoseSeqHMDirectAvg
 from net.xRNetSeqHMDirectED import xREgoPoseSeqHMDirectED
+from net.xRNetSeqHMDirectEDExp import xREgoPoseSeqHMDirectEDExp
 from net.xRNetSeqHMDirectRevPos import xREgoPoseSeqHMDirectRevPos
 from net.xRNetSeqHMDirectSlice import xREgoPoseSeqHMDirectSlice
 from net.xRNetUNet import xREgoPoseUNet
@@ -70,6 +72,7 @@ MODEL_DIRECTORY = {
     "xregopose_posterior_linear": xREgoPosePosteriorLinear,
     "xregopose_seq_hm_direct": xREgoPoseSeqHMDirect,
     "xregopose_seq_hm_direct_ed": xREgoPoseSeqHMDirectED,
+    "xregopose_seq_hm_direct_ed_exp": xREgoPoseSeqHMDirectEDExp,
     "xregopose_seq_direct": xREgoPoseSeqDirect,
     "xregopose_global_trans": xREgoPoseGlobalTrans,
     "xregopose_dist": xREgoPoseDist,
@@ -98,7 +101,8 @@ DATALOADER_DIRECTORY = {
     'mo2cap2_seq': Mo2Cap2SeqDataModule,
     'h36m_static': MocapH36MDataModule,
     'h36m_seq' : MocapH36MSeqDataModule,
-    'h36m_2d' : Mocap2DH36MDataModule
+    'h36m_2d' : Mocap2DH36MDataModule,
+    'h36m_hm': MocapH36MHMDataModule,
 } 
 
 if __name__ == "__main__":
