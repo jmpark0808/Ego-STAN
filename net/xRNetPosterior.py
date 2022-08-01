@@ -30,7 +30,7 @@ class xREgoPosePosterior(pl.LightningModule):
             num_class = 16
         elif self.which_data == 'mo2cap2':
             num_class = 15
-        elif self.which_data in ['h36m_static', 'h36m_seq']:
+        elif self.which_data.startswith('h36m'):
             num_class = 17
         # must be defined for logging computational graph
         self.example_input_array = torch.rand((1, num_class, self.heatmap_resolution[0], self.heatmap_resolution[1]))
@@ -125,7 +125,7 @@ class xREgoPosePosterior(pl.LightningModule):
         img, p2d, p3d, action = batch
         p2d = p2d.cuda()
         p3d = p3d.cuda()
-        if self.which_data in ['h36m_static', 'h36m_seq']:
+        if self.which_data.startswith('h36m'):
             p3d[:, 14, :] = 0
         # forward pass
         pose = self.forward(p2d)
@@ -141,7 +141,7 @@ class xREgoPosePosterior(pl.LightningModule):
         self.iteration += 1
 
         if self.iteration % 2500 == 0 and self.protocol in ['p1', 'p2'] \
-        and self.which_data in ['h36m_static', 'h36m_seq']:
+        and self.which_data.startswith('h36m'):
             y_output = pose.data.cpu().numpy()
             y_target = p3d.data.cpu().numpy()
             mean=[0.485, 0.456, 0.406]
@@ -187,7 +187,7 @@ class xREgoPosePosterior(pl.LightningModule):
         img, p2d, p3d, action = batch
         p2d = p2d.cuda()
         p3d = p3d.cuda()
-        if self.which_data in ['h36m_static', 'h36m_seq']:
+        if self.which_data.startswith('h36m'):
             p3d[:, 14, :] = 0
         # forward pass
         pose = self.forward(p2d)
@@ -203,7 +203,7 @@ class xREgoPosePosterior(pl.LightningModule):
         # self.eval_lower.eval(y_output, y_target, action)
 
         if batch_idx == 0 and self.protocol in ['p1', 'p2'] \
-        and self.which_data in ['h36m_static', 'h36m_seq']:
+        and self.which_data.startswith('h36m'):
             y_output = pose.data.cpu().numpy()
             y_target = p3d.data.cpu().numpy()
             mean=[0.485, 0.456, 0.406]
@@ -270,7 +270,7 @@ class xREgoPosePosterior(pl.LightningModule):
         img, p2d, p3d, action = batch
         p2d = p2d.cuda()
         p3d = p3d.cuda()
-        if self.which_data in ['h36m_static', 'h36m_seq']:
+        if self.which_data.startswith('h36m'):
             p3d[:, 14, :] = 0
         # forward pass
         pose = self.forward(p2d)
