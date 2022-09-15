@@ -39,12 +39,14 @@ def main():
         type=int,
     )
     parser.add_argument('--heatmap_type', help='Type of 2D ground truth heatmap, Defaults to "baseline"', 
-                        default= 'baseline')
+                         default= 'baseline')
+    parser.add_argument('--load_resnet', help='Directory of ResNet 101 weights', default=None)
     parser.add_argument("--heatmap_resolution",  help='2D heatmap resolution', nargs="*", type=int, default=[47, 47])
     parser.add_argument("--image_resolution",  help='Image resolution', nargs="*", type=int, default=[368, 368])
     parser.add_argument('--dropout', help='Dropout for transformer', type=float, default=0.)
-
-
+    parser.add_argument('--dropout_linear', help='Dropout for linear layers in 2D to 3D', type=float, default=0.)
+    parser.add_argument('--protocol', help='Protocol for H36M, p1 for protocol 1 and p2 for protocol 2', type=str, default='p2')
+    parser.add_argument('--w2c', action=argparse.BooleanOptionalAction, default=False)
     dict_args = vars(parser.parse_args())
 
     # Create output directory
@@ -58,7 +60,8 @@ def main():
     model = MODEL_DIRECTORY[dict_args["model"]](**dict_args)
     model = model.load_from_checkpoint(
         checkpoint_path=dict_args["model_checkpoint_file"],
-        map_location=dict_args["cuda"],
+        map_location=dict_args["cuda"], 
+        **dict_args
     )
 
     # Data: load data module
@@ -86,25 +89,25 @@ def main():
     )
     create_results_csv(test_mpjpe_dict, mpjpe_csv_path, mode=dict_args['dataloader'])
 
-    raw_results = model.test_raw_p2ds
-    results = model.test_mpjpe_samples
+    # raw_results = model.test_raw_p2ds
+    # results = model.test_mpjpe_samples
 
 
-    now = datetime.datetime.now().strftime("%m_%d_%H_%M_%S")
-    dir_name = dict_args["model"] + "_" + now
-    out_dir = os.path.join(dict_args["output_directory"], dir_name)
-    os.makedirs(out_dir, exist_ok=True)
+    # now = datetime.datetime.now().strftime("%m_%d_%H_%M_%S")
+    # dir_name = dict_args["model"] + "_" + now
+    # out_dir = os.path.join(dict_args["output_directory"], dir_name)
+    # os.makedirs(out_dir, exist_ok=True)
 
     
-    # Save results file
-    results_path = os.path.join(out_dir, "results_" + dir_name)
-    handpicked_results_path = os.path.join(out_dir, "raw_results_" + dir_name + ".pkl")
+    # # Save results file
+    # results_path = os.path.join(out_dir, "results_" + dir_name)
+    # handpicked_results_path = os.path.join(out_dir, "raw_results_" + dir_name + ".pkl")
     
-    with open(results_path, "wb") as handle:
-        pickle.dump(results, handle)
+    # with open(results_path, "wb") as handle:
+    #     pickle.dump(results, handle)
 
-    with open(handpicked_results_path, "wb") as handle:
-        pickle.dump(raw_results, handle)
+    # with open(handpicked_results_path, "wb") as handle:
+    #     pickle.dump(raw_results, handle)
 
 if __name__ == "__main__":
     main()

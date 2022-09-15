@@ -13,6 +13,7 @@ import dataset.transform as trsf
 from dataset.mocap_h36m import generate_heatmap, generate_heatmap_distance, world_to_camera, h36m_cameras_extrinsic_params, h36m_cameras_intrinsic_params, normalize_screen_coordinates
 from torch.utils.data import DataLoader
 from torchvision import transforms
+from dataset.mocap_h36m import camera2res
 import copy 
 
 
@@ -248,8 +249,8 @@ class MocapH36MTransformer(BaseDataset):
         imgs = [sio.imread(img_path).astype(np.float32) for img_path in img_paths]
         imgs = [img / 255.0 for img in imgs]
         #imgs = [img[:, 180:1120, :] for img in imgs]
-        img_shapes = [img.shape for img in imgs]
-        imgs = np.array([resize(img, (self.image_resolution[0], self.image_resolution[1])) for img in imgs])
+        # img_shapes = [img.shape for img in imgs]
+        # imgs = np.array([resize(img, (self.image_resolution[0], self.image_resolution[1])) for img in imgs])
 
         # import matplotlib.pyplot as plt
         # fig = plt.figure(figsize=(10, 2))
@@ -294,9 +295,9 @@ class MocapH36MTransformer(BaseDataset):
         all_p3d = []
 
         for i, json_path in enumerate(json_paths):
-            h, w, c = img_shapes[i]
+            # h, w, c = img_shapes[i]
             data = io.read_json(json_path)
-
+            w, h = camera2res[data['camera']]
             p2d, p3d = self._process_points(data)
 
             if self.heatmap_type == 'baseline':

@@ -38,7 +38,7 @@ class Mo2Cap2GlobalTrans(pl.LightningModule):
         # Transformer that takes sequence of heatmaps and outputs a sequence of heatmaps
         self.resnet_transformer = GlobalPixelTransformer(dim=512, depth=3, heads=8, mlp_dim=1024, dim_head=64, dropout=self.dropout)
         # Direct regression from heatmap
-        self.hm2pose = HM2Pose(15, dropout=0.5)
+        self.hm2pose = HM2Pose(15)
 
         # Initialize the mpjpe evaluation pipeline
         self.eval_body = evaluate.EvalBody(mode='mo2cap2')
@@ -52,7 +52,7 @@ class Mo2Cap2GlobalTrans(pl.LightningModule):
         self.test_iteration = 0
         self.image_limit = 100
         self.automatic_optimization=False
-
+        self.update_optimizer_flag = False
         self.save_hyperparameters()
 
         def weight_init(m):
@@ -72,10 +72,13 @@ class Mo2Cap2GlobalTrans(pl.LightningModule):
         
         if self.load_resnet:
             pretrained_dict = torch.load(self.load_resnet)
-            model_dict = self.state_dict()
-            pretrained_dict = {k: v for k, v in pretrained_dict['state_dict'].items() if k in model_dict}
+            model_dict = self.resnet101.state_dict()
+            # print([k.split('heatmap.')[-1] for k in pretrained_dict['state_dict'].keys()])
+            # print(model_dict.keys())
+            # assert(0)
+            pretrained_dict = {k.split('heatmap.resnet101.')[-1]: v for k, v in pretrained_dict['state_dict'].items() if k.split('heatmap.resnet101.')[-1] in model_dict}
             model_dict.update(pretrained_dict) 
-            self.heatmap.resnet101.load_state_dict(pretrained_dict)
+            self.resnet101.load_state_dict(pretrained_dict)
 
     def mse(self, pred, label):
         pred = pred.reshape(pred.size(0), -1)
@@ -102,11 +105,11 @@ class Mo2Cap2GlobalTrans(pl.LightningModule):
         """
         
         if self.update_optimizer_flag:
-            parameters = list(self.resnet_transformer())+list(self.hm2pose.parameters())
+            parameters = list(self.hm2pose.parameters())
             optimizer = torch.optim.AdamW(parameters, lr=self.lr)
         else:
-            resnet_params = [(n, p) for n, p in self.named_parameters() if n.startswith('heatmap.resnet101')]
-            all_params = [p for n, p in self.named_parameters() if not n.startswith('heatmap.resnet101')]
+            resnet_params = [(n, p) for n, p in self.named_parameters() if n.startswith('resnet101')]
+            all_params = [p for n, p in self.named_parameters() if not n.startswith('resnet101')]
 
             length = len(resnet_params)
             threshold = int(13*length/15.)
@@ -206,7 +209,7 @@ class Mo2Cap2GlobalTrans(pl.LightningModule):
         mpjpe_std = torch.std(torch.sqrt(torch.sum(torch.pow(p3d - pred_3d, 2), dim=2)))
         self.log("train_mpjpe_full_body", mpjpe)
         self.log("train_mpjpe_std", mpjpe_std)
-        self.iteration += imgs.size(0)
+        self.iteration += 1
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -273,7 +276,7 @@ class Mo2Cap2GlobalTrans(pl.LightningModule):
         # val_mpjpe_lower = self.eval_lower.get_results()
 
         if self.iteration >= self.hm_train_steps:
-            self.log("val_mpjpe_full_body_mocap", val_mpjpe_1["All"]["mpjpe"])
+            self.log("val_mpjpe_full_body", val_mpjpe_1["All"]["mpjpe"])
             self.log("val_mpjpe_full_body_h36m", val_mpjpe_2["All"]["mpjpe"])
             # self.log("val_mpjpe_full_body_std", val_mpjpe["All"]["std_mpjpe"])
             # self.log("val_mpjpe_upper_body", val_mpjpe_upper["All"]["mpjpe"])

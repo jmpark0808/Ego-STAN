@@ -152,7 +152,7 @@ class MPII(BaseDataset):
         p2d_heatmap = np.zeros((14, 47, 47))
 
         for i in range(len(p2ds)):
-            p2d_heatmap += generate_heatmap(p2ds[i], 1.3, img_height, img_width) 
+            p2d_heatmap += generate_heatmap(p2ds[i], 3, img_height, img_width) 
 
         p2d_heatmap = np.clip(p2d_heatmap, 0, 1)
         if 'action' not in data.keys():

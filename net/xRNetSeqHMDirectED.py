@@ -401,8 +401,8 @@ class xREgoPoseSeqHMDirectED(pl.LightningModule):
             first_sample_numpy = first_sample.detach().cpu().numpy()
             np.save(os.path.join(logdir, f'{batch_idx}_images'), first_sample_numpy)
             tensorboard.add_images('Test Images', first_sample, global_step=self.test_iteration)
-            tensorboard.add_images('Test GT Heatmap', torch.clip(p2d[0], 0, 1).reshape(16, 1, 47, 47), global_step=self.test_iteration)
-            tensorboard.add_images('Test Pred Heatmap', torch.clip(heatmap[0], 0, 1).reshape(16, 1, 47, 47), global_step=self.test_iteration)
+            tensorboard.add_images('Test GT Heatmap', torch.clip(p2d[0], 0, 1).reshape(17, 1, 47, 47), global_step=self.test_iteration)
+            tensorboard.add_images('Test Pred Heatmap', torch.clip(heatmap[0], 0, 1).reshape(17, 1, 47, 47), global_step=self.test_iteration)
             self.image_limit -= 1
         
         # Evaluate mpjpe

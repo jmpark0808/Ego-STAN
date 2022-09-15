@@ -56,17 +56,17 @@ bone_links_map = {
 }
 
 # mean3D = scipy.io.loadmat(os.path.join(os.path.expanduser('~'), 'projects/def-pfieguth/mo2cap/code/util/mean3D.mat'))['mean3D'] # 3x15 shape
-# mean3D = scipy.io.loadmat('/home/eddie/Downloads/package/code/util/mean3D.mat')['mean3D']/1000.
-# kinematic_parents = [ 0, 0, 1, 2, 0, 4, 5, 1, 7, 8, 9, 4, 11, 12, 13]
-# bones_mean = mean3D - mean3D[:,kinematic_parents]
-# bone_length = np.sqrt(np.sum(np.power(bones_mean, 2), axis=0)) # 15 shape
-# highest_differences = ['female_008_a_a_rgba_001625',
-#  'female_010_a_a_rgba_003845',
-#   'male_002_a_a_rgba_1812',
-#    'male_006_a_a_rgba_004566',
-#     'male_010_a_a_rgba_004940',
-#     'male_002_a_a_rgba_1447',
-#     'female_008_a_a_rgba_003302', 'male_002_a_a_rgba_1818', 'male_002_a_a_rgba_1448', 'male_002_a_a_rgba_1450', 'male_002_a_a_rgba_1447', 'male_002_a_a_rgba_1810', 'male_002_a_a_rgba_1449', 'male_002_a_a_rgba_1446', 'male_002_a_a_rgba_1178', 'male_002_a_a_rgba_1028', 'male_002_a_a_rgba_1443', 'male_002_a_a_rgba_1444', 'male_002_a_a_rgba_1813', 'male_002_a_a_rgba_1445', 'male_002_a_a_rgba_1442', 'male_002_a_a_rgba_1441', 'male_002_a_a_rgba_1180', 'male_002_a_a_rgba_1031', 'male_002_a_a_rgba_1177', 'male_002_a_a_rgba_1179', 'male_002_a_a_rgba_1440', 'male_002_a_a_rgba_1439', 'male_002_a_a_rgba_1451', 'male_002_a_a_rgba_1817', 'male_006_a_a_rgba_001429', 'male_002_a_a_rgba_001448', 'male_002_a_a_rgba_1379', 'male_002_a_a_rgba_001450', 'male_002_a_a_rgba_1377', 'male_002_a_a_rgba_001451', 'male_002_a_a_rgba_001449', 'male_002_a_a_rgba_1376', 'male_006_a_a_rgba_001422', 'male_002_a_a_rgba_1175', 'male_002_a_a_rgba_1176', 'male_002_a_a_rgba_001447', 'male_002_a_a_rgba_1181', 'male_006_a_a_rgba_001419', 'male_006_a_a_rgba_001431', 'male_006_a_a_rgba_001432', 'male_006_a_a_rgba_001430', 'male_006_a_a_rgba_001428', 'male_006_a_a_rgba_001418', 'male_002_a_a_rgba_1438', 'male_002_a_a_rgba_1375', 'female_008_a_a_rgba_003450', 'male_006_a_a_rgba_001423', 'male_006_a_a_rgba_001424', 'male_006_a_a_rgba_001421', 'male_002_a_a_rgba_1378', 'male_006_a_a_rgba_001433', 'male_006_a_a_rgba_001425', 'male_002_a_a_rgba_001439', 'male_002_a_a_rgba_001452', 'male_002_a_a_rgba_1182', 'male_002_a_a_rgba_001445', 'male_006_a_a_rgba_001444', 'male_002_a_a_rgba_1174', 'male_006_a_a_rgba_001441', 'male_002_a_a_rgba_001441', 'male_002_a_a_rgba_001444', 'male_002_a_a_rgba_1816', 'male_002_a_a_rgba_001446', 'male_002_a_a_rgba_001417', 'male_006_a_a_rgba_001446', 'male_002_a_a_rgba_001440', 'female_008_a_a_rgba_003229', 'male_002_a_a_rgba_1172', 'male_006_a_a_rgba_001443', 'male_002_a_a_rgba_001430', 'male_006_a_a_rgba_001439', 'male_006_a_a_rgba_001417', 'male_002_a_a_rgba_1452', 'male_002_a_a_rgba_1374', 'male_002_a_a_rgba_001429', 'male_002_a_a_rgba_001443', 'male_002_a_a_rgba_1173', 'male_006_a_a_rgba_001440', 'male_006_a_a_rgba_001420', 'male_002_a_a_rgba_001453', 'female_008_a_a_rgba_003303', 'male_002_a_a_rgba_1389', 'female_008_a_a_rgba_003227', 'male_002_a_a_rgba_001420', 'male_002_a_a_rgba_1183', 'male_002_a_a_rgba_001442', 'male_002_a_a_rgba_1392', 'male_002_a_a_rgba_001455', 'female_008_a_a_rgba_003230', 'female_008_a_a_rgba_003449', 'male_006_a_a_rgba_001442', 'male_002_a_a_rgba_1391', 'male_002_a_a_rgba_1357', 'male_006_a_a_rgba_001445', 'female_008_a_a_rgba_003228', 'male_006_a_a_rgba_001447', 'male_002_a_a_rgba_001454', 'female_008_a_a_rgba_003233', 'male_002_a_a_rgba_001438', 'female_008_a_a_rgba_003231', 'female_010_a_a_rgba_004332']
+mean3D = scipy.io.loadmat('/home/eddie/Downloads/package/code/util/mean3D.mat')['mean3D']/1000.
+kinematic_parents = [ 0, 0, 1, 2, 0, 4, 5, 1, 7, 8, 9, 4, 11, 12, 13]
+bones_mean = mean3D - mean3D[:,kinematic_parents]
+bone_length = np.sqrt(np.sum(np.power(bones_mean, 2), axis=0)) # 15 shape
+highest_differences = ['female_008_a_a_rgba_001625',
+ 'female_010_a_a_rgba_003845',
+  'male_002_a_a_rgba_1812',
+   'male_006_a_a_rgba_004566',
+    'male_010_a_a_rgba_004940',
+    'male_002_a_a_rgba_1447',
+    'female_008_a_a_rgba_003302', 'male_002_a_a_rgba_1818', 'male_002_a_a_rgba_1448', 'male_002_a_a_rgba_1450', 'male_002_a_a_rgba_1447', 'male_002_a_a_rgba_1810', 'male_002_a_a_rgba_1449', 'male_002_a_a_rgba_1446', 'male_002_a_a_rgba_1178', 'male_002_a_a_rgba_1028', 'male_002_a_a_rgba_1443', 'male_002_a_a_rgba_1444', 'male_002_a_a_rgba_1813', 'male_002_a_a_rgba_1445', 'male_002_a_a_rgba_1442', 'male_002_a_a_rgba_1441', 'male_002_a_a_rgba_1180', 'male_002_a_a_rgba_1031', 'male_002_a_a_rgba_1177', 'male_002_a_a_rgba_1179', 'male_002_a_a_rgba_1440', 'male_002_a_a_rgba_1439', 'male_002_a_a_rgba_1451', 'male_002_a_a_rgba_1817', 'male_006_a_a_rgba_001429', 'male_002_a_a_rgba_001448', 'male_002_a_a_rgba_1379', 'male_002_a_a_rgba_001450', 'male_002_a_a_rgba_1377', 'male_002_a_a_rgba_001451', 'male_002_a_a_rgba_001449', 'male_002_a_a_rgba_1376', 'male_006_a_a_rgba_001422', 'male_002_a_a_rgba_1175', 'male_002_a_a_rgba_1176', 'male_002_a_a_rgba_001447', 'male_002_a_a_rgba_1181', 'male_006_a_a_rgba_001419', 'male_006_a_a_rgba_001431', 'male_006_a_a_rgba_001432', 'male_006_a_a_rgba_001430', 'male_006_a_a_rgba_001428', 'male_006_a_a_rgba_001418', 'male_002_a_a_rgba_1438', 'male_002_a_a_rgba_1375', 'female_008_a_a_rgba_003450', 'male_006_a_a_rgba_001423', 'male_006_a_a_rgba_001424', 'male_006_a_a_rgba_001421', 'male_002_a_a_rgba_1378', 'male_006_a_a_rgba_001433', 'male_006_a_a_rgba_001425', 'male_002_a_a_rgba_001439', 'male_002_a_a_rgba_001452', 'male_002_a_a_rgba_1182', 'male_002_a_a_rgba_001445', 'male_006_a_a_rgba_001444', 'male_002_a_a_rgba_1174', 'male_006_a_a_rgba_001441', 'male_002_a_a_rgba_001441', 'male_002_a_a_rgba_001444', 'male_002_a_a_rgba_1816', 'male_002_a_a_rgba_001446', 'male_002_a_a_rgba_001417', 'male_006_a_a_rgba_001446', 'male_002_a_a_rgba_001440', 'female_008_a_a_rgba_003229', 'male_002_a_a_rgba_1172', 'male_006_a_a_rgba_001443', 'male_002_a_a_rgba_001430', 'male_006_a_a_rgba_001439', 'male_006_a_a_rgba_001417', 'male_002_a_a_rgba_1452', 'male_002_a_a_rgba_1374', 'male_002_a_a_rgba_001429', 'male_002_a_a_rgba_001443', 'male_002_a_a_rgba_1173', 'male_006_a_a_rgba_001440', 'male_006_a_a_rgba_001420', 'male_002_a_a_rgba_001453', 'female_008_a_a_rgba_003303', 'male_002_a_a_rgba_1389', 'female_008_a_a_rgba_003227', 'male_002_a_a_rgba_001420', 'male_002_a_a_rgba_1183', 'male_002_a_a_rgba_001442', 'male_002_a_a_rgba_1392', 'male_002_a_a_rgba_001455', 'female_008_a_a_rgba_003230', 'female_008_a_a_rgba_003449', 'male_006_a_a_rgba_001442', 'male_002_a_a_rgba_1391', 'male_002_a_a_rgba_1357', 'male_006_a_a_rgba_001445', 'female_008_a_a_rgba_003228', 'male_006_a_a_rgba_001447', 'male_002_a_a_rgba_001454', 'female_008_a_a_rgba_003233', 'male_002_a_a_rgba_001438', 'female_008_a_a_rgba_003231', 'female_010_a_a_rgba_004332']
 
 def get_p3ds_t(p3d_preds, p3d_gts):
     """
@@ -407,11 +407,11 @@ def create_results_csv(mpjpe_dict: dict, csv_path: str, mode: str = 'baseline'):
      'LeftHand', 'RightArm', 'RightForeArm', 'RightHand',
      'LeftUpLeg', 'LeftLeg','LeftFoot','LeftToeBase',
      'RightUpLeg','RightLeg','RightFoot','RightToeBase']
-    elif mode == 'h36m_static' or mode == 'h36m_seq':
+    elif mode.startswith('h36m'):
         joints = ['Head', 'Neck', 'LeftShoulder',
      'LeftElbow', 'LeftWrist', 'RightShoulder', 'RightElbow',
-     'RightWrist', 'LeftHip', 'LeftKneww','LeftFoot','RightHip',
-     'RightKneww','RightFoot','Hip','Thorax', 'Spine']
+     'RightWrist', 'LeftHip', 'LeftKnewe','LeftFoot','RightHip',
+     'RightKnee','RightFoot','Hip','Thorax', 'Spine']
     else:
         raise('Not a valid mode')
 

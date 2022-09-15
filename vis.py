@@ -2,12 +2,14 @@ import argparse
 import glob
 import os
 import pathlib
-
+from utils.evaluate import get_p3ds_t
 import cv2
 import matplotlib.pyplot as plt
 import numpy as np
 from tqdm import tqdm
+import matplotlib
 
+matplotlib.use('Agg')
 from train import DATALOADER_DIRECTORY, MODEL_DIRECTORY
 
 VIDEO_LIST = set()
@@ -38,7 +40,7 @@ def main():
     )
 
     dict_args = vars(parser.parse_args())
-    dict_args.update({"dropout":0, "load_resnet":'/home/s42hossa/projects/def-pfieguth/s42hossa/resnet101-63fe2227.pth'})
+    dict_args.update({"dropout":0})
 
     # Create output directory
     img_dir = os.path.join(dict_args["output_directory"], "frames")
@@ -73,14 +75,16 @@ def main():
         #print(pose.shape)
         #print(len(img_path))
         print("[p] rendering skeletons")
+        pose, p3d = get_p3ds_t(pose, p3d)
         for idx in range(p3d.shape[0]):
             #print(idx)
             #print(img_path[idx])
             filename = pathlib.Path(img_path[idx]).stem
             # Remove periods in filename
             filename = str(filename).replace(".", "_")
+
             save_skeleton(
-                p3d[idx][-1],
+                p3d[idx],
                 pose[idx],
                 filename,
                 action[idx],
@@ -102,6 +106,15 @@ def save_skeleton(
     fig = plt.figure(figsize=(16, 9))
     ax = plt.axes(projection="3d")
 
+    if gt_pose.shape[0] == 15:
+        p3d_a = np.zeros((16, 3))
+        p3d_a[1:, :] = gt_pose
+        p3d_b = np.zeros((16,3))
+        p3d_b[1:, :] = pred_pose
+    else:
+        p3d_a = gt_pose
+        p3d_b = pred_pose
+
     bone_links = [
         [0, 1],
         [1, 2],
@@ -121,8 +134,8 @@ def save_skeleton(
         [14, 15],
     ]
     skeletons = [
-        {"pose": gt_pose, "color": "blue"},
-        {"pose": pred_pose, "color": "green"},
+        {"pose": p3d_b, "color": "red", 'legend': 'Tome et al.'},
+        {"pose": p3d_a, "color": "goldenrod", 'legend': 'Ground Truth'},
     ]
 
     for item in skeletons:
@@ -146,11 +159,12 @@ def save_skeleton(
                 color=color,
             )
         # draw joints
-        ax.scatter(xs, ys, zs, color=color)
+        ax.scatter(xs, ys, zs, color=color, label=item['legend'])
 
     ax.set_xlim(-1, 1)
     ax.set_ylim(-1, 1)
     ax.set_zlim(-1, 1)
+    ax.legend()
     ax.title.set_text(f"{img_filename}")
     plt.axis("off")
     fig.tight_layout()
@@ -161,7 +175,7 @@ def save_skeleton(
         output_directory, f"{video_name}_{frame_count}_3d.png"
     )
     fig.savefig(frame_file_path)
-    plt.close()
+    
 
     # update video name set for later video creation
     VIDEO_LIST.add(video_name)
