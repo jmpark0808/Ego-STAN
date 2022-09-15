@@ -20,7 +20,9 @@ from dataset.mocap_h36m_hm import MocapH36MHMDataModule
 from dataset.mocap_transformer import MocapSeqDataModule
 from dataset.mo2cap2_transformer import Mo2Cap2SeqDataModule
 from dataset.mocap_h36m import MocapH36MDataModule
+from dataset.mocap_h36m_cropped import MocapH36MCropDataModule
 from dataset.mocap_h36m_transformer import MocapH36MSeqDataModule
+from dataset.mocap_h36m_cropped_transformer import MocapH36MCropSeqDataModule
 from dataset.mocap_h36m_2d import Mocap2DH36MDataModule
 
 from net.DirectRegression import DirectRegression
@@ -103,6 +105,8 @@ DATALOADER_DIRECTORY = {
     'h36m_seq' : MocapH36MSeqDataModule,
     'h36m_2d' : Mocap2DH36MDataModule,
     'h36m_hm': MocapH36MHMDataModule,
+    'h36m_crop': MocapH36MCropDataModule,
+    'h36m_seq_crop': MocapH36MCropSeqDataModule,
 } 
 
 if __name__ == "__main__":
