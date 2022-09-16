@@ -16,6 +16,7 @@ from dataset.mo2cap2 import Mo2Cap2DataModule
 from dataset.mocap import MocapDataModule
 from dataset.mo2cap2 import Mo2Cap2DataModule
 from dataset.mocap_distance import MocapDistanceDataModule
+from dataset.mocap_h36m_cropped_hm import MocapH36MCropHMDataModule
 from dataset.mocap_h36m_hm import MocapH36MHMDataModule
 from dataset.mocap_transformer import MocapSeqDataModule
 from dataset.mo2cap2_transformer import Mo2Cap2SeqDataModule
@@ -106,6 +107,7 @@ DATALOADER_DIRECTORY = {
     'h36m_2d' : Mocap2DH36MDataModule,
     'h36m_hm': MocapH36MHMDataModule,
     'h36m_crop': MocapH36MCropDataModule,
+    'h36m_crop_hm': MocapH36MCropHMDataModule,
     'h36m_seq_crop': MocapH36MCropSeqDataModule,
 } 
 
