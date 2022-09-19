@@ -409,7 +409,7 @@ def normalize_screen_coordinates(X, w, h):
     # Normalize so that [0, w] is mapped to [-1, 1], while preserving the aspect ratio
     return X/w*2 - [1, h/w]
 
-class MocapH36M(BaseDataset):
+class MocapH36MCropHM(BaseDataset):
     """Mocap Dataset loader"""
 
     ROOT_DIRS = ['rgba', 'json']
@@ -502,14 +502,14 @@ class MocapH36M(BaseDataset):
 
                 if path.split(os.path.sep)[-3] in self.subject_sets[self.protocol]:
                     if self.protocol.split('_')[-1] in ['train', 'val'] :
-                        # encoded = [p.encode('utf8') for p in paths]
-                        # indexed_paths.update({sub_dir: encoded})
-                        encoded = []
-                        for p in paths:
-                            frame_idx = p.split('_')[-1].split('.')[0]
-                            if int(frame_idx)%16 == 0:
-                                encoded.append(p.encode('utf8'))
+                        encoded = [p.encode('utf8') for p in paths]
                         indexed_paths.update({sub_dir: encoded})
+                        # encoded = []
+                        # for p in paths:
+                        #     frame_idx = p.split('_')[-1].split('.')[0]
+                        #     if int(frame_idx)%16 == 0:
+                        #         encoded.append(p.encode('utf8'))
+                        # indexed_paths.update({sub_dir: encoded})
                     elif self.protocol.split('_')[-1] in ['test']:
                         encoded = []
                         for p in paths:
@@ -588,44 +588,124 @@ class MocapH36M(BaseDataset):
 
         # load image
 
-        img_path = self.index['rgba'][index].decode('utf8')
-        img = sio.imread(img_path).astype(np.float32)
-        img /= 255.0
-        h, w, c = img.shape
-        img = resize(img, (self.image_resolution[0], self.image_resolution[1]))
-
+        # img_path = self.index['rgba'][index].decode('utf8')
+        # img = sio.imread(img_path).astype(np.float32)
+        # img /= 255.0
+        # h, w, c = img.shape
+        # orig_img = img
+        # img = resize(img, (self.image_resolution[0], self.image_resolution[1]))
+        
         # read joint positions
         json_path = self.index['json'][index].decode('utf8')
 
         data = io.read_json(json_path)
-
+        w, h = camera2res[data['camera']]
         p2d, p3d = self._process_points(data)
+
+        # cropping
+
+        coords = p2d
+
+        max_x = max(coords[:, 0])
+        min_x = min(coords[:, 0])
+        max_y = max(coords[:, 1])
+        min_y = min(coords[:, 1])
+
+        x_diff = max_x - min_x
+        y_diff = max_y - min_y
+
+        max_xc = int(min([w, max_x + 0.25*x_diff]))
+        min_xc = int(max([0, min_x - 0.25*x_diff]))
+        max_yc = int(min([h, max_y + 0.25*y_diff]))
+        min_yc = int(max([0, min_y - 0.25*x_diff]))
+
+        a_diff = ((max_xc - min_xc) - (max_yc - min_yc))/2
+
+        # to maintain aspect ratio
+
+        if a_diff <= 0:
+
+            # the height (y) is more than the width (x)
+
+            max_xn = max_xc + int(abs(a_diff)) 
+            min_xn = min_xc - int(abs(a_diff))
+            max_yn = max_yc
+            min_yn = min_yc
+
+            d_max_xn = w - max_xn
+            d_min_xn = min_xn - 0
+
+            if d_max_xn < 0:
+                max_xn = w
+                min_xn = int(min_xn + d_max_xn)
+
+            if d_min_xn < 0:
+                min_xn = 0
+                max_xn = int(max_xn - d_min_xn)
+        else:
+
+            # the width (x) is more than the height (y)
+
+            max_yn = max_yc + int(a_diff) 
+            min_yn = min_yc - int(a_diff)
+            max_xn = max_xc
+            min_xn = min_xc
+
+            d_max_yn = h - max_yn
+            d_min_yn = min_yn - 0
+
+            if d_max_yn < 0:
+                max_yn = h
+                min_yn = int(min_yn + d_max_yn)
+
+            if d_min_yn < 0:
+                min_yn = 0
+                max_yn = int(max_yn - d_min_yn)
+
+        maintain_aspect = True
+        if maintain_aspect == True:
+            # cropped_img = orig_img[min_yn:max_yn, min_xn:max_xn]
+            p2d_crop = np.array([(coord[0] - min_xn, coord[1] - min_yn) for coord in coords])
+        else:
+            # cropped_img = orig_img[min_yc:max_yc, min_xc:max_xc]
+            p2d_crop = np.array([(coord[0] - min_xc, coord[1] - min_yc) for coord in coords])
+
+        # w_crop, h_crop, c = cropped_img.shape
+        w_crop, h_crop = max_xn-min_xn, max_yn-min_yn
+
+        # cropped_img = resize(cropped_img, (self.image_resolution[0], self.image_resolution[1]))
 
         # p2d_heatmap = np.squeeze(normalize_screen_coordinates(np.expand_dims(p2d, 0), w=w, h=h))
 
         if self.heatmap_type == 'baseline':
             p2d_heatmap = generate_heatmap(p2d, int(3*self.heatmap_resolution[0]/47.), resolution=self.heatmap_resolution, h=h, w=w) # exclude head
+            p2d_hm_crop = generate_heatmap(p2d_crop, int(3*self.heatmap_resolution[0]/47.), 
+                            resolution=self.heatmap_resolution, h=h_crop, w=w_crop)
         elif self.heatmap_type == 'distance':
             distances = np.sqrt(np.sum(p3d**2, axis=1))
             p2d_heatmap = generate_heatmap_distance(p2d, distances, h, w) # exclude head
+            p2d_hm_crop = generate_heatmap_distance(p2d_crop, distances, h_crop, w_crop) # exclude head
         else:
             self.logger.error('Unrecognized heatmap type')
 
         # get action name
         action = data['action']
+        img = np.zeros([self.image_resolution[0], self.image_resolution[1], 3])
         if self.transform:
             random_dice = np.random.uniform(0, 1, [1])
             img = self.transform({'image': img, 'random_dice': random_dice})['image']
+            # cropped_img = self.transform({'image': cropped_img, 'random_dice': random_dice})['image']
             p3d = self.transform({'joints3D': p3d, 'random_dice': random_dice})['joints3D']
             p2d_heatmap = self.transform({'joints2D_heatmap': p2d_heatmap, 'random_dice': random_dice})['joints2D_heatmap']
+            p2d_heatmap_crop = self.transform({'joints2D_heatmap': p2d_hm_crop, 'random_dice': random_dice})['joints2D_heatmap']
 
-        return img, p2d_heatmap, p3d, action
+        return img, p2d_heatmap_crop, p3d, action
 
     def __len__(self):
 
         return len(self.index[self.ROOT_DIRS[0]])
 
-class MocapH36MDataModule(pl.LightningDataModule):
+class MocapH36MCropHMDataModule(pl.LightningDataModule):
 
     def __init__(self, **kwargs):
         super().__init__()
@@ -652,7 +732,7 @@ class MocapH36MDataModule(pl.LightningDataModule):
         )
         
     def train_dataloader(self):
-        data_train = MocapH36M(self.train_dir, SetType.TRAIN, transform=self.data_transform_train,
+        data_train = MocapH36MCropHM(self.train_dir, SetType.TRAIN, transform=self.data_transform_train,
          heatmap_type=self.heatmap_type, heatmap_resolution=self.heatmap_resolution,
           image_resolution=self.image_resolution, protocol=self.p_train, w2c=self.w2c)
         return DataLoader(
@@ -660,7 +740,7 @@ class MocapH36MDataModule(pl.LightningDataModule):
                 num_workers=self.num_workers, shuffle=True, pin_memory=True)
 
     def val_dataloader(self):
-        data_val = MocapH36M(self.val_dir, SetType.VAL, transform=self.data_transform_test,
+        data_val = MocapH36MCropHM(self.val_dir, SetType.VAL, transform=self.data_transform_test,
          heatmap_type=self.heatmap_type, heatmap_resolution=self.heatmap_resolution,
           image_resolution=self.image_resolution, protocol=self.p_test, w2c=self.w2c)
         return DataLoader(
@@ -668,7 +748,7 @@ class MocapH36MDataModule(pl.LightningDataModule):
                 num_workers=self.num_workers, pin_memory=True)
 
     def test_dataloader(self):
-        data_test = MocapH36M(self.test_dir, SetType.TEST, transform=self.data_transform_test,
+        data_test = MocapH36MCropHM(self.test_dir, SetType.TEST, transform=self.data_transform_test,
          heatmap_type=self.heatmap_type, heatmap_resolution=self.heatmap_resolution,
           image_resolution=self.image_resolution, protocol=self.p_test, w2c=self.w2c)
         return DataLoader(

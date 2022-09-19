@@ -36,11 +36,11 @@ bone_links_map = {
                 [14, 15],
             ],
     'h36m' : [
-                #[0, 1], # Head -> Neck
+                [0, 1], # Head -> Neck
                 [1, 2], # Neck -> LShoulder
                 [1, 5], # Neck -> RShoulder
                 [2, 3], # LShoulder -> LElbow
-                [3, 4], # LShoulder -> LWrist
+                [3, 4], # LElbow -> LWrist
                 [8, 9], # LHip -> LKnee
                 [9, 10], # LKnee -> LFoot
                 [5, 6], # RShoulder -> RElbow
@@ -50,13 +50,13 @@ bone_links_map = {
                 [14, 11], # Hip -> RHip
                 [14, 8], # Hip -> LHip
                 [1, 15], # Neck -> Thorax
-                [1, 16], # Thorax -> Spine
+                [15, 16], # Thorax -> Spine
                 [16, 14] # Spine -> Hip
             ]
 }
 
-mean3D = scipy.io.loadmat(os.path.join(os.path.expanduser('~'), 'projects/def-pfieguth/mo2cap/code/util/mean3D.mat'))['mean3D'] # 3x15 shape
-# mean3D = scipy.io.loadmat('/home/eddie/scripts/code/util/mean3D.mat')['mean3D']/1000.
+# mean3D = scipy.io.loadmat(os.path.join(os.path.expanduser('~'), 'projects/def-pfieguth/mo2cap/code/util/mean3D.mat'))['mean3D'] # 3x15 shape
+mean3D = scipy.io.loadmat('/home/eddie/Downloads/package/code/util/mean3D.mat')['mean3D']/1000.
 kinematic_parents = [ 0, 0, 1, 2, 0, 4, 5, 1, 7, 8, 9, 4, 11, 12, 13]
 bones_mean = mean3D - mean3D[:,kinematic_parents]
 bone_length = np.sqrt(np.sum(np.power(bones_mean, 2), axis=0)) # 15 shape
@@ -407,6 +407,11 @@ def create_results_csv(mpjpe_dict: dict, csv_path: str, mode: str = 'baseline'):
      'LeftHand', 'RightArm', 'RightForeArm', 'RightHand',
      'LeftUpLeg', 'LeftLeg','LeftFoot','LeftToeBase',
      'RightUpLeg','RightLeg','RightFoot','RightToeBase']
+    elif mode.startswith('h36m'):
+        joints = ['Head', 'Neck', 'LeftShoulder',
+     'LeftElbow', 'LeftWrist', 'RightShoulder', 'RightElbow',
+     'RightWrist', 'LeftHip', 'LeftKnewe','LeftFoot','RightHip',
+     'RightKnee','RightFoot','Hip','Thorax', 'Spine']
     else:
         raise('Not a valid mode')
 
@@ -430,12 +435,54 @@ def create_results_csv(mpjpe_dict: dict, csv_path: str, mode: str = 'baseline'):
         mpjpe_writer.writerow((mpjpe_dict['Per Joint']*m_to_mm).tolist())
 
         
+def p_mpjpe(predicted, target, return_error=True):
+    """
+    Pose error: MPJPE after rigid alignment (scale, rotation, and translation),
+    often referred to as "Protocol #2" in many papers.
+    """
+    assert predicted.shape == target.shape
+    
+    muX = np.mean(target, axis=1, keepdims=True)
+    muY = np.mean(predicted, axis=1, keepdims=True)
+    
+    X0 = target - muX
+    Y0 = predicted - muY
 
+    normX = np.sqrt(np.sum(X0**2, axis=(1, 2), keepdims=True))
+    normY = np.sqrt(np.sum(Y0**2, axis=(1, 2), keepdims=True))
+    
+    X0 /= normX
+    Y0 /= normY
+
+    H = np.matmul(X0.transpose(0, 2, 1), Y0)
+    U, s, Vt = np.linalg.svd(H)
+    V = Vt.transpose(0, 2, 1)
+    R = np.matmul(V, U.transpose(0, 2, 1))
+
+    # Avoid improper rotations (reflections), i.e. rotations with det(R) = -1
+    sign_detR = np.sign(np.expand_dims(np.linalg.det(R), axis=1))
+    V[:, :, -1] *= sign_detR
+    s[:, -1] *= sign_detR.flatten()
+    R = np.matmul(V, U.transpose(0, 2, 1)) # Rotation
+
+    tr = np.expand_dims(np.sum(s, axis=1, keepdims=True), axis=2)
+
+    a = tr * normX / normY # Scale
+    t = muX - a*np.matmul(muY, R) # Translation
+    
+    # Perform rigid transformation on the input
+    predicted_aligned = a*np.matmul(predicted, R) + t
+    
+    # Return MPJPE
+    if return_error:
+        return np.linalg.norm(predicted_aligned - target, axis=len(target.shape)-1)
+    else:
+        return predicted_aligned
 
     
 
 
-def compute_error(pred, gt, return_mean=True, mode='baseline'):
+def compute_error(pred, gt, return_mean=True, mode='baseline', protocol=None):
     """Compute error
 
     Arguments:
@@ -474,15 +521,56 @@ def compute_error(pred, gt, return_mean=True, mode='baseline'):
             return np.mean(joint_error)
         else:
             return joint_error
+        # if pred.shape[1] != 3:
+        #         pred = np.transpose(pred, [1, 0])
 
+        # if gt.shape[1] != 3:
+        #     gt = np.transpose(gt, [1, 0])
+
+        # assert pred.shape == gt.shape
+        # error = p_mpjpe(np.expand_dims(pred, 0), np.expand_dims(gt, 0))
+        # if return_mean:
+        #     return np.mean(error)
+        # else:
+        #     return error
+    elif mode.startswith('h36m'):
+        if protocol is None or protocol == 'p1':
+            if pred.shape[1] != 3:
+                pred = np.transpose(pred, [1, 0])
+
+            if gt.shape[1] != 3:
+                gt = np.transpose(gt, [1, 0])
+
+            assert pred.shape == gt.shape
+            error = np.sqrt(np.sum((pred - gt) ** 2, axis=1))
+            if return_mean:
+                return np.mean(error)
+            else:
+                return error
+        elif protocol == 'p2':
+            if pred.shape[1] != 3:
+                pred = np.transpose(pred, [1, 0])
+
+            if gt.shape[1] != 3:
+                gt = np.transpose(gt, [1, 0])
+
+            assert pred.shape == gt.shape
+            error = p_mpjpe(np.expand_dims(pred, 0), np.expand_dims(gt, 0))
+            if return_mean:
+                return np.mean(error)
+            else:
+                return error
+        else:
+            raise('Not a valid protocol')
     else:
         raise('Not a valid mode')
 
 class EvalBody(BaseEval):
     """Eval entire body"""
-    def __init__(self, mode='baseline'):
+    def __init__(self, mode='baseline', protocol=None):
         super().__init__()
         self.mode = mode
+        self.protocol = protocol
 
     def eval(self, pred, gt, actions=None):
         """Evaluate
@@ -494,17 +582,21 @@ class EvalBody(BaseEval):
         Keyword Arguments:
             action {str} -- action name (default: {None})
         """
-
+        
         for pid, (pose_in, pose_target) in enumerate(zip(pred, gt)):
-            err = compute_error(pose_in, pose_target)
+            err = compute_error(pose_in, pose_target, mode=self.mode, protocol=self.protocol)
 
-            if actions:
+            if actions and (self.mode == 'baseline' or self.mode == 'sequential'):
                 act_name = self._map_action_name(actions[pid])
 
                 # add element to dictionary if not there yet
                 if not self._is_action_stored(act_name):
                     self._init_action(act_name)
                 self.error[act_name].append(err)
+            else:
+                if not self._is_action_stored(actions[pid]):
+                    self._init_action(actions[pid])
+                self.error[actions[pid]].append(err)
 
             # add to all
             act_name = "All"
@@ -556,16 +648,19 @@ class EvalSamples(BaseEval):
 
 class EvalUpperBody(BaseEval):
     """Eval upper body"""
-    def __init__(self, mode='baseline'):
+    def __init__(self, mode='baseline', protocol=None):
         super().__init__()
         self.errors = []
         if mode == 'baseline' or mode == 'sequential':
             self._SEL = [0, 1, 2, 3, 4, 5, 6, 7]
         elif mode == 'mo2cap2':
             self._SEL = [0, 1, 2, 3, 4, 5, 6]
+        elif mode.startswith('h36m'):
+            self._SEL = [0, 1, 2, 3, 4, 5, 6, 7, 15, 16]
         else:
             raise('Not a valid mode')
         self.mode = mode
+        self.protocol = protocol
 
     def eval(self, pred, gt, actions=None):
         """Evaluate
@@ -579,16 +674,20 @@ class EvalUpperBody(BaseEval):
         """
 
         for pid, (pose_in, pose_target) in enumerate(zip(pred, gt)):
-            err = compute_error(pose_in[self._SEL], pose_target[self._SEL])
+            err = compute_error(pose_in[self._SEL], pose_target[self._SEL], mode = self.mode, protocol = self.protocol)
             
 
-            if actions:
+            if actions and (self.mode == 'baseline' or self.mode == 'sequential'):
                 act_name = self._map_action_name(actions[pid])
 
                 # add element to dictionary if not there yet
                 if not self._is_action_stored(act_name):
                     self._init_action(act_name)
                 self.error[act_name].append(err)
+            else:
+                if not self._is_action_stored(actions[pid]):
+                    self._init_action(actions[pid])
+                self.error[actions[pid]].append(err)
 
             # add to all
             act_name = "All"
@@ -601,16 +700,19 @@ class EvalUpperBody(BaseEval):
 class EvalLowerBody(BaseEval):
     """Eval lower body"""
 
-    def __init__(self, mode='baseline'):
+    def __init__(self, mode='baseline', protocol=None):
         super().__init__()
         self.errors = []
         if mode == 'baseline' or mode == 'sequential':
             self._SEL = [8, 9, 10, 11, 12, 13, 14, 15]
         elif mode == 'mo2cap2':
             self._SEL = [7, 8, 9, 10, 11, 12, 13, 14]
+        elif mode.startswith('h36m'):
+            self._SEL = [8, 9, 10, 11, 12, 13, 14]
         else:
             raise('Not a valid mode')
         self.mode = mode
+        self.protocol = protocol
 
     def eval(self, pred, gt, actions=None):
         """Evaluate
@@ -624,16 +726,20 @@ class EvalLowerBody(BaseEval):
         """
 
         for pid, (pose_in, pose_target) in enumerate(zip(pred, gt)):
-            err = compute_error(pose_in[self._SEL], pose_target[self._SEL])
+            err = compute_error(pose_in[self._SEL], pose_target[self._SEL], mode = self.mode, protocol = self.protocol)
             
 
-            if actions:
+            if actions and (self.mode == 'baseline' or self.mode == 'sequential'):
                 act_name = self._map_action_name(actions[pid])
 
                 # add element to dictionary if not there yet
                 if not self._is_action_stored(act_name):
                     self._init_action(act_name)
                 self.error[act_name].append(err)
+            else:
+                if not self._is_action_stored(actions[pid]):
+                    self._init_action(actions[pid])
+                self.error[actions[pid]].append(err)
 
             # add to all
             act_name = "All"
@@ -645,12 +751,13 @@ class EvalLowerBody(BaseEval):
 
 class EvalPerJoint(object):
     """Eval MPJPE per joint body"""
-    def __init__(self, mode='baseline'):
+    def __init__(self, mode='baseline', protocol=None):
         super().__init__()
         self.errors = []
         self.gts = []
         self.pds = []
         self.mode = mode
+        self.protocol = protocol
 
     def eval(self, pred, gt):
         """Evaluate
@@ -662,7 +769,7 @@ class EvalPerJoint(object):
         """
 
         for (pose_in, pose_target) in zip(pred, gt):
-            err = compute_error(pose_in, pose_target, return_mean=False)
+            err = compute_error(pose_in, pose_target, return_mean=False, mode=self.mode, protocol=self.protocol)
             # err = Error per joint
             self.errors.append(err)
             self.pds.append(pose_in)

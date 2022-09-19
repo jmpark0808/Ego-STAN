@@ -409,7 +409,7 @@ def normalize_screen_coordinates(X, w, h):
     # Normalize so that [0, w] is mapped to [-1, 1], while preserving the aspect ratio
     return X/w*2 - [1, h/w]
 
-class MocapH36M(BaseDataset):
+class Mocap2DH36M(BaseDataset):
     """Mocap Dataset loader"""
 
     ROOT_DIRS = ['rgba', 'json']
@@ -502,13 +502,7 @@ class MocapH36M(BaseDataset):
 
                 if path.split(os.path.sep)[-3] in self.subject_sets[self.protocol]:
                     if self.protocol.split('_')[-1] in ['train', 'val'] :
-                        # encoded = [p.encode('utf8') for p in paths]
-                        # indexed_paths.update({sub_dir: encoded})
-                        encoded = []
-                        for p in paths:
-                            frame_idx = p.split('_')[-1].split('.')[0]
-                            if int(frame_idx)%16 == 0:
-                                encoded.append(p.encode('utf8'))
+                        encoded = [p.encode('utf8') for p in paths]
                         indexed_paths.update({sub_dir: encoded})
                     elif self.protocol.split('_')[-1] in ['test']:
                         encoded = []
@@ -600,16 +594,18 @@ class MocapH36M(BaseDataset):
         data = io.read_json(json_path)
 
         p2d, p3d = self._process_points(data)
+        p2d[:, 0] /= w
+        p2d[:, 1] /= h
 
         # p2d_heatmap = np.squeeze(normalize_screen_coordinates(np.expand_dims(p2d, 0), w=w, h=h))
 
-        if self.heatmap_type == 'baseline':
-            p2d_heatmap = generate_heatmap(p2d, int(3*self.heatmap_resolution[0]/47.), resolution=self.heatmap_resolution, h=h, w=w) # exclude head
-        elif self.heatmap_type == 'distance':
-            distances = np.sqrt(np.sum(p3d**2, axis=1))
-            p2d_heatmap = generate_heatmap_distance(p2d, distances, h, w) # exclude head
-        else:
-            self.logger.error('Unrecognized heatmap type')
+        # if self.heatmap_type == 'baseline':
+        #     p2d_heatmap = generate_heatmap(p2d, int(3*self.heatmap_resolution[0]/47.), resolution=self.heatmap_resolution, h=h, w=w) # exclude head
+        # elif self.heatmap_type == 'distance':
+        #     distances = np.sqrt(np.sum(p3d**2, axis=1))
+        #     p2d_heatmap = generate_heatmap_distance(p2d, distances, h, w) # exclude head
+        # else:
+        #     self.logger.error('Unrecognized heatmap type')
 
         # get action name
         action = data['action']
@@ -617,7 +613,7 @@ class MocapH36M(BaseDataset):
             random_dice = np.random.uniform(0, 1, [1])
             img = self.transform({'image': img, 'random_dice': random_dice})['image']
             p3d = self.transform({'joints3D': p3d, 'random_dice': random_dice})['joints3D']
-            p2d_heatmap = self.transform({'joints2D_heatmap': p2d_heatmap, 'random_dice': random_dice})['joints2D_heatmap']
+            p2d_heatmap = self.transform({'joints2D_heatmap': p2d, 'random_dice': random_dice})['joints2D_heatmap']
 
         return img, p2d_heatmap, p3d, action
 
@@ -625,7 +621,7 @@ class MocapH36M(BaseDataset):
 
         return len(self.index[self.ROOT_DIRS[0]])
 
-class MocapH36MDataModule(pl.LightningDataModule):
+class Mocap2DH36MDataModule(pl.LightningDataModule):
 
     def __init__(self, **kwargs):
         super().__init__()
@@ -652,7 +648,7 @@ class MocapH36MDataModule(pl.LightningDataModule):
         )
         
     def train_dataloader(self):
-        data_train = MocapH36M(self.train_dir, SetType.TRAIN, transform=self.data_transform_train,
+        data_train = Mocap2DH36M(self.train_dir, SetType.TRAIN, transform=self.data_transform_train,
          heatmap_type=self.heatmap_type, heatmap_resolution=self.heatmap_resolution,
           image_resolution=self.image_resolution, protocol=self.p_train, w2c=self.w2c)
         return DataLoader(
@@ -660,7 +656,7 @@ class MocapH36MDataModule(pl.LightningDataModule):
                 num_workers=self.num_workers, shuffle=True, pin_memory=True)
 
     def val_dataloader(self):
-        data_val = MocapH36M(self.val_dir, SetType.VAL, transform=self.data_transform_test,
+        data_val = Mocap2DH36M(self.val_dir, SetType.VAL, transform=self.data_transform_test,
          heatmap_type=self.heatmap_type, heatmap_resolution=self.heatmap_resolution,
           image_resolution=self.image_resolution, protocol=self.p_test, w2c=self.w2c)
         return DataLoader(
@@ -668,7 +664,7 @@ class MocapH36MDataModule(pl.LightningDataModule):
                 num_workers=self.num_workers, pin_memory=True)
 
     def test_dataloader(self):
-        data_test = MocapH36M(self.test_dir, SetType.TEST, transform=self.data_transform_test,
+        data_test = Mocap2DH36M(self.test_dir, SetType.TEST, transform=self.data_transform_test,
          heatmap_type=self.heatmap_type, heatmap_resolution=self.heatmap_resolution,
           image_resolution=self.image_resolution, protocol=self.p_test, w2c=self.w2c)
         return DataLoader(

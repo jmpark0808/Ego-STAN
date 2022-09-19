@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 from utils import evaluate
 from net.blocks import *
-
+import os
 
 
 class Mo2Cap2Baseline(pl.LightningModule):
@@ -40,11 +40,11 @@ class Mo2Cap2Baseline(pl.LightningModule):
         self.eval_upper = evaluate.EvalUpperBody(mode='mo2cap2')
         self.eval_lower = evaluate.EvalLowerBody(mode='mo2cap2')
         self.eval_per_joint = evaluate.EvalPerJoint(mode='mo2cap2')
-
+        self.update_optimizer_flag = False
         # Initialize total validation pose loss
         self.val_loss_3d_pose_total = torch.tensor(0., device=self.device)
         self.val_loss_hm = torch.tensor(0., device=self.device)
-
+        self.automatic_optimization=False
         def weight_init(m):
             """
             Xavier Initialization
@@ -56,10 +56,16 @@ class Mo2Cap2Baseline(pl.LightningModule):
 
         # Initialize weights
         self.apply(weight_init)
-        if self.load_resnet:
-            self.heatmap.resnet101.load_state_dict(torch.load(self.load_resnet))
+        
 
         self.heatmap.update_resnet101()
+        if self.load_resnet:
+            pretrained_dict = torch.load(self.load_resnet)
+            model_dict = self.heatmap.resnet101.state_dict()
+            pretrained_dict = {k.split('heatmap.resnet101.')[-1]: v for k, v in pretrained_dict['state_dict'].items() if k.split('heatmap.resnet101.')[-1] in model_dict}
+            model_dict.update(pretrained_dict) 
+            self.heatmap.resnet101.load_state_dict(pretrained_dict)
+
         self.iteration = 0
         self.save_hyperparameters()
         self.test_results = {}
@@ -94,19 +100,47 @@ class Mo2Cap2Baseline(pl.LightningModule):
         Choose what optimizers and learning-rate schedulers to use in your optimization.
         """
         
-        optimizer = torch.optim.AdamW(self.parameters(), lr=self.lr)
-        self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-            optimizer,
-            mode='min',
-            factor=0.1,
-            patience=self.es_patience-3,
-            min_lr=1e-8,
-            verbose=True)
-        
+        if self.update_optimizer_flag:
+            parameters = list(self.encoder.parameters())+list(self.pose_decoder.parameters())+list(self.heatmap_decoder.parameters())
+            optimizer = torch.optim.AdamW(parameters, lr=self.lr)
+        else:
+            resnet_params = [(n, p) for n, p in self.named_parameters() if n.startswith('heatmap.resnet101')]
+            all_params = [p for n, p in self.named_parameters() if not n.startswith('heatmap.resnet101')]
+
+            length = len(resnet_params)
+            threshold = int(13*length/15.)
+
+            lowlevel_params = []
+
+            for idx, (n, p) in enumerate(resnet_params):
+                if idx < threshold:
+                    lowlevel_params.append(p)
+                else:
+                    all_params.append(p)
+
+
+            grouped_parameters = [
+                {"params": lowlevel_params, 'lr': self.lr/50.},
+                {"params": all_params, 'lr': self.lr},
+            ]
+
+            optimizer = torch.optim.AdamW(grouped_parameters, lr=self.lr)
+  
         return optimizer
+
+
+        # self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+        #         optimizer,
+        #         mode='min',
+        #         factor=0.1,
+        #         patience=self.es_patience-3,
+        #         min_lr=1e-8,
+        #         verbose=True)
+        
+        # return optimizer
       
 
-    def forward(self, x, gt_heatmap=None):
+    def forward(self, x, freeze_heatmap=False):
         """
         Forward pass through model
 
@@ -116,14 +150,15 @@ class Mo2Cap2Baseline(pl.LightningModule):
         """
         # x = 3 x 368 x 368
 
-        heatmap = self.heatmap(x)
+        if freeze_heatmap:
+            with torch.no_grad():
+                heatmap = self.heatmap(x)
+        else:
+            heatmap = self.heatmap(x)
 
         # heatmap = 15 x 47 x 47
         
-        if gt_heatmap is not None:
-            z = self.encoder(gt_heatmap)
-        else:
-            z = self.encoder(heatmap)
+        z = self.encoder(heatmap)
         # z = 20
 
         pose = self.pose_decoder(z)
@@ -150,32 +185,39 @@ class Mo2Cap2Baseline(pl.LightningModule):
 
         # forward pass
         
+        if self.iteration > self.hm_train_steps and not self.update_optimizer_flag:
+            self.update_optimizer_flag = True
+
+        opt = self.configure_optimizers()
+        opt.zero_grad()
 
 
         if self.iteration <= self.hm_train_steps:
-            heatmap, pose, generated_heatmap = self.forward(img)
+            heatmap, pose, generated_heatmap = self.forward(img, False)
             heatmap = torch.sigmoid(heatmap)
             hm_loss = self.mse(heatmap, p2d)
             loss = hm_loss
             self.log('Total HM loss', hm_loss.item())
         else:
-            heatmap, pose, generated_heatmap = self.forward(img)
+            heatmap, pose, generated_heatmap = self.forward(img, True)
             heatmap = torch.sigmoid(heatmap)
             generated_heatmap = torch.sigmoid(generated_heatmap)
             hm_loss = self.mse(heatmap, p2d)
             loss_3d_pose, loss_2d_ghm = self.auto_encoder_loss(pose, p3d, generated_heatmap, heatmap)
             ae_loss = loss_2d_ghm + loss_3d_pose
-            loss = hm_loss + ae_loss
+            loss = ae_loss
             self.log('Total HM loss', hm_loss.item())
             self.log('Total 3D loss', loss_3d_pose.item())
             self.log('Total GHM loss', loss_2d_ghm.item())
-     
+
+        self.manual_backward(loss)
+        opt.step()
         # calculate mpjpe loss
         mpjpe = torch.mean(torch.sqrt(torch.sum(torch.pow(p3d - pose, 2), dim=2)))
         mpjpe_std = torch.std(torch.sqrt(torch.sum(torch.pow(p3d - pose, 2), dim=2)))
         self.log("train_mpjpe_full_body", mpjpe)
         self.log("train_mpjpe_std", mpjpe_std)
-        self.iteration += img.size(0)
+        self.iteration += 1
 
         return loss
 
@@ -210,6 +252,17 @@ class Mo2Cap2Baseline(pl.LightningModule):
         if batch_idx == 0:
             tensorboard.add_images('Val Image', img, self.iteration)
             tensorboard.add_images('Val Predicted 2D Heatmap', torch.clip(torch.sum(heatmap, dim=1, keepdim=True), 0, 1), self.iteration)
+
+            skel_dir = os.path.join(self.logger.log_dir, 'skel_plots')
+            if not os.path.exists(skel_dir):
+                os.mkdir(skel_dir)
+
+            y_output, y_target = evaluate.get_p3ds_t(y_output, y_target)
+            fig_compare_preds = evaluate.plot_skels_compare( p3ds_1 = y_output, p3ds_2 = y_target,
+                            label_1 = 'Pred Aligned', label_2 = 'Ground Truth', 
+                            savepath = os.path.join(skel_dir, 'val_pred_aligned_vs_GT.png'), dataset='mo2cap2')
+
+            tensorboard.add_figure('Val GT 3D Skeleton vs Predicted 3D Skeleton', fig_compare_preds, global_step = self.iteration)
         return val_loss_3d_pose
 
     def on_validation_start(self):
@@ -232,10 +285,10 @@ class Mo2Cap2Baseline(pl.LightningModule):
             self.log("val_mpjpe_upper_body", val_mpjpe_upper["All"]["mpjpe"])
             self.log("val_mpjpe_lower_body", val_mpjpe_lower["All"]["mpjpe"])
             self.log("val_loss", self.val_loss_3d_pose_total)
-            self.scheduler.step(val_mpjpe["All"]["mpjpe"])
+            # self.scheduler.step(val_mpjpe["All"]["mpjpe"])
         else:
             self.log("val_mpjpe_full_body", 0.3-0.01*(self.iteration/self.hm_train_steps))
-            self.scheduler.step(0.3-0.01*(self.iteration/self.hm_train_steps))
+            # self.scheduler.step(0.3-0.01*(self.iteration/self.hm_train_steps))
     def on_test_start(self):
         # Initialize the mpjpe evaluation pipeline
         self.eval_body = evaluate.EvalBody(mode='mo2cap2')

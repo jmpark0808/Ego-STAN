@@ -10,7 +10,7 @@ import pathlib
 import os
 
 
-class xREgoPose(pl.LightningModule):
+class xREgoPose2D(pl.LightningModule):
     def __init__(self, **kwargs):
         super().__init__()
 
@@ -30,20 +30,25 @@ class xREgoPose(pl.LightningModule):
             num_class = 16
         elif self.which_data == 'mo2cap2':
             num_class = 15
-        elif self.which_data in ['h36m_static', 'h36m_seq']:
+        elif self.which_data in ['h36m_static', 'h36m_seq', 'h36m_2d']:
             num_class = 17
 
         # must be defined for logging computational graph
         self.example_input_array = torch.rand((1, 3, self.image_resolution[0], self.image_resolution[1]))
 
         # Generator that produces the HeatMap
-        self.heatmap = HeatMap(num_class)
+        self.resnet101 = torchvision.models.resnet101(pretrained=False)
         # Encoder that takes 2D heatmap and transforms to latent vector Z
-        self.encoder = Encoder(num_class, self.heatmap_resolution[0])
-        # Pose decoder that takes latent vector Z and transforms to 3D pose coordinates
-        self.pose_decoder = PoseDecoder(num_classes = num_class)
-        # Heatmap decoder that takes latent vector Z and generates the original 2D heatmap
-        self.heatmap_decoder = HeatmapDecoder(num_class, self.heatmap_resolution[0])
+
+        self.conv1 = nn.Conv2d(2048, 1024, 3, 2, 1)
+        self.relu1 = nn.ReLU()
+        self.conv2 = nn.Conv2d(1024, 512, 3, 2, 1)
+        self.relu2 = nn.ReLU()
+        self.conv3 = nn.Conv2d(512, 512,3, 1, 0)
+        self.relu3 = nn.ReLU()
+
+        self.linear_2d = nn.Linear(512, num_class*2)
+        self.linear_3d = LinearModel()
 
         # Initialize the mpjpe evaluation pipeline
         self.eval_body = evaluate.EvalBody(mode=self.which_data, protocol=self.protocol)
@@ -67,9 +72,9 @@ class xREgoPose(pl.LightningModule):
         # Initialize weights
         self.apply(weight_init)
         if self.load_resnet:
-            self.heatmap.resnet101.load_state_dict(torch.load(self.load_resnet))
+            self.resnet101.load_state_dict(torch.load(self.load_resnet))
 
-        self.heatmap.update_resnet101()
+        self.resnet101 = nn.Sequential(*[l for ind, l in enumerate(self.resnet101.children()) if ind < 8])
         self.iteration = 0
         self.save_hyperparameters()
         self.test_results = {}
@@ -118,7 +123,7 @@ class xREgoPose(pl.LightningModule):
         return optimizer
       
 
-    def forward(self, x, gt_heatmap=None):
+    def forward(self, x):
         """
         Forward pass through model
         :param x: Input image
@@ -126,24 +131,22 @@ class xREgoPose(pl.LightningModule):
         """
         # x = 3 x 368 x 368
 
-        heatmap = self.heatmap(x)
+        pred_2d = self.resnet101(x)
 
-        # heatmap = 15 x 47 x 47
-        heatmap = torch.sigmoid(heatmap)
-        if gt_heatmap is not None:
-            z = self.encoder(gt_heatmap)
-        else:
-            z = self.encoder(heatmap)
-        # z = 20
+        # pred_2d = 2048 x 12 x 12
+        pred_2d = self.relu1(self.conv1(pred_2d))
+        pred_2d = self.relu2(self.conv2(pred_2d))
+        pred_2d = self.relu3(self.conv3(pred_2d))
 
-        pose = self.pose_decoder(z)
+        pred_2d = pred_2d.reshape(pred_2d.size(0), -1)
+        pred_2d = self.linear_2d(pred_2d)
+        pred_2d = torch.sigmoid(pred_2d)
+
+        pred_3d = self.linear_3d(pred_2d)
         # pose = 16 x 3
 
-        generated_heatmaps = self.heatmap_decoder(z)
 
-        # generated_heatmaps = 15 x 47 x 47
-
-        return heatmap, pose, generated_heatmaps
+        return pred_2d, pred_3d
 
     def training_step(self, batch, batch_idx):
         """
@@ -156,30 +159,25 @@ class xREgoPose(pl.LightningModule):
         img = img.cuda()
         p2d = p2d.cuda()
         p3d = p3d.cuda()
-        if self.which_data in ['h36m_static', 'h36m_seq']:
+        if self.which_data in ['h36m_static', 'h36m_seq', 'h36m_2d']:
             p3d[:, 14, :] = 0
         # forward pass
         
 
 
         if self.iteration <= self.hm_train_steps:
-            heatmap, pose, generated_heatmap = self.forward(img)
-            # heatmap = torch.sigmoid(heatmap)
+            heatmap, pose = self.forward(img)
             hm_loss = self.mse(heatmap, p2d)
             loss = hm_loss
-            self.log('Total HM loss', hm_loss.item())
+            self.log('Total 2D loss', hm_loss.item())
         else:
-            heatmap, pose, generated_heatmap = self.forward(img)
-            # heatmap = torch.sigmoid(heatmap)
-            generated_heatmap = torch.sigmoid(generated_heatmap)
+            heatmap, pose = self.forward(img)
             hm_loss = self.mse(heatmap, p2d)
-            
-            loss_3d_pose, loss_2d_ghm = self.auto_encoder_loss(pose, p3d, generated_heatmap, heatmap)
-            ae_loss = loss_2d_ghm + loss_3d_pose
-            loss = hm_loss + ae_loss
-            self.log('Total HM loss', hm_loss.item())
+            loss_3d_pose = self.mse(pose, p3d)
+
+            loss = hm_loss + loss_3d_pose
+            self.log('Total 2D loss', hm_loss.item())
             self.log('Total 3D loss', loss_3d_pose.item())
-            self.log('Total GHM loss', loss_2d_ghm.item())
      
         # calculate mpjpe loss
         mpjpe = torch.mean(torch.sqrt(torch.sum(torch.pow(p3d - pose, 2), dim=2)))
@@ -194,9 +192,7 @@ class xREgoPose(pl.LightningModule):
             img_plot[:, 0, :, :] = img_plot[:, 0, :, :]*std[0]+mean[0]
             img_plot[:, 1, :, :] = img_plot[:, 1, :, :]*std[1]+mean[1]
             img_plot[:, 2, :, :] = img_plot[:, 2, :, :]*std[2]+mean[2]
-            tensorboard.add_images('TR Images', img_plot, self.iteration)
-            tensorboard.add_images('TR Ground Truth 2D Heatmap', torch.clip(torch.sum(p2d, dim=1, keepdim=True), 0, 1), self.iteration)
-            tensorboard.add_images('TR Predicted 2D Heatmap', torch.clip(torch.sum(heatmap, dim=1, keepdim=True), 0, 1), self.iteration)
+            # tensorboard.add_images('TR Images', img_plot, self.iteration)
             l2_norm = sum(torch.norm(p) for p in self.parameters())
             self.log('L2 regularization', l2_norm)
 
@@ -213,17 +209,16 @@ class xREgoPose(pl.LightningModule):
         img = img.cuda()
         p2d = p2d.cuda()
         p3d = p3d.cuda()
-        if self.which_data in ['h36m_static', 'h36m_seq']:
+        if self.which_data in ['h36m_static', 'h36m_seq', 'h36m_2d']:
             p3d[:, 14, :] = 0
         # forward pass 
-        heatmap, pose, generated_heatmap = self.forward(img)
+        heatmap, pose = self.forward(img)
 
-        # heatmap = torch.sigmoid(heatmap)
-        generated_heatmap = torch.sigmoid(generated_heatmap)
         # calculate pose loss
         val_hm_loss = self.mse(heatmap, p2d)
 
-        val_loss_3d_pose, _ = self.auto_encoder_loss(pose, p3d, generated_heatmap, heatmap)
+        val_loss_3d_pose = self.mse(pose, p3d)
+
         # update 3d pose loss
         self.val_loss_hm += val_hm_loss
         self.val_loss_3d_pose_total += val_loss_3d_pose
@@ -243,10 +238,10 @@ class xREgoPose(pl.LightningModule):
             img_plot[:, 0, :, :] = img_plot[:, 0, :, :]*std[0]+mean[0]
             img_plot[:, 1, :, :] = img_plot[:, 1, :, :]*std[1]+mean[1]
             img_plot[:, 2, :, :] = img_plot[:, 2, :, :]*std[2]+mean[2]
-            tensorboard.add_images('Val Images', img_plot, self.iteration)
-            tensorboard.add_images('Val Ground Truth 2D Heatmap', torch.clip(torch.sum(p2d, dim=1, keepdim=True), 0, 1), self.iteration)
-            tensorboard.add_images('Val Predicted 2D Heatmap', torch.clip(torch.sum(heatmap, dim=1, keepdim=True), 0, 1), self.iteration)
-            if self.which_data in ['h36m_static', 'h36m_seq']:
+            # tensorboard.add_images('Val Images', img_plot, self.iteration)
+            # tensorboard.add_images('Val Ground Truth 2D Heatmap', torch.clip(torch.sum(p2d, dim=1, keepdim=True), 0, 1), self.iteration)
+            # tensorboard.add_images('Val Predicted 2D Heatmap', torch.clip(torch.sum(heatmap, dim=1, keepdim=True), 0, 1), self.iteration)
+            if self.which_data in ['h36m_static', 'h36m_seq', 'h36m_2d']:
                 skel_dir = os.path.join(self.logger.log_dir, 'skel_plots')
                 if not os.path.exists(skel_dir):
                     os.mkdir(skel_dir)
@@ -311,10 +306,10 @@ class xREgoPose(pl.LightningModule):
         img = img.cuda()
         p2d = p2d.cuda()
         p3d = p3d.cuda()
-        if self.which_data in ['h36m_static', 'h36m_seq']:
+        if self.which_data in ['h36m_static', 'h36m_seq', 'h36m_2d']:
             p3d[:, 14, :] = 0
         # forward pass
-        heatmap, pose, generated_heatmap = self.forward(img)
+        heatmap, pose = self.forward(img)
    
         # Evaluate mpjpe
         y_output = pose.data.cpu().numpy()

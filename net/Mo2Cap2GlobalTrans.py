@@ -9,7 +9,7 @@ from net.transformer import GlobalPixelTransformer
 import matplotlib
 import numpy as np
 import pathlib
-
+import os
 
 class Mo2Cap2GlobalTrans(pl.LightningModule):
     def __init__(self, **kwargs):
@@ -51,6 +51,8 @@ class Mo2Cap2GlobalTrans(pl.LightningModule):
         self.iteration = 0
         self.test_iteration = 0
         self.image_limit = 100
+        self.automatic_optimization=False
+        self.update_optimizer_flag = False
         self.save_hyperparameters()
 
         def weight_init(m):
@@ -65,11 +67,18 @@ class Mo2Cap2GlobalTrans(pl.LightningModule):
         # Initialize weights
         self.apply(weight_init)
 
-        if self.load_resnet:
-            self.resnet101.load_state_dict(torch.load(self.load_resnet))
+
         self.resnet101 = nn.Sequential(*[l for ind, l in enumerate(self.resnet101.children()) if ind < 8])
         
-        
+        if self.load_resnet:
+            pretrained_dict = torch.load(self.load_resnet)
+            model_dict = self.resnet101.state_dict()
+            # print([k.split('heatmap.')[-1] for k in pretrained_dict['state_dict'].keys()])
+            # print(model_dict.keys())
+            # assert(0)
+            pretrained_dict = {k.split('heatmap.resnet101.')[-1]: v for k, v in pretrained_dict['state_dict'].items() if k.split('heatmap.resnet101.')[-1] in model_dict}
+            model_dict.update(pretrained_dict) 
+            self.resnet101.load_state_dict(pretrained_dict)
 
     def mse(self, pred, label):
         pred = pred.reshape(pred.size(0), -1)
@@ -95,14 +104,32 @@ class Mo2Cap2GlobalTrans(pl.LightningModule):
         Choose what optimizers and learning-rate schedulers to use in your optimization.
         """
         
-        optimizer = torch.optim.AdamW(self.parameters(), lr=self.lr)
-        self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-            optimizer,
-            mode='min',
-            factor=0.1,
-            patience=self.es_patience-3,
-            min_lr=1e-8,
-            verbose=True)
+        if self.update_optimizer_flag:
+            parameters = list(self.hm2pose.parameters())
+            optimizer = torch.optim.AdamW(parameters, lr=self.lr)
+        else:
+            resnet_params = [(n, p) for n, p in self.named_parameters() if n.startswith('resnet101')]
+            all_params = [p for n, p in self.named_parameters() if not n.startswith('resnet101')]
+
+            length = len(resnet_params)
+            threshold = int(13*length/15.)
+
+            lowlevel_params = []
+
+            for idx, (n, p) in enumerate(resnet_params):
+                if idx < threshold:
+                    lowlevel_params.append(p)
+                else:
+                    all_params.append(p)
+
+
+            grouped_parameters = [
+                {"params": lowlevel_params, 'lr': self.lr/50.},
+                {"params": all_params, 'lr': self.lr},
+            ]
+
+            optimizer = torch.optim.AdamW(grouped_parameters, lr=self.lr)
+  
         return optimizer
 
     def forward(self, x):
@@ -151,8 +178,16 @@ class Mo2Cap2GlobalTrans(pl.LightningModule):
         p2d = p2d.cuda()
         p3d = p3d.cuda()
 
+        if self.iteration > self.hm_train_steps and not self.update_optimizer_flag:
+            self.update_optimizer_flag = True
+
+        opt = self.configure_optimizers()
+        opt.zero_grad()
+
+
         # forward pass
         pred_hm, pred_3d, atts = self.forward(imgs)
+
 
 
         if self.iteration <= self.hm_train_steps:
@@ -166,13 +201,15 @@ class Mo2Cap2GlobalTrans(pl.LightningModule):
             loss = hm_loss + loss_3d_pose
             self.log('Total HM loss', hm_loss.item())
             self.log('Total 3D loss', loss_3d_pose.item())
-     
+
+        self.manual_backward(loss)
+        opt.step()
         # calculate mpjpe loss
         mpjpe = torch.mean(torch.sqrt(torch.sum(torch.pow(p3d - pred_3d, 2), dim=2)))
         mpjpe_std = torch.std(torch.sqrt(torch.sum(torch.pow(p3d - pred_3d, 2), dim=2)))
         self.log("train_mpjpe_full_body", mpjpe)
         self.log("train_mpjpe_std", mpjpe_std)
-        self.iteration += imgs.size(0)
+        self.iteration += 1
         return loss
 
     def validation_step(self, batch, batch_idx):
@@ -180,7 +217,7 @@ class Mo2Cap2GlobalTrans(pl.LightningModule):
         Compute the metrics for validation batch
         validation loop: https://pytorch-lightning.readthedocs.io/en/stable/common/lightning_module.html#hooks
         """
-        
+        tensorboard = self.logger.experiment
         imgs, p2d, p3d, action, img_path = batch
         imgs = imgs.cuda()
         p2d = p2d.cuda()
@@ -201,37 +238,54 @@ class Mo2Cap2GlobalTrans(pl.LightningModule):
         # Evaluate mpjpe
         y_output = pose.data.cpu().numpy()
         y_target = p3d.data.cpu().numpy()
-        self.eval_body.eval(y_output, y_target, action)
-        self.eval_upper.eval(y_output, y_target, action)
-        self.eval_lower.eval(y_output, y_target, action)
+        self.eval_body_1.eval(y_output, y_target, action)
+        self.eval_body_2.eval(y_output, y_target, action)
+        # self.eval_upper.eval(y_output, y_target, action)
+        # self.eval_lower.eval(y_output, y_target, action)
+        if batch_idx == 0:
+            tensorboard.add_images('Val Image', imgs, self.iteration)
+            tensorboard.add_images('Val Predicted 2D Heatmap', torch.clip(torch.sum(heatmap, dim=1, keepdim=True), 0, 1), self.iteration)
 
+            skel_dir = os.path.join(self.logger.log_dir, 'skel_plots')
+            if not os.path.exists(skel_dir):
+                os.mkdir(skel_dir)
+
+            y_output, y_target = evaluate.get_p3ds_t(y_output, y_target)
+            fig_compare_preds = evaluate.plot_skels_compare( p3ds_1 = y_output, p3ds_2 = y_target,
+                            label_1 = 'Pred Aligned', label_2 = 'Ground Truth', 
+                            savepath = os.path.join(skel_dir, 'val_pred_aligned_vs_GT.png'), dataset='mo2cap2')
+
+            tensorboard.add_figure('Val GT 3D Skeleton vs Predicted 3D Skeleton', fig_compare_preds, global_step = self.iteration)
         return val_loss_3d_pose
 
     def on_validation_start(self):
         # Initialize the mpjpe evaluation pipeline
-        self.eval_body = evaluate.EvalBody(mode='mo2cap2')
-        self.eval_upper = evaluate.EvalUpperBody(mode='mo2cap2')
-        self.eval_lower = evaluate.EvalLowerBody(mode='mo2cap2')
+        self.eval_body_1 = evaluate.EvalBody(mode='mo2cap2')
+        self.eval_body_2 = evaluate.EvalBody(mode='h36m', protocol='p2')
+        # self.eval_upper = evaluate.EvalUpperBody(mode='mo2cap2')
+        # self.eval_lower = evaluate.EvalLowerBody(mode='mo2cap2')
 
         # Initialize total validation pose loss
         self.val_loss_3d_pose_total = torch.tensor(0., device=self.device)
         self.val_loss_hm = torch.tensor(0., device=self.device)
 
     def validation_epoch_end(self, validation_step_outputs):
-        val_mpjpe = self.eval_body.get_results()
-        val_mpjpe_upper = self.eval_upper.get_results()
-        val_mpjpe_lower = self.eval_lower.get_results()
+        val_mpjpe_1 = self.eval_body_1.get_results()
+        val_mpjpe_2 = self.eval_body_2.get_results()
+        # val_mpjpe_upper = self.eval_upper.get_results()
+        # val_mpjpe_lower = self.eval_lower.get_results()
 
         if self.iteration >= self.hm_train_steps:
-            self.log("val_mpjpe_full_body", val_mpjpe["All"]["mpjpe"])
-            self.log("val_mpjpe_full_body_std", val_mpjpe["All"]["std_mpjpe"])
-            self.log("val_mpjpe_upper_body", val_mpjpe_upper["All"]["mpjpe"])
-            self.log("val_mpjpe_lower_body", val_mpjpe_lower["All"]["mpjpe"])
+            self.log("val_mpjpe_full_body", val_mpjpe_1["All"]["mpjpe"])
+            self.log("val_mpjpe_full_body_h36m", val_mpjpe_2["All"]["mpjpe"])
+            # self.log("val_mpjpe_full_body_std", val_mpjpe["All"]["std_mpjpe"])
+            # self.log("val_mpjpe_upper_body", val_mpjpe_upper["All"]["mpjpe"])
+            # self.log("val_mpjpe_lower_body", val_mpjpe_lower["All"]["mpjpe"])
             self.log("val_loss", self.val_loss_3d_pose_total)
-            self.scheduler.step(val_mpjpe["All"]["mpjpe"])
+            # self.scheduler.step(val_mpjpe["All"]["mpjpe"])
         else:
             self.log("val_mpjpe_full_body", 0.3-0.01*(self.iteration/self.hm_train_steps))
-            self.scheduler.step(0.3-0.01*(self.iteration/self.hm_train_steps))
+            # self.scheduler.step(0.3-0.01*(self.iteration/self.hm_train_steps))
 
     def on_test_start(self):
         # Initialize the mpjpe evaluation pipeline

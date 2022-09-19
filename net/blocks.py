@@ -14,8 +14,11 @@ class HeatMap(nn.Module):
         # First Deconvolution to obtain 2D heatmap
         self.heatmap_deconv = nn.Sequential(*[nn.ConvTranspose2d(2048, 1024, kernel_size=3,
                                                                  stride=2, dilation=1, padding=1),
+                                              nn.BatchNorm2d(1024),
+                                              nn.ReLU(),
                                               nn.ConvTranspose2d(1024, num_classes, kernel_size=3,
-                                                                 stride=2, dilation=1, padding=0)])
+                                                                 stride=2, dilation=1, padding=0),
+                                                                 ])
 
 
     def update_resnet101(self):
@@ -107,7 +110,7 @@ class FeatureHeatMaps(nn.Module):
 
 
 class Encoder(nn.Module):
-    def __init__(self, num_classes=16):
+    def __init__(self, num_classes=16, heatmap_resolution=47):
         super(Encoder, self).__init__()
         self.conv1 = nn.Conv2d(num_classes, 64, kernel_size=4, stride=2, padding=2)
         self.lrelu1 = nn.LeakyReLU(0.2)
@@ -116,7 +119,7 @@ class Encoder(nn.Module):
         self.conv3 = nn.Conv2d(128, 512, kernel_size=4, stride=2, padding=1)
         self.lrelu3 = nn.LeakyReLU(0.2)
 
-        self.linear1 = nn.Linear(18432, 2048)
+        self.linear1 = nn.Linear(512*math.ceil(heatmap_resolution/8)**2, 2048)
         self.lrelu4 = nn.LeakyReLU(0.2)
         self.linear2 = nn.Linear(2048, 512)
         self.lrelu5 = nn.LeakyReLU(0.2)
@@ -285,13 +288,14 @@ class PoseDecoder(nn.Module):
         return x
 
 class HeatmapDecoder(nn.Module):
-    def __init__(self, num_classes=16):
+    def __init__(self, num_classes=16, heatmap_resolution=47):
         super(HeatmapDecoder, self).__init__()
         self.linear1 = nn.Linear(20, 512)
         self.lrelu1 = nn.LeakyReLU(0.2)
         self.linear2 = nn.Linear(512, 2048)
         self.lrelu2 = nn.LeakyReLU(0.2)
-        self.linear3 = nn.Linear(2048, 18432)
+        self.spatial_resolution = math.ceil(heatmap_resolution/8.)
+        self.linear3 = nn.Linear(2048, self.spatial_resolution**2*512)
         self.lrelu3 = nn.LeakyReLU(0.2)
         self.deconv1 = nn.ConvTranspose2d(512, 128, kernel_size=4, stride=2, padding=1)
         self.deconv2 = nn.ConvTranspose2d(128, 64, kernel_size=4, stride=2, padding=1)
@@ -303,14 +307,14 @@ class HeatmapDecoder(nn.Module):
         x = self.lrelu2(x)
         x = self.linear3(x)
         x = self.lrelu3(x)
-        x = x.reshape(x.size(0), 512, 6, 6)
+        x = x.reshape(x.size(0), 512, self.spatial_resolution, self.spatial_resolution)
         x = self.deconv1(x)
         x = self.deconv2(x)
         x = self.deconv3(x)
         return x
 
 class HM2Pose(nn.Module):
-    def __init__(self, num_class=16):
+    def __init__(self, num_class=16, heatmap_resolution=47, dropout=0.0):
         super(HM2Pose, self).__init__()
         self.num_class = num_class
         self.conv1 = nn.Conv2d(num_class, 64, kernel_size=4, stride=2, padding=2)
@@ -319,26 +323,33 @@ class HM2Pose(nn.Module):
         self.lrelu2 = nn.PReLU()
         self.conv3 = nn.Conv2d(128, 512, kernel_size=4, stride=2, padding=1)
         self.lrelu3 = nn.PReLU()
-
-        self.linear1 = nn.Linear(18432, 2048)
+        self.spatial_resolution = math.ceil(heatmap_resolution/8.)
+        self.linear1 = nn.Linear(self.spatial_resolution**2*512, 2048)
         self.lrelu4 = nn.PReLU()
+        self.dropout1 = nn.Dropout(dropout)
         self.linear2 = nn.Linear(2048, 512)
         self.lrelu5 = nn.PReLU()
+        self.dropout2 = nn.Dropout(dropout)
         self.linear3 = nn.Linear(512, num_class*3)
  
 
     def forward(self, x):
         x = self.conv1(x)
         x = self.lrelu1(x)
+
         x = self.conv2(x)
         x = self.lrelu2(x)
+
         x = self.conv3(x)
         x = self.lrelu3(x)
+
         x = x.reshape(x.size(0), -1) # flatten
         x = self.linear1(x)
         x = self.lrelu4(x)
+        x = self.dropout1(x)
         x = self.linear2(x)
         x = self.lrelu5(x)
+        x = self.dropout2(x)
         x = self.linear3(x)
         x = x.reshape(x.size(0), -1, 3)
         return x
@@ -562,3 +573,75 @@ class HM2PoseLinear(nn.Module):
         x = self.linear(x)
         x = x.reshape(x.size(0), -1, 3)
         return x
+
+class Linear(nn.Module):
+    def __init__(self, linear_size, p_dropout=0.5):
+        super(Linear, self).__init__()
+        self.l_size = linear_size
+
+        self.relu = nn.ReLU(inplace=True)
+        self.dropout = nn.Dropout(p_dropout)
+
+        self.w1 = nn.Linear(self.l_size, self.l_size)
+
+        self.w2 = nn.Linear(self.l_size, self.l_size)
+  
+
+    def forward(self, x):
+        y = self.w1(x)
+        y = self.relu(y)
+        y = self.dropout(y)
+
+        y = self.w2(y)
+        y = self.relu(y)
+        y = self.dropout(y)
+
+        out = x + y
+
+        return out
+
+class LinearModel(nn.Module):
+    def __init__(self,
+                 linear_size=1024,
+                 num_stage=2,
+                 p_dropout=0.5):
+        super(LinearModel, self).__init__()
+
+        self.linear_size = linear_size
+        self.p_dropout = p_dropout
+        self.num_stage = num_stage
+
+        # 2d joints
+        self.input_size =  17 * 2
+        # 3d joints
+        self.output_size = 17 * 3
+
+        # process input to linear size
+        self.w1 = nn.Linear(self.input_size, self.linear_size)
+
+
+        self.linear_stages = []
+        for l in range(num_stage):
+            self.linear_stages.append(Linear(self.linear_size, self.p_dropout))
+        self.linear_stages = nn.ModuleList(self.linear_stages)
+
+        # post processing
+        self.w2 = nn.Linear(self.linear_size, self.output_size)
+
+        self.relu = nn.ReLU(inplace=True)
+        self.dropout = nn.Dropout(self.p_dropout)
+
+    def forward(self, x):
+        # pre-processing
+        x = x.reshape(x.size(0), -1)
+        y = self.w1(x)
+        y = self.relu(y)
+        y = self.dropout(y)
+
+        # linear layers
+        for i in range(self.num_stage):
+            y = self.linear_stages[i](y)
+
+        y = self.w2(y)
+        y = y.reshape(y.size(0), 17, 3)
+        return y

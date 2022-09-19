@@ -8,7 +8,7 @@ from net.blocks import *
 import os
 
 
-class xREgoPosePosterior(pl.LightningModule):
+class xREgoPosePosterior2D(pl.LightningModule):
     def __init__(self, **kwargs):
         super().__init__()
 
@@ -23,20 +23,17 @@ class xREgoPosePosterior(pl.LightningModule):
         self.which_data = kwargs.get('dataloader')
         self.protocol = kwargs.get('protocol')
         self.heatmap_resolution = kwargs.get('heatmap_resolution')
-        self.weight_regularization = kwargs.get('weight_regularization')
-        self.dropout = kwargs.get('dropout')
-
         if self.which_data in ['baseline', 'sequential'] :
             num_class = 16
         elif self.which_data == 'mo2cap2':
             num_class = 15
-        elif self.which_data.startswith('h36m'):
+        elif self.which_data in ['h36m_static', 'h36m_seq', 'h36m_2d']:
             num_class = 17
         # must be defined for logging computational graph
-        self.example_input_array = torch.rand((1, num_class, self.heatmap_resolution[0], self.heatmap_resolution[1]))
+        self.example_input_array = torch.rand((1, num_class, 2))
 
         # Generator that produces the HeatMap
-        self.hm2pose = HM2Pose(num_class, self.heatmap_resolution[0], dropout=self.dropout)
+        self.hm2pose = LinearModel()
 
         # Initialize the mpjpe evaluation pipeline
         self.eval_body = evaluate.EvalBody(mode=self.which_data, protocol=self.protocol)
@@ -87,7 +84,7 @@ class xREgoPosePosterior(pl.LightningModule):
         Choose what optimizers and learning-rate schedulers to use in your optimization.
         """
         
-        optimizer = torch.optim.AdamW(self.parameters(), lr=self.lr, weight_decay=self.weight_regularization)
+        optimizer = torch.optim.AdamW(self.parameters(), lr=self.lr)
         self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
             optimizer,
             mode='min',
@@ -125,7 +122,7 @@ class xREgoPosePosterior(pl.LightningModule):
         img, p2d, p3d, action = batch
         p2d = p2d.cuda()
         p3d = p3d.cuda()
-        if self.which_data.startswith('h36m'):
+        if self.which_data in ['h36m_static', 'h36m_seq', 'h36m_2d']:
             p3d[:, 14, :] = 0
         # forward pass
         pose = self.forward(p2d)
@@ -141,7 +138,7 @@ class xREgoPosePosterior(pl.LightningModule):
         self.iteration += 1
 
         if self.iteration % 2500 == 0 and self.protocol in ['p1', 'p2'] \
-        and self.which_data.startswith('h36m'):
+        and self.which_data in ['h36m_static', 'h36m_seq', 'h36m_2d']:
             y_output = pose.data.cpu().numpy()
             y_target = p3d.data.cpu().numpy()
             mean=[0.485, 0.456, 0.406]
@@ -169,10 +166,9 @@ class xREgoPosePosterior(pl.LightningModule):
             
 
             # Tensorboard log images
-            tensorboard.add_images('TR Image', torch.clip(torch.sum(p2d, dim=1, keepdim=True), 0, 1), self.iteration)
+            tensorboard.add_images('TR Image', img_plot, self.iteration)
             tensorboard.add_figure('TR GT 3D Skeleton vs Predicted 3D Skeleton', fig_compare_preds, global_step = self.iteration)
-            l2_norm = sum(torch.norm(p) for p in self.parameters())
-            self.log('L2 regularization', l2_norm)
+
 
 
 
@@ -187,7 +183,7 @@ class xREgoPosePosterior(pl.LightningModule):
         img, p2d, p3d, action = batch
         p2d = p2d.cuda()
         p3d = p3d.cuda()
-        if self.which_data.startswith('h36m'):
+        if self.which_data in ['h36m_static', 'h36m_seq', 'h36m_2d']:
             p3d[:, 14, :] = 0
         # forward pass
         pose = self.forward(p2d)
@@ -203,7 +199,7 @@ class xREgoPosePosterior(pl.LightningModule):
         # self.eval_lower.eval(y_output, y_target, action)
 
         if batch_idx == 0 and self.protocol in ['p1', 'p2'] \
-        and self.which_data.startswith('h36m'):
+        and self.which_data in ['h36m_static', 'h36m_seq', 'h36m_2d']:
             y_output = pose.data.cpu().numpy()
             y_target = p3d.data.cpu().numpy()
             mean=[0.485, 0.456, 0.406]
@@ -231,7 +227,7 @@ class xREgoPosePosterior(pl.LightningModule):
             
 
             # Tensorboard log images
-            tensorboard.add_images('Val Image', torch.clip(torch.sum(p2d, dim=1, keepdim=True), 0, 1), self.iteration)
+            tensorboard.add_images('Val Image', img_plot, self.iteration)
             tensorboard.add_figure('Val GT 3D Skeleton vs Predicted 3D Skeleton', fig_compare_preds, global_step = self.iteration)
 
 
@@ -270,7 +266,7 @@ class xREgoPosePosterior(pl.LightningModule):
         img, p2d, p3d, action = batch
         p2d = p2d.cuda()
         p3d = p3d.cuda()
-        if self.which_data.startswith('h36m'):
+        if self.which_data in ['h36m_static', 'h36m_seq', 'h36m_2d']:
             p3d[:, 14, :] = 0
         # forward pass
         pose = self.forward(p2d)

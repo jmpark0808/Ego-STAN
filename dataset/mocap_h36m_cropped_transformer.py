@@ -13,11 +13,10 @@ import dataset.transform as trsf
 from dataset.mocap_h36m import generate_heatmap, generate_heatmap_distance, world_to_camera, h36m_cameras_extrinsic_params, h36m_cameras_intrinsic_params, normalize_screen_coordinates
 from torch.utils.data import DataLoader
 from torchvision import transforms
-from dataset.mocap_h36m import camera2res
 import copy 
 
 
-class MocapH36MTransformer(BaseDataset):
+class MocapH36MCropTransformer(BaseDataset):
     """Mocap Dataset loader"""
 
     ROOT_DIRS = ['rgba', 'json']
@@ -248,9 +247,10 @@ class MocapH36MTransformer(BaseDataset):
 
         imgs = [sio.imread(img_path).astype(np.float32) for img_path in img_paths]
         imgs = [img / 255.0 for img in imgs]
+        orig_imgs = imgs
         #imgs = [img[:, 180:1120, :] for img in imgs]
-        # img_shapes = [img.shape for img in imgs]
-        # imgs = np.array([resize(img, (self.image_resolution[0], self.image_resolution[1])) for img in imgs])
+        img_shapes = [img.shape for img in imgs]
+        imgs = np.array([resize(img, (self.image_resolution[0], self.image_resolution[1])) for img in imgs])
 
         # import matplotlib.pyplot as plt
         # fig = plt.figure(figsize=(10, 2))
@@ -293,11 +293,12 @@ class MocapH36MTransformer(BaseDataset):
 
         all_p2d_heatmap = []
         all_p3d = []
+        all_p2d = []
 
         for i, json_path in enumerate(json_paths):
-            # h, w, c = img_shapes[i]
+            h, w, c = img_shapes[i]
             data = io.read_json(json_path)
-            w, h = camera2res[data['camera']]
+
             p2d, p3d = self._process_points(data)
 
             if self.heatmap_type == 'baseline':
@@ -310,23 +311,114 @@ class MocapH36MTransformer(BaseDataset):
   
             all_p2d_heatmap.append(p2d_heatmap)
             all_p3d.append(p3d)
+            all_p2d.append(p2d)
             # get action name
             action = data['action']
+
+        cropped_imgs = []
+        cropped_hms = []
+
+        for i, cimg in enumerate(orig_imgs):
+            coords = all_p2d[i]
+
+            max_x = max(coords[:, 0])
+            min_x = min(coords[:, 0])
+            max_y = max(coords[:, 1])
+            min_y = min(coords[:, 1])
+
+            x_diff = max_x - min_x
+            y_diff = max_y - min_y
+
+            max_xc = int(min([w, max_x + 0.25*x_diff]))
+            min_xc = int(max([0, min_x - 0.25*x_diff]))
+            max_yc = int(min([h, max_y + 0.25*y_diff]))
+            min_yc = int(max([0, min_y - 0.25*x_diff]))
+
+            a_diff = ((max_xc - min_xc) - (max_yc - min_yc))/2
+
+            # to maintain aspect ratio
+
+            if a_diff <= 0:
+
+                # the height (y) is more than the width (x)
+
+                max_xn = max_xc + int(abs(a_diff)) 
+                min_xn = min_xc - int(abs(a_diff))
+                max_yn = max_yc
+                min_yn = min_yc
+
+                d_max_xn = w - max_xn
+                d_min_xn = min_xn - 0
+
+                if d_max_xn < 0:
+                    max_xn = w
+                    min_xn = int(min_xn + d_max_xn)
+
+                if d_min_xn < 0:
+                    min_xn = 0
+                    max_xn = int(max_xn - d_min_xn)
+            else:
+
+                # the width (x) is more than the height (y)
+
+                max_yn = max_yc + int(a_diff) 
+                min_yn = min_yc - int(a_diff)
+                max_xn = max_xc
+                min_xn = min_xc
+
+                d_max_yn = h - max_yn
+                d_min_yn = min_yn - 0
+
+                if d_max_yn < 0:
+                    max_yn = h
+                    min_yn = int(min_yn + d_max_yn)
+
+                if d_min_yn < 0:
+                    min_yn = 0
+                    max_yn = int(max_yn - d_min_yn)
+
+            maintain_aspect = True # set to false if we do not want this
+
+            if maintain_aspect == True:
+                cropped_img = cimg[min_yn:max_yn, min_xn:max_xn]
+                p2d_crop = np.array([(coord[0] - min_xn, coord[1] - min_yn) for coord in coords])
+            else:
+                cropped_img = cimg[min_yc:max_yc, min_xc:max_xc]
+                p2d_crop = np.array([(coord[0] - min_xc, coord[1] - min_yc) for coord in coords])
+
+            w_crop, h_crop, c = cropped_img.shape
+
+            cropped_img = resize(cropped_img, (self.image_resolution[0], self.image_resolution[1]))
+            cropped_imgs.append(cropped_img)
+
+            if self.heatmap_type == 'baseline':
+                p2d_hm_crop = generate_heatmap(p2d_crop, int(3*self.heatmap_resolution[0]/47.), 
+                                        resolution=self.heatmap_resolution, h=h_crop, w=w_crop)
+            elif self.heatmap_type == 'distance':
+                distances = np.sqrt(np.sum(p3d**2, axis=1))
+                p2d_hm_crop = generate_heatmap_distance(p2d_crop, distances, h_crop, w_crop) # exclude head
+            else:
+                self.logger.error('Unrecognized heatmap type')
+
+            cropped_hms.append(p2d_hm_crop)
 
         if self.transform:
             imgs = np.array(
                 [self.transform({'image': img})['image'].numpy() for img in imgs])
+            cropped_imgs = np.array(
+                [self.transform({'image': c_img})['image'].numpy() for c_img in cropped_imgs])
             p3d = np.array([self.transform({'joints3D': p3d})['joints3D'].numpy() for p3d in all_p3d])
             p2d = np.array([self.transform({'joints2D': p2d})['joints2D'].numpy() for p2d in all_p2d_heatmap])
+            p2d_crop = np.array([self.transform({'joints2D': p2d})['joints2D'].numpy() for p2d in cropped_hms])
 
-        return torch.tensor(imgs), torch.tensor(p2d), torch.tensor(p3d), action
+        return torch.tensor(cropped_imgs), torch.tensor(p2d_crop), torch.tensor(p3d), action
 
     def __len__(self):
 
         return len(self.index[self.ROOT_DIRS[0]])
 
 
-class MocapH36MSeqDataModule(pl.LightningDataModule):
+class MocapH36MCropSeqDataModule(pl.LightningDataModule):
 
     def __init__(self, **kwargs):
         super().__init__()
@@ -352,7 +444,7 @@ class MocapH36MSeqDataModule(pl.LightningDataModule):
         )
         
     def train_dataloader(self):
-        data_train = MocapH36MTransformer(
+        data_train = MocapH36MCropTransformer(
             self.train_dir,
             SetType.TRAIN,
             transform=self.data_transform,
@@ -365,7 +457,7 @@ class MocapH36MSeqDataModule(pl.LightningDataModule):
                 num_workers=self.num_workers, shuffle=True, pin_memory=False)
 
     def val_dataloader(self):
-        data_val =  MocapH36MTransformer(
+        data_val =  MocapH36MCropTransformer(
             self.val_dir,
             SetType.VAL,
             transform=self.data_transform,
@@ -378,7 +470,7 @@ class MocapH36MSeqDataModule(pl.LightningDataModule):
                 num_workers=self.num_workers, pin_memory=False)
 
     def test_dataloader(self):
-        data_test =  MocapH36MTransformer(
+        data_test =  MocapH36MCropTransformer(
             self.test_dir,
             SetType.TEST,
             transform=self.data_transform,

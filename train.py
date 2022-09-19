@@ -16,10 +16,15 @@ from dataset.mo2cap2 import Mo2Cap2DataModule
 from dataset.mocap import MocapDataModule
 from dataset.mo2cap2 import Mo2Cap2DataModule
 from dataset.mocap_distance import MocapDistanceDataModule
+from dataset.mocap_h36m_cropped_hm import MocapH36MCropHMDataModule
+from dataset.mocap_h36m_hm import MocapH36MHMDataModule
 from dataset.mocap_transformer import MocapSeqDataModule
 from dataset.mo2cap2_transformer import Mo2Cap2SeqDataModule
 from dataset.mocap_h36m import MocapH36MDataModule
+from dataset.mocap_h36m_cropped import MocapH36MCropDataModule
 from dataset.mocap_h36m_transformer import MocapH36MSeqDataModule
+from dataset.mocap_h36m_cropped_transformer import MocapH36MCropSeqDataModule
+from dataset.mocap_h36m_2d import Mocap2DH36MDataModule
 
 from net.DirectRegression import DirectRegression
 from net.Mo2Cap2BaselineL1 import Mo2Cap2BaselineL1
@@ -29,9 +34,11 @@ from net.Mo2Cap2Seq import Mo2Cap2Seq
 from net.Mo2Cap2SeqHMDirect import Mo2Cap2SeqHMDirect
 from net.Mo2Cap2SeqHMDirectAvg import Mo2Cap2SeqHMDirectAvg
 from net.Mo2Cap2SeqHMDirectSlice import Mo2Cap2SeqHMDirectSlice
+from net.xRNetBaseLine2D import xREgoPose2D
 from net.xRNetBaseLineL1 import xREgoPoseL1
 from net.xRNetDirect import xREgoPoseDirect
 from net.Mo2Cap2Baseline import Mo2Cap2Baseline
+from net.xRNetPosterior2D import xREgoPosePosterior2D
 from net.xRNetPosteriorLinear import xREgoPosePosteriorLinear
 from net.xRNetSeq import xREgoPoseSeq
 from net.xRNetBaseLine import xREgoPose
@@ -45,6 +52,8 @@ from net.xRNetSeqHMDirect import xREgoPoseSeqHMDirect
 from net.xRNetGlobalTrans import xREgoPoseGlobalTrans
 from net.xRNetDist import xREgoPoseDist
 from net.xRNetSeqHMDirectAvg import xREgoPoseSeqHMDirectAvg
+from net.xRNetSeqHMDirectED import xREgoPoseSeqHMDirectED
+from net.xRNetSeqHMDirectEDExp import xREgoPoseSeqHMDirectEDExp
 from net.xRNetSeqHMDirectRevPos import xREgoPoseSeqHMDirectRevPos
 from net.xRNetSeqHMDirectSlice import xREgoPoseSeqHMDirectSlice
 from net.xRNetUNet import xREgoPoseUNet
@@ -61,9 +70,12 @@ MODEL_DIRECTORY = {
     "xregopose_heatmap": xREgoPoseHeatMap,
     "xregopose_seq_hm": xREgoPoseSeqHM,
     "xregopose_posterior": xREgoPosePosterior,
+    "xregopose_posterior_2d": xREgoPosePosterior2D,
     "xregopose_posterior_dist": xREgoPosePosteriorDist,
     "xregopose_posterior_linear": xREgoPosePosteriorLinear,
     "xregopose_seq_hm_direct": xREgoPoseSeqHMDirect,
+    "xregopose_seq_hm_direct_ed": xREgoPoseSeqHMDirectED,
+    "xregopose_seq_hm_direct_ed_exp": xREgoPoseSeqHMDirectEDExp,
     "xregopose_seq_direct": xREgoPoseSeqDirect,
     "xregopose_global_trans": xREgoPoseGlobalTrans,
     "xregopose_dist": xREgoPoseDist,
@@ -79,7 +91,8 @@ MODEL_DIRECTORY = {
     "mo2cap2_seq": Mo2Cap2Seq,
     "mo2cap2_slice": Mo2Cap2SeqHMDirectSlice,
     "mo2cap2_avg": Mo2Cap2SeqHMDirectAvg,
-    "mo2cap2_ego": Mo2Cap2SeqHMDirect
+    "mo2cap2_ego": Mo2Cap2SeqHMDirect,
+    "xregopose_2d": xREgoPose2D,
 
 
 }
@@ -91,13 +104,18 @@ DATALOADER_DIRECTORY = {
     'mo2cap2_seq': Mo2Cap2SeqDataModule,
     'h36m_static': MocapH36MDataModule,
     'h36m_seq' : MocapH36MSeqDataModule,
+    'h36m_2d' : Mocap2DH36MDataModule,
+    'h36m_hm': MocapH36MHMDataModule,
+    'h36m_crop': MocapH36MCropDataModule,
+    'h36m_crop_hm': MocapH36MCropHMDataModule,
+    'h36m_seq_crop': MocapH36MCropSeqDataModule,
 } 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(formatter_class=argparse.RawTextHelpFormatter)
     parser.add_argument('--model', help='Model name to train', required=True, default=None)
     parser.add_argument('--eval', help='Whether to test model on the best iteration after training'
-                        , default=False, type=bool)
+                        , action=argparse.BooleanOptionalAction, default=False)
     parser.add_argument('--dataloader', help="Type of dataloader", required=True, default=None)
     parser.add_argument("--load",
                         help="Directory of pre-trained model weights only,  \n"
@@ -140,11 +158,13 @@ if __name__ == "__main__":
                         default=42, type=int)
     parser.add_argument('--clip_grad_norm', help='Clipping gradient norm, 0 means no clipping', type=float, default=0.)
     parser.add_argument('--dropout', help='Dropout for transformer', type=float, default=0.)
+    parser.add_argument('--dropout_linear', help='Dropout for linear layers in 2D to 3D', type=float, default=0.)
     parser.add_argument('--protocol', help='Protocol for H36M, p1 for protocol 1 and p2 for protocol 2', type=str, default='p2')
-
+    parser.add_argument('--w2c', action=argparse.BooleanOptionalAction, default=False)
+    parser.add_argument('--weight_regularization', help='Weight regularization hyperparameter', type=float, default=0.01)
     args = parser.parse_args()
     dict_args = vars(args)
-    
+
     pl.seed_everything(dict_args['seed'])
     # Initialize model to train
     assert dict_args['model'] in MODEL_DIRECTORY
@@ -188,6 +208,12 @@ if __name__ == "__main__":
     profiler = SimpleProfiler()
     lr_monitor = LearningRateMonitor(logging_interval='step')
     logger = TensorBoardLogger(save_dir=dict_args['logdir'], version=now, name='lightning_logs', log_graph=True)
+    if dict_args['gpus'] > 1:
+        accelerator = 'dp'
+    elif dict_args['gpus'] == 1:
+        accelerator = 'gpu'
+    elif dict_args['gpus'] == 0:
+        accelerator = 'cpu'
     trainer = pl.Trainer(
         callbacks=[early_stopping_callback, checkpoint_callback, lr_monitor],
         val_check_interval=dict_args['val_freq'],
@@ -198,7 +224,8 @@ if __name__ == "__main__":
         max_epochs=dict_args["epoch"],
         log_every_n_steps=10,
         gradient_clip_val=dict_args['clip_grad_norm'],
-        resume_from_checkpoint=dict_args['resume_from_checkpoint']
+        resume_from_checkpoint=dict_args['resume_from_checkpoint'],
+        accelerator=accelerator
     )
 
     # Trainer: train model

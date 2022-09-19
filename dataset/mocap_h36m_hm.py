@@ -409,7 +409,7 @@ def normalize_screen_coordinates(X, w, h):
     # Normalize so that [0, w] is mapped to [-1, 1], while preserving the aspect ratio
     return X/w*2 - [1, h/w]
 
-class MocapH36M(BaseDataset):
+class MocapH36MHM(BaseDataset):
     """Mocap Dataset loader"""
 
     ROOT_DIRS = ['rgba', 'json']
@@ -588,17 +588,18 @@ class MocapH36M(BaseDataset):
 
         # load image
 
-        img_path = self.index['rgba'][index].decode('utf8')
-        img = sio.imread(img_path).astype(np.float32)
-        img /= 255.0
-        h, w, c = img.shape
-        img = resize(img, (self.image_resolution[0], self.image_resolution[1]))
+        # img_path = self.index['rgba'][index].decode('utf8')
+        # img = sio.imread(img_path).astype(np.float32)
+        # img /= 255.0
+        # h, w, c = img.shape
+        # img = resize(img, (self.image_resolution[0], self.image_resolution[1]))
 
         # read joint positions
         json_path = self.index['json'][index].decode('utf8')
 
         data = io.read_json(json_path)
-
+        w, h = camera2res[data['camera']]
+        img = np.zeros([self.image_resolution[0], self.image_resolution[1], 3])
         p2d, p3d = self._process_points(data)
 
         # p2d_heatmap = np.squeeze(normalize_screen_coordinates(np.expand_dims(p2d, 0), w=w, h=h))
@@ -625,7 +626,7 @@ class MocapH36M(BaseDataset):
 
         return len(self.index[self.ROOT_DIRS[0]])
 
-class MocapH36MDataModule(pl.LightningDataModule):
+class MocapH36MHMDataModule(pl.LightningDataModule):
 
     def __init__(self, **kwargs):
         super().__init__()
@@ -652,7 +653,7 @@ class MocapH36MDataModule(pl.LightningDataModule):
         )
         
     def train_dataloader(self):
-        data_train = MocapH36M(self.train_dir, SetType.TRAIN, transform=self.data_transform_train,
+        data_train = MocapH36MHM(self.train_dir, SetType.TRAIN, transform=self.data_transform_train,
          heatmap_type=self.heatmap_type, heatmap_resolution=self.heatmap_resolution,
           image_resolution=self.image_resolution, protocol=self.p_train, w2c=self.w2c)
         return DataLoader(
@@ -660,7 +661,7 @@ class MocapH36MDataModule(pl.LightningDataModule):
                 num_workers=self.num_workers, shuffle=True, pin_memory=True)
 
     def val_dataloader(self):
-        data_val = MocapH36M(self.val_dir, SetType.VAL, transform=self.data_transform_test,
+        data_val = MocapH36MHM(self.val_dir, SetType.VAL, transform=self.data_transform_test,
          heatmap_type=self.heatmap_type, heatmap_resolution=self.heatmap_resolution,
           image_resolution=self.image_resolution, protocol=self.p_test, w2c=self.w2c)
         return DataLoader(
@@ -668,7 +669,7 @@ class MocapH36MDataModule(pl.LightningDataModule):
                 num_workers=self.num_workers, pin_memory=True)
 
     def test_dataloader(self):
-        data_test = MocapH36M(self.test_dir, SetType.TEST, transform=self.data_transform_test,
+        data_test = MocapH36MHM(self.test_dir, SetType.TEST, transform=self.data_transform_test,
          heatmap_type=self.heatmap_type, heatmap_resolution=self.heatmap_resolution,
           image_resolution=self.image_resolution, protocol=self.p_test, w2c=self.w2c)
         return DataLoader(
