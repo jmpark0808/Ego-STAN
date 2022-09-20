@@ -27,6 +27,7 @@ from dataset.mocap_h36m_cropped_transformer import MocapH36MCropSeqDataModule
 from dataset.mocap_h36m_2d import Mocap2DH36MDataModule
 
 from net.DirectRegression import DirectRegression
+from net.HRNetBaseline import HRNetBaseline
 from net.Mo2Cap2BaselineL1 import Mo2Cap2BaselineL1
 from net.Mo2Cap2Direct import Mo2Cap2Direct
 from net.Mo2Cap2GlobalTrans import Mo2Cap2GlobalTrans
@@ -93,6 +94,7 @@ MODEL_DIRECTORY = {
     "mo2cap2_avg": Mo2Cap2SeqHMDirectAvg,
     "mo2cap2_ego": Mo2Cap2SeqHMDirect,
     "xregopose_2d": xREgoPose2D,
+    "HRNetBaseline": HRNetBaseline
 
 
 }
@@ -136,12 +138,6 @@ if __name__ == "__main__":
     parser.add_argument('--es_patience', help='Max # of consecutive validation runs w/o improvment', default=5, type=int)
     parser.add_argument('--logdir', help='logdir for models and losses. default = .', default='./', type=str)
     parser.add_argument('--lr', help='learning_rate for pose. default = 0.001', default=0.001, type=float)
-    parser.add_argument('--lr_decay', help='Learning rate decrease by lr_decay time per decay_step, default = 0.1',
-                        default=0.1, type=float)
-    parser.add_argument('--decay_step', help='Learning rate decrease by lr_decay time per decay_step,  default = 7000',
-                        default=1E100, type=int)
-    parser.add_argument('--display_freq', help='Frequency to display result image on Tensorboard, in batch units',
-                        default=64, type=int)
     parser.add_argument('--load_resnet', help='Directory of ResNet 101 weights', default=None)
     parser.add_argument('--hm_train_steps', help='Number of steps to pre-train heatmap predictor', default=100000, type=int)
     parser.add_argument('--seq_len', help="# of images/frames input into sequential model, default = 5",
@@ -162,6 +158,8 @@ if __name__ == "__main__":
     parser.add_argument('--protocol', help='Protocol for H36M, p1 for protocol 1 and p2 for protocol 2', type=str, default='p2')
     parser.add_argument('--w2c', action=argparse.BooleanOptionalAction, default=False)
     parser.add_argument('--weight_regularization', help='Weight regularization hyperparameter', type=float, default=0.01)
+    parser.add_argument('--monitor_metric', help='Which metric to monitor for early stopping', type=str, default='val_mpjpe_full_body')
+    parser.add_argument('--sigma', help='Sigma for heatmap generation', type=int, default=3)
     args = parser.parse_args()
     dict_args = vars(args)
 
@@ -189,7 +187,7 @@ if __name__ == "__main__":
 
     # Callback: early stopping parameters
     early_stopping_callback = EarlyStopping(
-        monitor="val_mpjpe_full_body",
+        monitor=dict_args['monitor_metric'],
         mode="min",
         verbose=True,
         patience=dict_args["es_patience"],
@@ -197,7 +195,7 @@ if __name__ == "__main__":
 
     # Callback: model checkpoint strategy
     checkpoint_callback = ModelCheckpoint(
-        dirpath=weight_save_dir, save_top_k=5, verbose=True, monitor="val_mpjpe_full_body", mode="min"
+        dirpath=weight_save_dir, save_top_k=5, verbose=True, monitor=dict_args['monitor_metric'], mode="min"
     )
 
     # Data: load data module

@@ -430,7 +430,8 @@ class MocapH36MCrop(BaseDataset):
     #     'val' : ['S5'],
     # }
 
-    def __init__(self, *args, heatmap_type='baseline', heatmap_resolution=[47, 47], image_resolution=[368, 368], protocol = 'p1_train', w2c=True, **kwargs):
+    def __init__(self, *args, heatmap_type='baseline', heatmap_resolution=[47, 47], image_resolution=[368, 368], sigma = 3, 
+                                protocol = 'p1_train', w2c=True, **kwargs):
         """Init class, to allow variable sequence length, inherits from Base
         Keyword Arguments:
             sequence_length -- length of image sequence (default: {5})
@@ -442,6 +443,7 @@ class MocapH36MCrop(BaseDataset):
         self.protocol = protocol
         self._cameras = copy.deepcopy(h36m_cameras_extrinsic_params)
         self.w2c = w2c
+        self.sigma = sigma
         super().__init__(*args, **kwargs)
 
     def _load_index(self):
@@ -677,8 +679,8 @@ class MocapH36MCrop(BaseDataset):
         # p2d_heatmap = np.squeeze(normalize_screen_coordinates(np.expand_dims(p2d, 0), w=w, h=h))
 
         if self.heatmap_type == 'baseline':
-            p2d_heatmap = generate_heatmap(p2d, int(3*self.heatmap_resolution[0]/47.), resolution=self.heatmap_resolution, h=h, w=w) # exclude head
-            p2d_hm_crop = generate_heatmap(p2d_crop, int(3*self.heatmap_resolution[0]/47.), 
+            p2d_heatmap = generate_heatmap(p2d, self.sigma, resolution=self.heatmap_resolution, h=h, w=w) # exclude head
+            p2d_hm_crop = generate_heatmap(p2d_crop, self.sigma, 
                             resolution=self.heatmap_resolution, h=h_crop, w=w_crop)
         elif self.heatmap_type == 'distance':
             distances = np.sqrt(np.sum(p3d**2, axis=1))
@@ -718,6 +720,7 @@ class MocapH36MCropDataModule(pl.LightningDataModule):
         self.image_resolution = kwargs.get('image_resolution')
         self.protocol = kwargs.get('protocol')
         self.w2c = kwargs.get('w2c')
+        self.sigma = kwargs.get('sigma')
         self.p_train = f'{self.protocol}_train'
         self.p_test = f'{self.protocol}_test'
 
@@ -732,7 +735,7 @@ class MocapH36MCropDataModule(pl.LightningDataModule):
     def train_dataloader(self):
         data_train = MocapH36MCrop(self.train_dir, SetType.TRAIN, transform=self.data_transform_train,
          heatmap_type=self.heatmap_type, heatmap_resolution=self.heatmap_resolution,
-          image_resolution=self.image_resolution, protocol=self.p_train, w2c=self.w2c)
+          image_resolution=self.image_resolution, sigma=self.sigma, protocol=self.p_train, w2c=self.w2c)
         return DataLoader(
                 data_train, batch_size=self.batch_size, 
                 num_workers=self.num_workers, shuffle=True, pin_memory=True)
@@ -740,7 +743,7 @@ class MocapH36MCropDataModule(pl.LightningDataModule):
     def val_dataloader(self):
         data_val = MocapH36MCrop(self.val_dir, SetType.VAL, transform=self.data_transform_test,
          heatmap_type=self.heatmap_type, heatmap_resolution=self.heatmap_resolution,
-          image_resolution=self.image_resolution, protocol=self.p_test, w2c=self.w2c)
+          image_resolution=self.image_resolution, sigma=self.sigma, protocol=self.p_test, w2c=self.w2c)
         return DataLoader(
                 data_val, batch_size=self.batch_size, 
                 num_workers=self.num_workers, pin_memory=True)
@@ -748,7 +751,7 @@ class MocapH36MCropDataModule(pl.LightningDataModule):
     def test_dataloader(self):
         data_test = MocapH36MCrop(self.test_dir, SetType.TEST, transform=self.data_transform_test,
          heatmap_type=self.heatmap_type, heatmap_resolution=self.heatmap_resolution,
-          image_resolution=self.image_resolution, protocol=self.p_test, w2c=self.w2c)
+          image_resolution=self.image_resolution, sigma=self.sigma, protocol=self.p_test, w2c=self.w2c)
         return DataLoader(
                 data_test, batch_size=self.batch_size, 
                 num_workers=self.num_workers, pin_memory=True)
