@@ -152,6 +152,7 @@ class HRNetBaseline(pl.LightningModule):
 
     def validation_epoch_end(self, validation_step_outputs):
         self.log('Validation Accuracy', np.mean(self.acc.average()))
+        self.log('Validation Loss', torch.mean(torch.stack(validation_step_outputs)))
         self.scheduler.step(torch.mean(torch.stack(validation_step_outputs)))
 
     def on_test_start(self):
