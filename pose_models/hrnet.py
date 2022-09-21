@@ -273,7 +273,7 @@ blocks_dict = {
 
 class PoseHighResolutionNet(nn.Module):
 
-    def __init__(self, cfg, **kwargs):
+    def __init__(self, cfg, return_final_layer, **kwargs):
         self.inplanes = 64
         extra = cfg.MODEL.EXTRA
         super(PoseHighResolutionNet, self).__init__()
@@ -320,13 +320,15 @@ class PoseHighResolutionNet(nn.Module):
         self.stage4, pre_stage_channels = self._make_stage(
             self.stage4_cfg, num_channels, multi_scale_output=False)
 
-        self.final_layer = nn.Conv2d(
+        if return_final_layer:
+            self.final_layer = nn.Conv2d(
             in_channels=pre_stage_channels[0],
             out_channels=cfg.MODEL.NUM_JOINTS,
             kernel_size=extra.FINAL_CONV_KERNEL,
             stride=1,
-            padding=1 if extra.FINAL_CONV_KERNEL == 3 else 0
-        )
+            padding=1 if extra.FINAL_CONV_KERNEL == 3 else 0)
+        else:
+            self.final_layer = None
 
         self.pretrained_layers = cfg.MODEL.EXTRA.PRETRAINED_LAYERS
 
@@ -455,7 +457,10 @@ class PoseHighResolutionNet(nn.Module):
                 x_list.append(y_list[i])
         y_list = self.stage4(x_list)
 
-        x = self.final_layer(y_list[0])
+        if self.final_layer is not None:
+            x = self.final_layer(y_list[0])
+        else:
+            x = y_list[0]
 
         return x
 
@@ -492,8 +497,8 @@ class PoseHighResolutionNet(nn.Module):
             raise ValueError('{} is not exist!'.format(pretrained))
 
 
-def get_pose_net(cfg, is_train, **kwargs):
-    model = PoseHighResolutionNet(cfg, **kwargs)
+def get_pose_net(cfg, is_train, return_final_layer, **kwargs):
+    model = PoseHighResolutionNet(cfg, return_final_layer, **kwargs)
 
     if is_train and cfg.MODEL.INIT_WEIGHTS:
         model.init_weights(cfg.MODEL.PRETRAINED)

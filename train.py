@@ -28,6 +28,7 @@ from dataset.mocap_h36m_2d import Mocap2DH36MDataModule
 
 from net.DirectRegression import DirectRegression
 from net.HRNetBaseline import HRNetBaseline
+from net.HRNetEgo import HRNetEgoSTAN
 from net.Mo2Cap2BaselineL1 import Mo2Cap2BaselineL1
 from net.Mo2Cap2Direct import Mo2Cap2Direct
 from net.Mo2Cap2GlobalTrans import Mo2Cap2GlobalTrans
@@ -94,7 +95,8 @@ MODEL_DIRECTORY = {
     "mo2cap2_avg": Mo2Cap2SeqHMDirectAvg,
     "mo2cap2_ego": Mo2Cap2SeqHMDirect,
     "xregopose_2d": xREgoPose2D,
-    "HRNetBaseline": HRNetBaseline
+    "HRNetBaseline": HRNetBaseline,
+    "HRNetEgoSTAN": HRNetEgoSTAN
 
 
 }
