@@ -40,7 +40,7 @@ class HRNetBaseline(pl.LightningModule):
         self.example_input_array = torch.rand((1, 3, self.image_resolution[0], self.image_resolution[1]))
 
         # Generator that produces the HeatMap
-        self.model = get_pose_net(cfg, True)
+        self.model = get_pose_net(cfg, True, True)
 
         # Initialize the mpjpe evaluation pipeline
         self.acc = AverageMeterList(list(range(18)), ":3.2f",  ignore_val=-1)

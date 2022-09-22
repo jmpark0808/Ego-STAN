@@ -39,7 +39,7 @@ class HRNetEgoSTAN(pl.LightningModule):
         self.example_input_array = torch.rand((1, self.seq_len,3, self.image_resolution[0], self.image_resolution[1]))
 
         # Generator that produces the HeatMap
-        self.model = get_pose_net(cfg, False, False)
+        self.model = get_pose_net(cfg, True, False)
         self.transformer = ResNetTransformerCls(in_dim=512, spatial_dim=16*16, seq_len=self.seq_len*16*16, dim=512, depth=3, heads=8, mlp_dim=1024, dim_head=64, dropout=self.dropout)
         self.final_layer = nn.Conv2d(32, num_class, 3, 1, 1)
 
