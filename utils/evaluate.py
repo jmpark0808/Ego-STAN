@@ -453,7 +453,6 @@ def create_results_csv(metric, csv_path: str, mode: str = 'baseline', test_mode:
 
         with open(csv_path, mode="w") as f:
             mpjpe_writer = csv.writer(f)
-            mpjpe_writer.writerow(columns)
             
             joints.append('All')
             metric.append(np.mean(metric))
