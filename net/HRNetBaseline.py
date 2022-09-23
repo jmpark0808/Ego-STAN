@@ -144,7 +144,6 @@ class HRNetBaseline(pl.LightningModule):
         acc_per_points, avg_acc, cnt, pred = accuracy(pred.cpu().numpy(), p2d.cpu().numpy())
         
         self.acc.update(acc_per_points, p2d.size(0))
-        print(len(self.acc.average()))
         return loss
 
     def on_validation_start(self):
