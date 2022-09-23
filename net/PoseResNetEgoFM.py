@@ -84,7 +84,7 @@ class PoseResFMNetEgoSTAN(pl.LightningModule):
 
         # Generator that produces the HeatMap
         self.model = get_pose_net(cfg, True, use_final=False, deconv=False)
-        deconv_transformer = ResNetTransformerCls(in_dim=2048, spatial_dim=8*8, seq_len=self.seq_len*8*8, dim=512, depth=3, heads=8, mlp_dim=1024, dim_head=64, dropout=self.dropout)
+        self.transformer = ResNetTransformerCls(in_dim=2048, spatial_dim=8*8, seq_len=self.seq_len*8*8, dim=512, depth=3, heads=8, mlp_dim=1024, dim_head=64, dropout=self.dropout)
         self.deconv_layers = _make_deconv_layer(
                     cfg.MODEL.EXTRA.NUM_DECONV_LAYERS,
                     cfg.MODEL.EXTRA.NUM_DECONV_FILTERS,
