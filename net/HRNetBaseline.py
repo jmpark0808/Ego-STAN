@@ -43,7 +43,7 @@ class HRNetBaseline(pl.LightningModule):
         self.model = get_pose_net(cfg, True, True)
 
         # Initialize the mpjpe evaluation pipeline
-        self.acc = AverageMeterList(list(range(18)), ":3.2f",  ignore_val=-1)
+        self.acc = AverageMeterList(list(range(17)), ":3.2f",  ignore_val=-1)
 
         # Initialize total validation pose loss
         self.val_loss_hm = torch.tensor(0., device=self.device)
@@ -144,11 +144,11 @@ class HRNetBaseline(pl.LightningModule):
         acc_per_points, avg_acc, cnt, pred = accuracy(pred.cpu().numpy(), p2d.cpu().numpy())
         
         self.acc.update(acc_per_points, p2d.size(0))
-
+        print(len(self.acc.average()))
         return loss
 
     def on_validation_start(self):
-        self.acc = AverageMeterList(list(range(18)), ":3.2f",  ignore_val=-1)
+        self.acc = AverageMeterList(list(range(17)), ":3.2f",  ignore_val=-1)
 
     def validation_epoch_end(self, validation_step_outputs):
         self.log('Validation Accuracy', np.mean(self.acc.average()))
@@ -156,7 +156,7 @@ class HRNetBaseline(pl.LightningModule):
         self.scheduler.step(torch.mean(torch.stack(validation_step_outputs)))
 
     def on_test_start(self):
-        self.acc = AverageMeterList(list(range(18)), ":3.2f",  ignore_val=-1)
+        self.acc = AverageMeterList(list(range(17)), ":3.2f",  ignore_val=-1)
 
     def test_step(self, batch, batch_idx):
 

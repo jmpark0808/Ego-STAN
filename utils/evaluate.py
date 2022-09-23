@@ -446,7 +446,7 @@ def create_results_csv(metric, csv_path: str, mode: str = 'baseline', test_mode:
         elif mode.startswith('h36m'):
             joints = ['Head', 'Neck', 'LeftShoulder',
         'LeftElbow', 'LeftWrist', 'RightShoulder', 'RightElbow',
-        'RightWrist', 'LeftHip', 'LeftKnewe','LeftFoot','RightHip',
+        'RightWrist', 'LeftHip', 'LeftKnee','LeftFoot','RightHip',
         'RightKnee','RightFoot','Hip','Thorax', 'Spine']
         else:
             raise('Not a valid mode')

@@ -163,6 +163,7 @@ if __name__ == "__main__":
     parser.add_argument('--weight_regularization', help='Weight regularization hyperparameter', type=float, default=0.01)
     parser.add_argument('--monitor_metric', help='Which metric to monitor for early stopping', type=str, default='val_mpjpe_full_body')
     parser.add_argument('--sigma', help='Sigma for heatmap generation', type=int, default=3)
+    parser.add_argument('--h36m_sample_rate', help='Sample rate for h36m', type=int, default=1)
     parser.add_argument('--csv_mode', help='CSV results mode, 2D or 3D', type=str, default='3D')
     args = parser.parse_args()
     dict_args = vars(args)
