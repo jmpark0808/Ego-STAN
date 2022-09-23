@@ -58,7 +58,7 @@ def dist_acc(dists, thr=0.5):
         return -1
 
 
-def accuracy(output, target, hm_type='gaussian', thr=0.5):
+def accuracy(output, target, hm_type='gaussian', thr=0.3):
     '''
     Calculate accuracy according to PCK,
     but uses ground truth heatmap rather than x,y locations
