@@ -44,7 +44,7 @@ class HRNetEgoSTAN(pl.LightningModule):
         self.final_layer = nn.Conv2d(32, num_class, 3, 1, 1)
 
         # Initialize the mpjpe evaluation pipeline
-        self.acc = AverageMeterList(list(range(18)), ":3.2f",  ignore_val=-1)
+        self.acc = AverageMeterList(list(range(17)), ":3.2f",  ignore_val=-1)
 
         # Initialize total validation pose loss
         self.val_loss_hm = torch.tensor(0., device=self.device)
@@ -172,7 +172,7 @@ class HRNetEgoSTAN(pl.LightningModule):
         return loss
 
     def on_validation_start(self):
-        self.acc = AverageMeterList(list(range(18)), ":3.2f",  ignore_val=-1)
+        self.acc = AverageMeterList(list(range(17)), ":3.2f",  ignore_val=-1)
 
     def validation_epoch_end(self, validation_step_outputs):
         self.log('Validation Accuracy', np.mean(self.acc.average()))
@@ -180,7 +180,7 @@ class HRNetEgoSTAN(pl.LightningModule):
         self.scheduler.step(torch.mean(torch.stack(validation_step_outputs)))
 
     def on_test_start(self):
-        self.acc = AverageMeterList(list(range(18)), ":3.2f",  ignore_val=-1)
+        self.acc = AverageMeterList(list(range(17)), ":3.2f",  ignore_val=-1)
 
     def test_step(self, batch, batch_idx):
 

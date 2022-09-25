@@ -38,7 +38,7 @@ class MocapH36MCropTransformer(BaseDataset):
     # }
 
     def __init__(self, *args, sequence_length=5, skip =0, heatmap_type='baseline', heatmap_resolution=[47, 47], 
-     image_resolution=[368, 368], sigma = 3, protocol = 'p1_train', w2c=True, **kwargs):
+     image_resolution=[368, 368], sigma = 3, protocol = 'p1_train', w2c=True, sr=1, **kwargs):
         """Init class, to allow variable sequence length, inherits from Base
         Keyword Arguments:
             sequence_length -- length of image sequence (default: {5})
@@ -53,6 +53,7 @@ class MocapH36MCropTransformer(BaseDataset):
         self.protocol = protocol
         self.w2c = w2c
         self.sigma = sigma
+        self.sr = sr
         self._cameras = copy.deepcopy(h36m_cameras_extrinsic_params)
  
         super().__init__(*args, **kwargs)
@@ -152,7 +153,7 @@ class MocapH36MCropTransformer(BaseDataset):
                     if self.protocol.split('_')[-1] in ['train', 'val'] :
                         last_frame = encoded_json_sequence[-1]
                         last_frame_idx = last_frame.decode('utf8').split('_')[-1].split('.json')[0]
-                        if int(last_frame_idx)%16 == 0:
+                        if int(last_frame_idx)%self.sr == 0:
                             encoded_json.append(encoded_json_sequence)
                             encoded_rgba.append(encoded_rgba_sequence)
                         # encoded_json.append(encoded_json_sequence)
@@ -437,6 +438,7 @@ class MocapH36MCropSeqDataModule(pl.LightningDataModule):
         self.protocol = kwargs.get('protocol')
         self.sigma = kwargs.get('sigma')
         self.w2c = kwargs.get('w2c')
+        self.sr = kwargs.get('h36m_sample_rate')
         self.p_train = f'{self.protocol}_train'
         self.p_test = f'{self.protocol}_test'
 
@@ -455,7 +457,7 @@ class MocapH36MCropSeqDataModule(pl.LightningDataModule):
             heatmap_type=self.heatmap_type,
             heatmap_resolution=self.heatmap_resolution,
             image_resolution=self.image_resolution, sigma=self.sigma,
-            protocol=self.p_train, w2c=self.w2c)
+            protocol=self.p_train, w2c=self.w2c, sr=self.sr)
         return DataLoader(
                 data_train, batch_size=self.batch_size, 
                 num_workers=self.num_workers, shuffle=True, pin_memory=False)
@@ -470,7 +472,7 @@ class MocapH36MCropSeqDataModule(pl.LightningDataModule):
             heatmap_type=self.heatmap_type,
             heatmap_resolution=self.heatmap_resolution,
             image_resolution=self.image_resolution, sigma=self.sigma,
-            protocol=self.p_test, w2c=self.w2c)
+            protocol=self.p_test, w2c=self.w2c, sr=self.sr)
         return DataLoader(
                 data_val, batch_size=self.batch_size, 
                 num_workers=self.num_workers, pin_memory=False)
@@ -485,7 +487,7 @@ class MocapH36MCropSeqDataModule(pl.LightningDataModule):
             heatmap_type=self.heatmap_type,
             heatmap_resolution=self.heatmap_resolution,
             image_resolution=self.image_resolution, sigma=self.sigma,
-            protocol=self.p_test, w2c=self.w2c)
+            protocol=self.p_test, w2c=self.w2c, sr=self.sr)
         return DataLoader(
                 data_test, batch_size=self.batch_size, 
                 num_workers=self.num_workers, pin_memory=False)
