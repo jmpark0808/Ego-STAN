@@ -156,7 +156,7 @@ class xREgoPose(pl.LightningModule):
         img = img.cuda()
         p2d = p2d.cuda()
         p3d = p3d.cuda()
-        if self.which_data in ['h36m_static', 'h36m_seq']:
+        if self.which_data.startswith('h36m'):
             p3d[:, 14, :] = 0
         # forward pass
         
@@ -246,7 +246,7 @@ class xREgoPose(pl.LightningModule):
             tensorboard.add_images('Val Images', img_plot, self.iteration)
             tensorboard.add_images('Val Ground Truth 2D Heatmap', torch.clip(torch.sum(p2d, dim=1, keepdim=True), 0, 1), self.iteration)
             tensorboard.add_images('Val Predicted 2D Heatmap', torch.clip(torch.sum(heatmap, dim=1, keepdim=True), 0, 1), self.iteration)
-            if self.which_data in ['h36m_static', 'h36m_seq']:
+            if self.which_data.startswith('h36m'):
                 skel_dir = os.path.join(self.logger.log_dir, 'skel_plots')
                 if not os.path.exists(skel_dir):
                     os.mkdir(skel_dir)
