@@ -401,7 +401,7 @@ class MocapH36MCropTransformer(BaseDataset):
             intrinsic_matrix[0, 2] = camera2int[data['camera']]['center'][0]
             intrinsic_matrix[1, 2] = camera2int[data['camera']]['center'][1]
             intrinsic_matrix[2, 2] = 1
-            p3d = np.matmul(np.lingalg.inv(intrinsic_matrix), uv1.T).T
+            p3d = np.matmul(np.linalg.inv(intrinsic_matrix), uv1.T).T
             p3d  = (p3d - p3d[14:15, :])/1000.
             cropped_p3ds.append(p3d)
             cropped_img = resize(cropped_img, (self.image_resolution[0], self.image_resolution[1]))

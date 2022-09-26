@@ -292,7 +292,7 @@ class MocapH36MCrop(BaseDataset):
         intrinsic_matrix[0, 2] = camera2int[data['camera']]['center'][0]
         intrinsic_matrix[1, 2] = camera2int[data['camera']]['center'][1]
         intrinsic_matrix[2, 2] = 1
-        p3d = np.matmul(np.lingalg.inv(intrinsic_matrix), uv1.T).T
+        p3d = np.matmul(np.linalg.inv(intrinsic_matrix), uv1.T).T
         p3d  = (p3d - p3d[14:15, :])/1000.
         # p3d[[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15, 16], :] -= p3d[14, :]
 
