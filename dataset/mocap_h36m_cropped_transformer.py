@@ -14,6 +14,7 @@ from dataset.mocap_h36m import generate_heatmap, generate_heatmap_distance, worl
 from torch.utils.data import DataLoader
 from torchvision import transforms
 import copy 
+from dataset.common import *
 
 
 class MocapH36MCropTransformer(BaseDataset):
@@ -223,7 +224,7 @@ class MocapH36MCropTransformer(BaseDataset):
             p3d /= self.MM_TO_M
 
         # Normalize
-        p3d[[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15, 16], :] -= p3d[14, :]
+        # p3d[[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15, 16], :] -= p3d[14, :]
 
         return p2d, p3d
 
@@ -319,10 +320,11 @@ class MocapH36MCropTransformer(BaseDataset):
 
         cropped_imgs = []
         cropped_hms = []
-
+        cropped_p3ds = []
         for i, cimg in enumerate(orig_imgs):
             coords = all_p2d[i]
-
+            p3d = all_p3d[i]
+            Z_c = p3d[:, 2:3]
             max_x = max(coords[:, 0])
             min_x = min(coords[:, 0])
             max_y = max(coords[:, 1])
@@ -391,6 +393,18 @@ class MocapH36MCropTransformer(BaseDataset):
             w_crop, h_crop, c = cropped_img.shape
 
             cropped_img = resize(cropped_img, (self.image_resolution[0], self.image_resolution[1]))
+            uv1 = np.concatenate([np.copy(p2d_crop), np.ones((17, 1))], axis=1)
+            uv1 = uv1 * Z_c
+            intrinsic_matrix = np.zeros((3,3))
+            intrinsic_matrix[0, 0] = camera2int[data['camera']]['focal_length'][0]
+            intrinsic_matrix[1, 1] = camera2int[data['camera']]['focal_length'][1]
+            intrinsic_matrix[0, 2] = camera2int[data['camera']]['center'][0]
+            intrinsic_matrix[1, 2] = camera2int[data['camera']]['center'][1]
+            intrinsic_matrix[2, 2] = 1
+            p3d = np.matmul(np.lingalg.inv(intrinsic_matrix), uv1.T).T
+            p3d  = (p3d - p3d[14:15, :])/1000.
+            cropped_p3ds.append(p3d)
+            cropped_img = resize(cropped_img, (self.image_resolution[0], self.image_resolution[1]))
             cropped_imgs.append(cropped_img)
 
             if self.heatmap_type == 'baseline':
@@ -409,7 +423,7 @@ class MocapH36MCropTransformer(BaseDataset):
                 [self.transform({'image': img})['image'].numpy() for img in imgs])
             cropped_imgs = np.array(
                 [self.transform({'image': c_img})['image'].numpy() for c_img in cropped_imgs])
-            p3d = np.array([self.transform({'joints3D': p3d})['joints3D'].numpy() for p3d in all_p3d])
+            p3d = np.array([self.transform({'joints3D': p3d})['joints3D'].numpy() for p3d in cropped_p3ds])
             # p2d = np.array([self.transform({'joints2D': p2d})['joints2D'].numpy() for p2d in all_p2d_heatmap])
             p2d_crop = np.array([self.transform({'joints2D': p2d})['joints2D'].numpy() for p2d in cropped_hms])
 
