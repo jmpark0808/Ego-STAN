@@ -36,7 +36,7 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
         elif self.which_data == 'mo2cap2':
             num_class = 15
 
-        elif self.which_data in ['h36m_static', 'h36m_seq']:
+        elif self.which_data.startswith('h36m'):
             num_class = 17
 
         # must be defined for logging computational graph
@@ -198,7 +198,7 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
         p2d = p2d[:, -1, :, :, :]
         p3d = p3d.cuda()
         p3d = p3d[:, -1, :, :]
-        if self.which_data in ['h36m_static', 'h36m_seq']:
+        if self.which_data.startswith('h36m'):
             p3d[:, 14, :] = 0
         # forward pass
         pred_hm, pred_3d, atts = self.forward(sequence_imgs)
@@ -271,7 +271,7 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
         p2d = p2d[:, -1, :, :, :]
         p3d = p3d.cuda()
         p3d = p3d[:, -1, :, :]
-        if self.which_data in ['h36m_static', 'h36m_seq']:
+        if self.which_data.startswith('h36m'):
             p3d[:, 14, :] = 0
         # forward pass
         heatmap, pose, atts = self.forward(sequence_imgs)
@@ -374,7 +374,7 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
         p2d = p2d[:, -1, :, :, :]
         p3d = p3d.cuda()
         p3d = p3d[:, -1, :, :]
-        if self.which_data in ['h36m_static', 'h36m_seq']:
+        if self.which_data.startswith('h36m'):
             p3d[:, 14, :] = 0
         # forward pass
         heatmap, pose, atts = self.forward(sequence_imgs)
