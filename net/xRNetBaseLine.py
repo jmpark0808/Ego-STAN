@@ -30,7 +30,7 @@ class xREgoPose(pl.LightningModule):
             num_class = 16
         elif self.which_data == 'mo2cap2':
             num_class = 15
-        elif self.which_data in ['h36m_static', 'h36m_seq']:
+        elif self.which_data.startswith('h36m'):
             num_class = 17
 
         # must be defined for logging computational graph
@@ -213,7 +213,7 @@ class xREgoPose(pl.LightningModule):
         img = img.cuda()
         p2d = p2d.cuda()
         p3d = p3d.cuda()
-        if self.which_data in ['h36m_static', 'h36m_seq']:
+        if self.which_data.startswith('h36m'):
             p3d[:, 14, :] = 0
         # forward pass 
         heatmap, pose, generated_heatmap = self.forward(img)
@@ -311,7 +311,7 @@ class xREgoPose(pl.LightningModule):
         img = img.cuda()
         p2d = p2d.cuda()
         p3d = p3d.cuda()
-        if self.which_data in ['h36m_static', 'h36m_seq']:
+        if self.which_data.startswith('h36m'):
             p3d[:, 14, :] = 0
         # forward pass
         heatmap, pose, generated_heatmap = self.forward(img)
