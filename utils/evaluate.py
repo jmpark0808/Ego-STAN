@@ -55,11 +55,7 @@ bone_links_map = {
             ]
 }
 
-# mean3D = scipy.io.loadmat(os.path.join(os.path.expanduser('~'), 'projects/def-pfieguth/mo2cap/code/util/mean3D.mat'))['mean3D'] # 3x15 shape
-mean3D = scipy.io.loadmat('/home/eddie/Downloads/package/code/util/mean3D.mat')['mean3D']/1000.
-kinematic_parents = [ 0, 0, 1, 2, 0, 4, 5, 1, 7, 8, 9, 4, 11, 12, 13]
-bones_mean = mean3D - mean3D[:,kinematic_parents]
-bone_length = np.sqrt(np.sum(np.power(bones_mean, 2), axis=0)) # 15 shape
+
 highest_differences = ['female_008_a_a_rgba_001625',
  'female_010_a_a_rgba_003845',
   'male_002_a_a_rgba_1812',
@@ -79,7 +75,10 @@ def get_p3ds_t(p3d_preds, p3d_gts):
         Rescaled Predicted 3D joints, 
         Rescaled Procrustes Aligned Ground Truth 3D joints 
     """
-
+    mean3D = scipy.io.loadmat(os.path.join(os.path.expanduser('~'), 'projects/def-pfieguth/mo2cap/code/util/mean3D.mat'))['mean3D'] # 3x15 shape
+    kinematic_parents = [ 0, 0, 1, 2, 0, 4, 5, 1, 7, 8, 9, 4, 11, 12, 13]
+    bones_mean = mean3D - mean3D[:,kinematic_parents]
+    bone_length = np.sqrt(np.sum(np.power(bones_mean, 2), axis=0)) # 15 shape
     gt_rots_t = np.zeros((p3d_gts.shape[0], p3d_gts.shape[1], p3d_gts.shape[2]))
     preds_t = np.zeros((p3d_gts.shape[0], p3d_gts.shape[1], p3d_gts.shape[2]))
 
@@ -382,57 +381,87 @@ def procrustes(X, Y, scaling=True, reflection='best'):
    
     return d, Z, tform
 
-def create_results_csv(mpjpe_dict: dict, csv_path: str, mode: str = 'baseline'):
+def create_results_csv(metric, csv_path: str, mode: str = 'baseline', test_mode: str = '3D'):
     """
     Save a csv of mpjpe evalutions stored in a dict.
     Refer to the `test_results` dict in DirectRegression.test_epoch_end
     for the expected structure for `mpjpe_dict`.
     """
+    if test_mode == '3D':
+        m_to_mm = 1000
 
-    m_to_mm = 1000
+        # get csv column names
+        action_list = list(metric["Full Body"].keys())
+        action_list.sort()
+        columns = ["Evalution Error [mm]"]
+        columns.extend(action_list)
+        print(f"[print] columns: {columns}")
+        if mode == 'baseline' or mode == 'sequential':
+            joints = ['Head','Neck', 'LeftArm', 'LeftForeArm',
+        'LeftHand', 'RightArm', 'RightForeArm', 'RightHand',
+        'LeftUpLeg', 'LeftLeg','LeftFoot','LeftToeBase',
+        'RightUpLeg','RightLeg','RightFoot','RightToeBase']
+        elif mode == 'mo2cap2' or mode == 'mo2cap2_seq':
+            joints = ['Neck', 'LeftArm', 'LeftForeArm',
+        'LeftHand', 'RightArm', 'RightForeArm', 'RightHand',
+        'LeftUpLeg', 'LeftLeg','LeftFoot','LeftToeBase',
+        'RightUpLeg','RightLeg','RightFoot','RightToeBase']
+        elif mode.startswith('h36m'):
+            joints = ['Head', 'Neck', 'LeftShoulder',
+        'LeftElbow', 'LeftWrist', 'RightShoulder', 'RightElbow',
+        'RightWrist', 'LeftHip', 'LeftKnewe','LeftFoot','RightHip',
+        'RightKnee','RightFoot','Hip','Thorax', 'Spine']
+        else:
+            raise('Not a valid mode')
 
-    # get csv column names
-    action_list = list(mpjpe_dict["Full Body"].keys())
-    action_list.sort()
-    columns = ["Evalution Error [mm]"]
-    columns.extend(action_list)
-    print(f"[print] columns: {columns}")
-    if mode == 'baseline' or mode == 'sequential':
-        joints = ['Head','Neck', 'LeftArm', 'LeftForeArm',
-     'LeftHand', 'RightArm', 'RightForeArm', 'RightHand',
-     'LeftUpLeg', 'LeftLeg','LeftFoot','LeftToeBase',
-     'RightUpLeg','RightLeg','RightFoot','RightToeBase']
-    elif mode == 'mo2cap2' or mode == 'mo2cap2_seq':
-        joints = ['Neck', 'LeftArm', 'LeftForeArm',
-     'LeftHand', 'RightArm', 'RightForeArm', 'RightHand',
-     'LeftUpLeg', 'LeftLeg','LeftFoot','LeftToeBase',
-     'RightUpLeg','RightLeg','RightFoot','RightToeBase']
-    elif mode.startswith('h36m'):
-        joints = ['Head', 'Neck', 'LeftShoulder',
-     'LeftElbow', 'LeftWrist', 'RightShoulder', 'RightElbow',
-     'RightWrist', 'LeftHip', 'LeftKnewe','LeftFoot','RightHip',
-     'RightKnee','RightFoot','Hip','Thorax', 'Spine']
+        with open(csv_path, mode="w") as f:
+            mpjpe_writer = csv.writer(f)
+            mpjpe_writer.writerow(columns)
+            for body_split, action_dict in metric.items():
+                if body_split != 'Per Joint':
+                    # the first column is the body split (e.g. "Full Body")
+                    row = [body_split]
+                    row_std = [body_split + " Error STD"]
+                    # store mpjpe in order of sorted 'action_list'
+                    for action in action_list:
+                        row.append(action_dict[action]["mpjpe"] * m_to_mm)
+                        row_std.append(action_dict[action]["std_mpjpe"] * m_to_mm)
+
+                    mpjpe_writer.writerow(row)
+                    mpjpe_writer.writerow(row_std)
+
+            mpjpe_writer.writerow(joints)
+            mpjpe_writer.writerow((metric['Per Joint']*m_to_mm).tolist())
+    elif test_mode == '2D':
+        if mode == 'baseline' or mode == 'sequential':
+            joints = ['Head','Neck', 'LeftArm', 'LeftForeArm',
+        'LeftHand', 'RightArm', 'RightForeArm', 'RightHand',
+        'LeftUpLeg', 'LeftLeg','LeftFoot','LeftToeBase',
+        'RightUpLeg','RightLeg','RightFoot','RightToeBase']
+        elif mode == 'mo2cap2' or mode == 'mo2cap2_seq':
+            joints = ['Neck', 'LeftArm', 'LeftForeArm',
+        'LeftHand', 'RightArm', 'RightForeArm', 'RightHand',
+        'LeftUpLeg', 'LeftLeg','LeftFoot','LeftToeBase',
+        'RightUpLeg','RightLeg','RightFoot','RightToeBase']
+        elif mode.startswith('h36m'):
+            joints = ['Head', 'Neck', 'LeftShoulder',
+        'LeftElbow', 'LeftWrist', 'RightShoulder', 'RightElbow',
+        'RightWrist', 'LeftHip', 'LeftKnee','LeftFoot','RightHip',
+        'RightKnee','RightFoot','Hip','Thorax', 'Spine']
+        else:
+            raise('Not a valid mode')
+
+        with open(csv_path, mode="w") as f:
+            mpjpe_writer = csv.writer(f)
+            
+            joints.append('All')
+            metric.append(np.mean(metric))
+
+            mpjpe_writer.writerow(joints)
+            mpjpe_writer.writerow(metric)
     else:
-        raise('Not a valid mode')
-
-    with open(csv_path, mode="w") as f:
-        mpjpe_writer = csv.writer(f)
-        mpjpe_writer.writerow(columns)
-        for body_split, action_dict in mpjpe_dict.items():
-            if body_split != 'Per Joint':
-                # the first column is the body split (e.g. "Full Body")
-                row = [body_split]
-                row_std = [body_split + " Error STD"]
-                # store mpjpe in order of sorted 'action_list'
-                for action in action_list:
-                    row.append(action_dict[action]["mpjpe"] * m_to_mm)
-                    row_std.append(action_dict[action]["std_mpjpe"] * m_to_mm)
-
-                mpjpe_writer.writerow(row)
-                mpjpe_writer.writerow(row_std)
-
-        mpjpe_writer.writerow(joints)
-        mpjpe_writer.writerow((mpjpe_dict['Per Joint']*m_to_mm).tolist())
+        raise('Unrecognized test mode')
+    
 
         
 def p_mpjpe(predicted, target, return_error=True):
@@ -512,6 +541,10 @@ def compute_error(pred, gt, return_mean=True, mode='baseline', protocol=None):
         if gt.shape[0] != 3:
             gt = np.transpose(gt, [1, 0])
         assert pred.shape == gt.shape
+        mean3D = scipy.io.loadmat(os.path.join(os.path.expanduser('~'), 'projects/def-pfieguth/mo2cap/code/util/mean3D.mat'))['mean3D'] # 3x15 shape
+        kinematic_parents = [ 0, 0, 1, 2, 0, 4, 5, 1, 7, 8, 9, 4, 11, 12, 13]
+        bones_mean = mean3D - mean3D[:,kinematic_parents]
+        bone_length = np.sqrt(np.sum(np.power(bones_mean, 2), axis=0)) # 15 shape
         gt_rescale = skeleton_rescale(gt, bone_length[1:], kinematic_parents)
         pred_rescale = skeleton_rescale(pred, bone_length[1:], kinematic_parents)
         _, gt_rot, _ = procrustes(np.transpose(pred_rescale), np.transpose(gt_rescale), True, False)

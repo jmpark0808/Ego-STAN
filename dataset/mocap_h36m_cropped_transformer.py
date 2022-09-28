@@ -14,6 +14,7 @@ from dataset.mocap_h36m import generate_heatmap, generate_heatmap_distance, worl
 from torch.utils.data import DataLoader
 from torchvision import transforms
 import copy 
+from dataset.common import *
 
 
 class MocapH36MCropTransformer(BaseDataset):
@@ -37,8 +38,8 @@ class MocapH36MCropTransformer(BaseDataset):
     #     'val' : ['S5'],
     # }
 
-    def __init__(self, *args, sequence_length=5, skip =0, heatmap_type='baseline', heatmap_resolution=[47, 47],
-     image_resolution=[368, 368], protocol = 'p1_train', w2c=True, **kwargs):
+    def __init__(self, *args, sequence_length=5, skip =0, heatmap_type='baseline', heatmap_resolution=[47, 47], 
+     image_resolution=[368, 368], sigma = 3, protocol = 'p1_train', w2c=True, sr=1, **kwargs):
         """Init class, to allow variable sequence length, inherits from Base
         Keyword Arguments:
             sequence_length -- length of image sequence (default: {5})
@@ -52,6 +53,8 @@ class MocapH36MCropTransformer(BaseDataset):
         self.image_resolution = image_resolution
         self.protocol = protocol
         self.w2c = w2c
+        self.sigma = sigma
+        self.sr = sr
         self._cameras = copy.deepcopy(h36m_cameras_extrinsic_params)
  
         super().__init__(*args, **kwargs)
@@ -151,7 +154,7 @@ class MocapH36MCropTransformer(BaseDataset):
                     if self.protocol.split('_')[-1] in ['train', 'val'] :
                         last_frame = encoded_json_sequence[-1]
                         last_frame_idx = last_frame.decode('utf8').split('_')[-1].split('.json')[0]
-                        if int(last_frame_idx)%16 == 0:
+                        if int(last_frame_idx)%self.sr == 0:
                             encoded_json.append(encoded_json_sequence)
                             encoded_rgba.append(encoded_rgba_sequence)
                         # encoded_json.append(encoded_json_sequence)
@@ -217,11 +220,11 @@ class MocapH36MCropTransformer(BaseDataset):
             translation = np.array(self._cameras[f'S{subject}'][camera]['translation'])/1000.
             p3d = world_to_camera(p3d, orientation, translation)
             p3d = np.squeeze(p3d)
-        else:
-            p3d /= self.MM_TO_M
+        # else:
+        #     p3d /= self.MM_TO_M
 
         # Normalize
-        p3d[[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15, 16], :] -= p3d[14, :]
+        # p3d[[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15, 16], :] -= p3d[14, :]
 
         return p2d, p3d
 
@@ -291,7 +294,7 @@ class MocapH36MCropTransformer(BaseDataset):
                                                         img_paths[i], json_paths[i])
                                                                                     )
 
-        all_p2d_heatmap = []
+        # all_p2d_heatmap = []
         all_p3d = []
         all_p2d = []
 
@@ -301,15 +304,15 @@ class MocapH36MCropTransformer(BaseDataset):
 
             p2d, p3d = self._process_points(data)
 
-            if self.heatmap_type == 'baseline':
-                p2d_heatmap = generate_heatmap(p2d, int(3*self.heatmap_resolution[0]/47.), resolution=self.heatmap_resolution, h=h, w=w)
-            elif self.heatmap_type == 'distance':
-                distances = np.sqrt(np.sum(p3d**2, axis=1))
-                p2d_heatmap = generate_heatmap_distance(p2d, distances, h, w) # exclude head
-            else:
-                self.logger.error('Unrecognized heatmap type')
+            # if self.heatmap_type == 'baseline':
+            #     p2d_heatmap = generate_heatmap(p2d, self.sigma, resolution=self.heatmap_resolution, h=h, w=w)
+            # elif self.heatmap_type == 'distance':
+            #     distances = np.sqrt(np.sum(p3d**2, axis=1))
+            #     p2d_heatmap = generate_heatmap_distance(p2d, distances, h, w) # exclude head
+            # else:
+            #     self.logger.error('Unrecognized heatmap type')
   
-            all_p2d_heatmap.append(p2d_heatmap)
+            # all_p2d_heatmap.append(p2d_heatmap)
             all_p3d.append(p3d)
             all_p2d.append(p2d)
             # get action name
@@ -317,10 +320,11 @@ class MocapH36MCropTransformer(BaseDataset):
 
         cropped_imgs = []
         cropped_hms = []
-
+        cropped_p3ds = []
         for i, cimg in enumerate(orig_imgs):
             coords = all_p2d[i]
-
+            p3d = all_p3d[i]
+            Z_c = p3d[:, 2:3]
             max_x = max(coords[:, 0])
             min_x = min(coords[:, 0])
             max_y = max(coords[:, 1])
@@ -389,10 +393,22 @@ class MocapH36MCropTransformer(BaseDataset):
             w_crop, h_crop, c = cropped_img.shape
 
             cropped_img = resize(cropped_img, (self.image_resolution[0], self.image_resolution[1]))
+            uv1 = np.concatenate([np.copy(p2d_crop), np.ones((17, 1))], axis=1)
+            uv1 = uv1 * Z_c
+            intrinsic_matrix = np.zeros((3,3))
+            intrinsic_matrix[0, 0] = camera2int[data['camera']]['focal_length'][0]
+            intrinsic_matrix[1, 1] = camera2int[data['camera']]['focal_length'][1]
+            intrinsic_matrix[0, 2] = camera2int[data['camera']]['center'][0]
+            intrinsic_matrix[1, 2] = camera2int[data['camera']]['center'][1]
+            intrinsic_matrix[2, 2] = 1
+            p3d = np.matmul(np.linalg.inv(intrinsic_matrix), uv1.T).T
+            p3d  = (p3d - p3d[14:15, :])/1000.
+            cropped_p3ds.append(p3d)
+            cropped_img = resize(cropped_img, (self.image_resolution[0], self.image_resolution[1]))
             cropped_imgs.append(cropped_img)
 
             if self.heatmap_type == 'baseline':
-                p2d_hm_crop = generate_heatmap(p2d_crop, int(3*self.heatmap_resolution[0]/47.), 
+                p2d_hm_crop = generate_heatmap(p2d_crop, self.sigma, 
                                         resolution=self.heatmap_resolution, h=h_crop, w=w_crop)
             elif self.heatmap_type == 'distance':
                 distances = np.sqrt(np.sum(p3d**2, axis=1))
@@ -407,8 +423,8 @@ class MocapH36MCropTransformer(BaseDataset):
                 [self.transform({'image': img})['image'].numpy() for img in imgs])
             cropped_imgs = np.array(
                 [self.transform({'image': c_img})['image'].numpy() for c_img in cropped_imgs])
-            p3d = np.array([self.transform({'joints3D': p3d})['joints3D'].numpy() for p3d in all_p3d])
-            p2d = np.array([self.transform({'joints2D': p2d})['joints2D'].numpy() for p2d in all_p2d_heatmap])
+            p3d = np.array([self.transform({'joints3D': p3d})['joints3D'].numpy() for p3d in cropped_p3ds])
+            # p2d = np.array([self.transform({'joints2D': p2d})['joints2D'].numpy() for p2d in all_p2d_heatmap])
             p2d_crop = np.array([self.transform({'joints2D': p2d})['joints2D'].numpy() for p2d in cropped_hms])
 
         return torch.tensor(cropped_imgs), torch.tensor(p2d_crop), torch.tensor(p3d), action
@@ -434,7 +450,9 @@ class MocapH36MCropSeqDataModule(pl.LightningDataModule):
         self.heatmap_resolution = kwargs.get('heatmap_resolution')
         self.image_resolution = kwargs.get('image_resolution')
         self.protocol = kwargs.get('protocol')
+        self.sigma = kwargs.get('sigma')
         self.w2c = kwargs.get('w2c')
+        self.sr = kwargs.get('h36m_sample_rate')
         self.p_train = f'{self.protocol}_train'
         self.p_test = f'{self.protocol}_test'
 
@@ -451,7 +469,9 @@ class MocapH36MCropSeqDataModule(pl.LightningDataModule):
             sequence_length = self.seq_len,
             skip = self.skip,
             heatmap_type=self.heatmap_type,
-            protocol=self.p_train, w2c=self.w2c)
+            heatmap_resolution=self.heatmap_resolution,
+            image_resolution=self.image_resolution, sigma=self.sigma,
+            protocol=self.p_train, w2c=self.w2c, sr=self.sr)
         return DataLoader(
                 data_train, batch_size=self.batch_size, 
                 num_workers=self.num_workers, shuffle=True, pin_memory=False)
@@ -464,7 +484,9 @@ class MocapH36MCropSeqDataModule(pl.LightningDataModule):
             sequence_length = self.seq_len,
             skip = self.skip,
             heatmap_type=self.heatmap_type,
-            protocol=self.p_test, w2c=self.w2c)
+            heatmap_resolution=self.heatmap_resolution,
+            image_resolution=self.image_resolution, sigma=self.sigma,
+            protocol=self.p_test, w2c=self.w2c, sr=self.sr)
         return DataLoader(
                 data_val, batch_size=self.batch_size, 
                 num_workers=self.num_workers, pin_memory=False)
@@ -477,7 +499,9 @@ class MocapH36MCropSeqDataModule(pl.LightningDataModule):
             sequence_length = self.seq_len,
             skip = self.skip,
             heatmap_type=self.heatmap_type,
-            protocol=self.p_test, w2c=self.w2c)
+            heatmap_resolution=self.heatmap_resolution,
+            image_resolution=self.image_resolution, sigma=self.sigma,
+            protocol=self.p_test, w2c=self.w2c, sr=self.sr)
         return DataLoader(
                 data_test, batch_size=self.batch_size, 
                 num_workers=self.num_workers, pin_memory=False)

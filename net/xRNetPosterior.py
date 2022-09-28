@@ -140,39 +140,39 @@ class xREgoPosePosterior(pl.LightningModule):
         self.log("train_mpjpe_std", mpjpe_std)
         self.iteration += 1
 
-        if self.iteration % 2500 == 0 and self.protocol in ['p1', 'p2'] \
-        and self.which_data.startswith('h36m'):
-            y_output = pose.data.cpu().numpy()
-            y_target = p3d.data.cpu().numpy()
-            mean=[0.485, 0.456, 0.406]
-            std=[0.229, 0.224, 0.225]
-            img_plot = img.clone()
-            img_plot[:, 0, :, :] = img_plot[:, 0, :, :]*std[0]+mean[0]
-            img_plot[:, 1, :, :] = img_plot[:, 1, :, :]*std[1]+mean[1]
-            img_plot[:, 2, :, :] = img_plot[:, 2, :, :]*std[2]+mean[2]
-            skel_dir = os.path.join(self.logger.log_dir, 'skel_plots')
-            if not os.path.exists(skel_dir):
-                os.mkdir(skel_dir)
+        # if self.iteration % 2500 == 0 and self.protocol in ['p1', 'p2'] \
+        # and self.which_data.startswith('h36m'):
+        #     y_output = pose.data.cpu().numpy()
+        #     y_target = p3d.data.cpu().numpy()
+        #     mean=[0.485, 0.456, 0.406]
+        #     std=[0.229, 0.224, 0.225]
+        #     img_plot = img.clone()
+        #     img_plot[:, 0, :, :] = img_plot[:, 0, :, :]*std[0]+mean[0]
+        #     img_plot[:, 1, :, :] = img_plot[:, 1, :, :]*std[1]+mean[1]
+        #     img_plot[:, 2, :, :] = img_plot[:, 2, :, :]*std[2]+mean[2]
+        #     skel_dir = os.path.join(self.logger.log_dir, 'skel_plots')
+        #     if not os.path.exists(skel_dir):
+        #         os.mkdir(skel_dir)
 
-            # Get the procrustes aligned 3D Pose and log
-            if self.protocol == 'p1':
-                fig_compare_preds = evaluate.plot_skels_compare( p3ds_1 = y_output, p3ds_2 = y_target,
-                                label_1 = 'Pred Raw', label_2 = 'Ground Truth', 
-                                savepath = os.path.join(skel_dir, 'train_pred_raw_vs_GT.png'), dataset='h36m')
-            elif self.protocol == 'p2':
-                y_output = evaluate.p_mpjpe(y_output, y_target, False)
-                fig_compare_preds = evaluate.plot_skels_compare( p3ds_1 = y_output, p3ds_2 = y_target,
-                                label_1 = 'Pred PA', label_2 = 'Ground Truth', 
-                                savepath = os.path.join(skel_dir, 'train_pred_PA_vs_GT.png'), dataset='h36m')
-            else:
-                raise('Not a valid protocol')
+        #     # Get the procrustes aligned 3D Pose and log
+        #     if self.protocol == 'p1':
+        #         fig_compare_preds = evaluate.plot_skels_compare( p3ds_1 = y_output, p3ds_2 = y_target,
+        #                         label_1 = 'Pred Raw', label_2 = 'Ground Truth', 
+        #                         savepath = os.path.join(skel_dir, 'train_pred_raw_vs_GT.png'), dataset='h36m')
+        #     elif self.protocol == 'p2':
+        #         y_output = evaluate.p_mpjpe(y_output, y_target, False)
+        #         fig_compare_preds = evaluate.plot_skels_compare( p3ds_1 = y_output, p3ds_2 = y_target,
+        #                         label_1 = 'Pred PA', label_2 = 'Ground Truth', 
+        #                         savepath = os.path.join(skel_dir, 'train_pred_PA_vs_GT.png'), dataset='h36m')
+        #     else:
+        #         raise('Not a valid protocol')
             
 
-            # Tensorboard log images
-            tensorboard.add_images('TR Image', torch.clip(torch.sum(p2d, dim=1, keepdim=True), 0, 1), self.iteration)
-            tensorboard.add_figure('TR GT 3D Skeleton vs Predicted 3D Skeleton', fig_compare_preds, global_step = self.iteration)
-            l2_norm = sum(torch.norm(p) for p in self.parameters())
-            self.log('L2 regularization', l2_norm)
+        #     # Tensorboard log images
+        #     tensorboard.add_images('TR Image', torch.clip(torch.sum(p2d, dim=1, keepdim=True), 0, 1), self.iteration)
+        #     tensorboard.add_figure('TR GT 3D Skeleton vs Predicted 3D Skeleton', fig_compare_preds, global_step = self.iteration)
+        #     l2_norm = sum(torch.norm(p) for p in self.parameters())
+        #     self.log('L2 regularization', l2_norm)
 
 
 
@@ -233,6 +233,7 @@ class xREgoPosePosterior(pl.LightningModule):
             # Tensorboard log images
             tensorboard.add_images('Val Image', torch.clip(torch.sum(p2d, dim=1, keepdim=True), 0, 1), self.iteration)
             tensorboard.add_figure('Val GT 3D Skeleton vs Predicted 3D Skeleton', fig_compare_preds, global_step = self.iteration)
+            del fig_compare_preds
 
 
 

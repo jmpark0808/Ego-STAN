@@ -36,7 +36,7 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
         elif self.which_data == 'mo2cap2':
             num_class = 15
 
-        elif self.which_data in ['h36m_static', 'h36m_seq']:
+        elif self.which_data.startswith('h36m'):
             num_class = 17
 
         # must be defined for logging computational graph
@@ -50,7 +50,7 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
                                               nn.ConvTranspose2d(1024, num_class, kernel_size=3,
                                                                  stride=2, dilation=1, padding=0)])
         # Transformer that takes sequence of heatmaps and outputs a sequence of heatmaps
-        self.resnet_transformer = ResNetTransformerCls(seq_len=self.seq_len*12*12, dim=512, depth=3, heads=8, mlp_dim=1024, dim_head=64, dropout=self.dropout)
+        self.resnet_transformer = ResNetTransformerCls(in_dim=2048, spatial_dim= 12*12, seq_len=self.seq_len*12*12, dim=512, depth=3, heads=8, mlp_dim=1024, dim_head=64, dropout=self.dropout)
         # Direct regression from heatmap
         self.hm2pose = HM2Pose(num_class, self.heatmap_resolution[0], self.dropout_linear)
 
@@ -198,7 +198,7 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
         p2d = p2d[:, -1, :, :, :]
         p3d = p3d.cuda()
         p3d = p3d[:, -1, :, :]
-        if self.which_data in ['h36m_static', 'h36m_seq']:
+        if self.which_data.startswith('h36m'):
             p3d[:, 14, :] = 0
         # forward pass
         pred_hm, pred_3d, atts = self.forward(sequence_imgs)
@@ -271,7 +271,7 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
         p2d = p2d[:, -1, :, :, :]
         p3d = p3d.cuda()
         p3d = p3d[:, -1, :, :]
-        if self.which_data in ['h36m_static', 'h36m_seq']:
+        if self.which_data.startswith('h36m'):
             p3d[:, 14, :] = 0
         # forward pass
         heatmap, pose, atts = self.forward(sequence_imgs)
@@ -374,7 +374,7 @@ class xREgoPoseSeqHMDirect(pl.LightningModule):
         p2d = p2d[:, -1, :, :, :]
         p3d = p3d.cuda()
         p3d = p3d[:, -1, :, :]
-        if self.which_data in ['h36m_static', 'h36m_seq']:
+        if self.which_data.startswith('h36m'):
             p3d[:, 14, :] = 0
         # forward pass
         heatmap, pose, atts = self.forward(sequence_imgs)
