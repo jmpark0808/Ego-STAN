@@ -21,21 +21,21 @@ colour_scheme = {'Tome et al.': palette[0],
 'Ego-STAN Avg': palette[6],
 'Ego-STAN FMT': palette[7]}
 
-seq_results = pd.read_pickle(r'/home/eddie/waterloo/lightning_logs/3d_plots/xregopose_seq_hm_direct_05_07_09_46_26/results_xregopose_seq_hm_direct_05_07_09_46_26')
+seq_results = pd.read_pickle(r'/path/to/lightning_logs/3d_plots/xregopose_seq_hm_direct_05_07_09_46_26/results_xregopose_seq_hm_direct_05_07_09_46_26')
 
-baseline_results = pd.read_pickle(r'/home/eddie/waterloo/lightning_logs/3d_plots/xregopose_05_07_10_43_25/results_xregopose_05_07_10_43_25')
+baseline_results = pd.read_pickle(r'/path/to/lightning_logs/3d_plots/xregopose_05_07_10_43_25/results_xregopose_05_07_10_43_25')
 
-seq_avg_results = pd.read_pickle(r'/home/eddie/waterloo/lightning_logs/3d_plots/xregopose_seq_hm_direct_avg_05_07_15_33_32/results_xregopose_seq_hm_direct_avg_05_07_15_33_32')
+seq_avg_results = pd.read_pickle(r'/path/to/ightning_logs/3d_plots/xregopose_seq_hm_direct_avg_05_07_15_33_32/results_xregopose_seq_hm_direct_avg_05_07_15_33_32')
 
-seq_slice_results = pd.read_pickle(r'/home/eddie/waterloo/lightning_logs/3d_plots/xregopose_seq_hm_direct_slice_05_07_11_15_19/results_xregopose_seq_hm_direct_slice_05_07_11_15_19')
+seq_slice_results = pd.read_pickle(r'/path/to/lightning_logs/3d_plots/xregopose_seq_hm_direct_slice_05_07_11_15_19/results_xregopose_seq_hm_direct_slice_05_07_11_15_19')
 
-seq_spatial_results = pd.read_pickle(r'/home/eddie/waterloo/lightning_logs/3d_plots/xregopose_global_trans_05_07_10_49_12/results_xregopose_global_trans_05_07_10_49_12')
+seq_spatial_results = pd.read_pickle(r'/home/path/to/lightning_logs/3d_plots/xregopose_global_trans_05_07_10_49_12/results_xregopose_global_trans_05_07_10_49_12')
 
-baseline_l1_results = pd.read_pickle(r'/home/eddie/waterloo/lightning_logs/3d_plots/xregopose_l1_05_07_10_43_26/results_xregopose_l1_05_07_10_43_26')
+baseline_l1_results = pd.read_pickle(r'/home/path/to/ightning_logs/3d_plots/xregopose_l1_05_07_10_43_26/results_xregopose_l1_05_07_10_43_26')
 
-baseline_direct_results = pd.read_pickle(r'/home/eddie/waterloo/lightning_logs/3d_plots/xregopose_direct_05_07_10_43_34/results_xregopose_direct_05_07_10_43_34')
+baseline_direct_results = pd.read_pickle(r'/home/path/to/ightning_logs/3d_plots/xregopose_direct_05_07_10_43_34/results_xregopose_direct_05_07_10_43_34')
 
-seq_latent_results = pd.read_pickle(r'/home/eddie/waterloo/lightning_logs/3d_plots/xregopose_seq_05_07_11_08_22/results_xregopose_seq_05_07_11_08_22')
+seq_latent_results = pd.read_pickle(r'/home/path/to/ightning_logs/3d_plots/xregopose_seq_05_07_11_08_22/results_xregopose_seq_05_07_11_08_22')
 
 # comparison_results = {}
 # for key, value in baseline_results.items():
@@ -88,7 +88,7 @@ df = pd.DataFrame(pd_data, columns=["id", "action", "full_mpjpe", "Model"])
 # ax.set_ylabel("MPJPE (mm)")
 # ax.set_ylim(0, 100)
 # # os.makedirs(output_file, exist_ok=True)
-# ax.figure.savefig('/home/eddie/waterloo/lightning_logs/violin_plots/model_comparison_per_action.jpg', bbox_inches = "tight")
+# ax.figure.savefig('/path/to/lightning_logs/violin_plots/model_comparison_per_action.jpg', bbox_inches = "tight")
 
 baseline_mean = np.mean(df.loc[df['Model'] == 'Tome et al.'])
 l1_mean = np.mean(df.loc[df['Model'] == 'L1 Loss'])
@@ -125,7 +125,7 @@ ax.set_xticks([])
 ax.set_xlabel('')
 ax.legend(loc="upper right")
 # os.makedirs(output_file, exist_ok=True)
-ax.figure.savefig('/home/eddie/waterloo/lightning_logs/violin_plots/model_comparison.pdf', bbox_inches = "tight", format='pdf')
+ax.figure.savefig('/path/to/lightning_logs/violin_plots/model_comparison.pdf', bbox_inches = "tight", format='pdf')
 
 
 
@@ -188,4 +188,4 @@ lines_labels = [ax.get_legend_handles_labels() for ax in fig.axes]
 lines, labels = [sum(lol, []) for lol in zip(*lines_labels)]
 legend = fig.legend(lines, labels, title='Model', bbox_to_anchor=(0.9, -0.05), ncol=4, fontsize=20)
 legend.get_title().set_fontsize('20')
-fig.savefig('/home/eddie/waterloo/lightning_logs/violin_plots/bar_plot_actions.pdf', bbox_inches='tight', format='pdf')
+fig.savefig('/path/to/lightning_logs/violin_plots/bar_plot_actions.pdf', bbox_inches='tight', format='pdf')

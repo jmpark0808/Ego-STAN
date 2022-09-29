@@ -109,4 +109,4 @@ lines_labels = [ax.get_legend_handles_labels() for ax in fig.axes]
 lines, labels = [sum(lol, []) for lol in zip(*lines_labels)]
 legend = fig.legend(lines, labels, title='Model', bbox_to_anchor=(0.8, -0.05), ncol=4, fontsize=20)
 legend.get_title().set_fontsize('20')
-fig.savefig('/home/eddie/waterloo/lightning_logs/violin_plots/bar_plot_per_joint.pdf', bbox_inches='tight', format='pdf')
+fig.savefig('/path/to/violin_plots/bar_plot_per_joint.pdf', bbox_inches='tight', format='pdf')

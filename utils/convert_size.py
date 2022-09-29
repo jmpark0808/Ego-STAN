@@ -10,8 +10,8 @@ from skimage import io as sio
 from skimage.transform import resize
 import json
 
-root_dir = '/home/eddie/h36m/'
-dest_dir = '/home/eddie/make_video/'
+root_dir = '/path/to/h36m/'
+dest_dir = '/path/to/make_video/'
 
 import matplotlib
 matplotlib.use('Agg')

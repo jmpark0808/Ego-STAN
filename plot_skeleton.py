@@ -46,11 +46,11 @@ def read_json(path):
 
     return data
 
-hp_seq_results = pd.read_pickle(r'/mnt/hdd/waterloo/lightning_logs/3d_plots/xregopose_seq_hm_direct_05_07_21_57_52/raw_results_xregopose_seq_hm_direct_05_07_21_57_52.pkl')
-hp_seq_results_files = pd.read_pickle(r'/mnt/hdd/waterloo/lightning_logs/3d_plots/xregopose_seq_hm_direct_05_07_21_57_52/results_xregopose_seq_hm_direct_05_07_21_57_52')
-hp_baseline_results = pd.read_pickle(r'/mnt/hdd/waterloo/lightning_logs/3d_plots/xregopose_05_07_21_47_14/raw_results_xregopose_05_07_21_47_14.pkl')
-hp_baseline_results_files = pd.read_pickle(r'/mnt/hdd/waterloo/lightning_logs/3d_plots/xregopose_05_07_21_47_14/results_xregopose_05_07_21_47_14')
-h2d_results = pd.read_pickle(r'/mnt/hdd/waterloo/models/xregopose_seq_hm_direct_05_08_16_21_05/handpicked_results_xregopose_seq_hm_direct_05_08_16_21_05.pkl')
+hp_seq_results = pd.read_pickle(r'/mnt/hdd/lightning_logs/3d_plots/xregopose_seq_hm_direct_05_07_21_57_52/raw_results_xregopose_seq_hm_direct_05_07_21_57_52.pkl')
+hp_seq_results_files = pd.read_pickle(r'/mnt/hdd/lightning_logs/3d_plots/xregopose_seq_hm_direct_05_07_21_57_52/results_xregopose_seq_hm_direct_05_07_21_57_52')
+hp_baseline_results = pd.read_pickle(r'/mnt/hdd/lightning_logs/3d_plots/xregopose_05_07_21_47_14/raw_results_xregopose_05_07_21_47_14.pkl')
+hp_baseline_results_files = pd.read_pickle(r'/mnt/hdd/lightning_logs/3d_plots/xregopose_05_07_21_47_14/results_xregopose_05_07_21_47_14')
+h2d_results = pd.read_pickle(r'/mnt/hdd/models/xregopose_seq_hm_direct_05_08_16_21_05/handpicked_results_xregopose_seq_hm_direct_05_08_16_21_05.pkl')
 
 seq_filenames = np.array(hp_seq_results_files['Filenames'])
 baseline_filenames = np.array(hp_baseline_results_files['Filenames'])
@@ -86,7 +86,7 @@ for jid, v in enumerate(joints.values()):
 
 
 
-output_file = '/home/eddie/skeleton/'
+output_file = '/home/path/to/skeleton/'
 highest_differences = set(highest_differences)
 diff_dict = {}
 for idx, file in enumerate(seq_filenames):
@@ -129,12 +129,12 @@ for idx, file in enumerate(seq_filenames):
                 # img[2] = img[2]*std[2]+mean[2]
                 if plot_img:
                     try:
-                        img = io.imread(os.path.join('/home/eddie/TestSet/', subject, 'env_001', 'cam_down', 'rgba', subject+'.rgba.'+number+'.png')).astype(np.float32)
+                        img = io.imread(os.path.join('/home/path/to/TestSet/', subject, 'env_001', 'cam_down', 'rgba', subject+'.rgba.'+number+'.png')).astype(np.float32)
                         img /= 255.0
                         img = img[:, 180:1120, :] #crop
                         img = resize(img, (368, 368))
 
-                        data = read_json(os.path.join('/home/eddie/TestSet/', subject, 'env_001', 'cam_down', 'json', subject+'_'+number+'.json'))
+                        data = read_json(os.path.join('/home/path/to/TestSet/', subject, 'env_001', 'cam_down', 'json', subject+'_'+number+'.json'))
 
                         p2d_orig = np.array(data['pts2d_fisheye']).T
                         joint_names = {j['name'].replace('mixamorig:', ''): jid
