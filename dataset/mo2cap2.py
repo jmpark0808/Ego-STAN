@@ -1,3 +1,5 @@
+# Code adapted from https://github.com/facebookresearch/xR-EgoPose authored by Denis Tome
+
 from ntpath import join
 import os
 import h5py

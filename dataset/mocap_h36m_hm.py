@@ -1,4 +1,4 @@
-# Code based off of that of Dennis Tome's xREgoPose repo but with many changes to accomodate human3.6m
+# Code adapted from https://github.com/facebookresearch/xR-EgoPose authored by Denis Tome
 
 import os
 import pytorch_lightning as pl

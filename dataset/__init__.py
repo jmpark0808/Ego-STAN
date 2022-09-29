@@ -1,9 +1,9 @@
-# Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
-# -*- coding: utf-8 -*-
+# Code adapted from https://github.com/facebookresearch/xR-EgoPose authored by Denis Tome
+
 """
 Init file
 
-@author: Denis Tome'
+Adapted from original
 
 """
 from .mocap import Mocap

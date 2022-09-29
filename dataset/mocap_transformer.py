@@ -1,9 +1,10 @@
-# Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
-# -*- coding: utf-8 -*-
+# Code adapted from https://github.com/facebookresearch/xR-EgoPose authored by Denis Tome
+
 """
 Data processing where only Images and associated 3D
 joint positions are loaded.
-@author: Denis Tome'
+
+Adapted from original
 """
 import os
 import torch

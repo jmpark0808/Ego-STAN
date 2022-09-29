@@ -1,8 +1,9 @@
-# Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
-# -*- coding: utf-8 -*-
+# Code adapted from https://github.com/facebookresearch/xR-EgoPose authored by Denis Tome
+
 """
 Load data configuration
-@author: Denis Tome'
+Adapted from original
+
 """
 import yaml
 from easydict import EasyDict as edict

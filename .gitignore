@@ -11,3 +11,17 @@ __pycache__/
 /lightning_logs/
 /att_visualization.py
 sandbox.py
+
+.DS_Store
+Legacy/seq_test.py
+dataset/mocap_h36mm.py
+h36m/
+normdiff1000.png
+sbash_scripts/sd_seq.sh
+sbash_scripts/sd_vis_h36m.sh
+sbash_scripts/sd_vis_mo2cap2.sh
+sbash_scripts/sd_xREgoPose_test.sh
+skel_plots/
+tar_h36m.sh
+test.py
+whiteboard.ipynb
