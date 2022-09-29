@@ -1,3 +1,8 @@
+# ----------------------------------------------------------- #
+#  This is code confidential, for peer-review purposes only   #
+#  and protected under conference code of ethics              #
+# ----------------------------------------------------------- #
+
 # -*- coding: utf-8 -*-
 
 import torch

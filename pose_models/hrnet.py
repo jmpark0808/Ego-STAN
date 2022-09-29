@@ -1,3 +1,8 @@
+# ----------------------------------------------------------- #
+#  This is code confidential, for peer-review purposes only   #
+#  and protected under conference code of ethics              #
+# ----------------------------------------------------------- #
+
 # Code adapted from https://github.com/HRNet/HRNet-Human-Pose-Estimation written by Bin Xiao (Bin.Xiao@microsoft.com)
 
 

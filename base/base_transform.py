@@ -1,10 +1,14 @@
-# Code adapted from https://github.com/facebookresearch/xR-EgoPose
+# ----------------------------------------------------------- #
+#  This is code confidential, for peer-review purposes only   #
+#  and protected under conference code of ethics              #
+# ----------------------------------------------------------- #
+
+# Code adapted from https://github.com/facebookresearch/xR-EgoPose authored by Denis Tome
 
 """
 Base Transform class
 
 Adapted from original
-@author: Denis Tome'
 
 """
 from abc import ABC, abstractmethod

@@ -1,3 +1,8 @@
+# ----------------------------------------------------------- #
+#  This is code confidential, for peer-review purposes only   #
+#  and protected under conference code of ethics              #
+# ----------------------------------------------------------- #
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F

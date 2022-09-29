@@ -1,3 +1,8 @@
+# ----------------------------------------------------------- #
+#  This is code confidential, for peer-review purposes only   #
+#  and protected under conference code of ethics              #
+# ----------------------------------------------------------- #
+
 import os
 import pytorch_lightning as pl
 from skimage import io as sio

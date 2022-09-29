@@ -1,4 +1,7 @@
-# Code adapted from https://github.com/facebookresearch/xR-EgoPose authored by Denis Tome
+# ----------------------------------------------------------- #
+#  This is code confidential, for peer-review purposes only   #
+#  and protected under conference code of ethics              #
+# ----------------------------------------------------------- #
 
 import os
 import pytorch_lightning as pl
