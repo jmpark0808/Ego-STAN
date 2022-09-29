@@ -32,8 +32,6 @@ pip install -r requirements.txt
     * Folder that contains the visualizations included in the main paper. 
 * results/
     * Folder that contains the csv files of results.
-* Legacy/
-    * Folder that contains the codes before migrating to pytorch lightning.
 * dataset/
     * Folder that contains the codes for processing data. 
 * data/
