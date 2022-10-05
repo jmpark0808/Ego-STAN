@@ -99,7 +99,8 @@ def set_action():
 def load_config():
     """Load config"""
 
-    with open(os.path.join(os.path.expanduser('~'), 'projects/def-pfieguth/xREgoPose/xR-EgoPose/config.yml')) as fin:
+    # with open(os.path.join(os.path.expanduser('~'), 'projects/def-pfieguth/xREgoPose/xR-EgoPose/config.yml')) as fin:
+    with open('data/config.yml') as fin:
         conf = edict(yaml.safe_load(fin))
 
     j = set_skeleton()

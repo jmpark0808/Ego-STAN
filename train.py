@@ -28,6 +28,8 @@ from dataset.mocap_h36m_cropped_transformer import MocapH36MCropSeqDataModule
 from dataset.mocap_h36m_2d import Mocap2DH36MDataModule
 
 from net.DirectRegression import DirectRegression
+from net.H36MBaseLine import H36MBaseline
+from net.H36MSeqHMDirect import H36MSeqHMDirect
 from net.HRNetBaseline import HRNetBaseline
 from net.HRNetEgo import HRNetEgoSTAN
 from net.Mo2Cap2BaselineL1 import Mo2Cap2BaselineL1
@@ -97,7 +99,9 @@ MODEL_DIRECTORY = {
     "mo2cap2_ego": Mo2Cap2SeqHMDirect,
     "xregopose_2d": xREgoPose2D,
     "HRNetBaseline": HRNetBaseline,
-    "HRNetEgoSTAN": HRNetEgoSTAN
+    "HRNetEgoSTAN": HRNetEgoSTAN,
+    "h36m": H36MBaseline,
+    "h36m_seq_hm_direct": H36MSeqHMDirect
 
 
 }
