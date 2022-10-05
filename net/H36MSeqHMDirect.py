@@ -31,6 +31,7 @@ class H36MSeqHMDirect(pl.LightningModule):
         self.weight_regularization = kwargs.get('weight_regularization')
         self.dropout_linear = kwargs.get('dropout_linear')
         self.update_optimizer_flag = False
+        self.automatic_optimization=False
         if self.which_data in ['baseline', 'sequential'] :
             num_class = 16
 
@@ -112,9 +113,25 @@ class H36MSeqHMDirect(pl.LightningModule):
         
         if self.update_optimizer_flag:
             optimizer = torch.optim.AdamW(self.hm2pose.parameters(), lr=self.lr, weight_decay=self.weight_regularization)
+            self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer,
+            mode='min',
+            factor=0.1,
+            patience=self.es_patience-3,
+            min_lr=1e-8,
+            verbose=True)
+        
         else:
             parameters = list(self.resnet101.parameters())+list(self.heatmap_deconv.parameters())+list(self.resnet_transformer.parameters())
             optimizer = torch.optim.AdamW(parameters, lr=self.lr, weight_decay=self.weight_regularization)
+            self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer,
+            mode='min',
+            factor=0.1,
+            patience=self.es_patience-3,
+            min_lr=1e-8,
+            verbose=True)
+        
   
         return optimizer
 
@@ -198,10 +215,11 @@ class H36MSeqHMDirect(pl.LightningModule):
         if self.iteration > self.hm_train_steps and not self.update_optimizer_flag:
             self.update_optimizer_flag = True
 
+        opt = self.configure_optimizers()
+        opt.zero_grad()
         
         # forward pass
         pred_hm, pred_3d, atts = self.forward(sequence_imgs)
-
 
         if self.iteration <= self.hm_train_steps:
             loss = self.mse(pred_hm, p2d)
@@ -213,6 +231,9 @@ class H36MSeqHMDirect(pl.LightningModule):
             self.log('Total HM loss', hm_loss.item())
             self.log('Total 3D loss', loss_3d_pose.item())
      
+
+        self.manual_backward(loss)
+        opt.step()
         # calculate mpjpe loss
         mpjpe = torch.mean(torch.sqrt(torch.sum(torch.pow(p3d - pred_3d, 2), dim=2)))
         mpjpe_std = torch.std(torch.sqrt(torch.sum(torch.pow(p3d - pred_3d, 2), dim=2)))
