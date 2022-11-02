@@ -15,6 +15,7 @@ from torch.utils.data import DataLoader
 from torchvision import transforms
 import copy 
 from dataset.common import *
+from PIL import Image
 
 
 class MocapH36MCropTransformer(BaseDataset):
@@ -56,6 +57,11 @@ class MocapH36MCropTransformer(BaseDataset):
         self.sigma = sigma
         self.sr = sr
         self._cameras = copy.deepcopy(h36m_cameras_extrinsic_params)
+        self.aug_transform = trsf.Compose([
+            trsf.RandomAffineRotation(degrees=25, shear=10, translate=0.05, scale=1),
+            trsf._ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1),
+            trsf.GaussianBlur(high=0.1),
+            ])
  
         super().__init__(*args, **kwargs)
 
@@ -393,16 +399,28 @@ class MocapH36MCropTransformer(BaseDataset):
             w_crop, h_crop, c = cropped_img.shape
 
             cropped_img = resize(cropped_img, (self.image_resolution[0], self.image_resolution[1]))
-            uv1 = np.concatenate([np.copy(p2d_crop), np.ones((17, 1))], axis=1)
-            uv1 = uv1 * Z_c
+            img_for_aug = Image.fromarray((255*cropped_img).astype(np.uint8))
+
             intrinsic_matrix = np.zeros((3,3))
             intrinsic_matrix[0, 0] = camera2int[data['camera']]['focal_length'][0]
             intrinsic_matrix[1, 1] = camera2int[data['camera']]['focal_length'][1]
             intrinsic_matrix[0, 2] = camera2int[data['camera']]['center'][0]
             intrinsic_matrix[1, 2] = camera2int[data['camera']]['center'][1]
             intrinsic_matrix[2, 2] = 1
-            p3d = np.matmul(np.linalg.inv(intrinsic_matrix), uv1.T).T
+
+            aug_img, aug_data = self.aug_transform(img_for_aug, keypoint2d=p2d_crop, intrinsic_matrix=intrinsic_matrix)
+            p2d_crop = aug_data['keypoint2d']
+            intrinsic_matrix_aug = aug_data['intrinsic_matrix']
+            #aug_param = aug_data['aug_param']
+            aug_img = np.array(aug_img)/255.0
+            cropped_img = aug_img
+
+            uv1 = np.concatenate([np.copy(p2d_crop), np.ones((17, 1))], axis=1)
+            uv1 = uv1 * Z_c
+
+            p3d = np.matmul(np.linalg.inv(intrinsic_matrix_aug), uv1.T).T
             p3d  = (p3d - p3d[14:15, :])/1000.
+
             cropped_p3ds.append(p3d)
             cropped_img = resize(cropped_img, (self.image_resolution[0], self.image_resolution[1]))
             cropped_imgs.append(cropped_img)
