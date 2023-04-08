@@ -171,6 +171,7 @@ if __name__ == "__main__":
     parser.add_argument('--sigma', help='Sigma for heatmap generation', type=int, default=3)
     parser.add_argument('--h36m_sample_rate', help='Sample rate for h36m', type=int, default=1)
     parser.add_argument('--csv_mode', help='CSV results mode, 2D or 3D', type=str, default='3D')
+    parser.add_argument('--tag', help='Tag for differentiating runs on CC', default='', type=str)
     args = parser.parse_args()
     dict_args = vars(args)
 
@@ -183,15 +184,10 @@ if __name__ == "__main__":
         model = MODEL_DIRECTORY[dict_args['model']](**dict_args)
 
     # Initialize logging paths
-    random_sec = random.randint(1, 20)
-    time.sleep(random_sec)
+  
     now = datetime.datetime.now().strftime('%m%d%H%M%S')
-    weight_save_dir = os.path.join(dict_args["logdir"], os.path.join('models', 'state_dict', now))
-    while os.path.exists(weight_save_dir):
-        random_sec = random.randint(1, 20)
-        time.sleep(random_sec)
-        now = datetime.datetime.now().strftime('%m%d%H%M%S')
-        weight_save_dir = os.path.join(dict_args["logdir"], os.path.join('models', 'state_dict', now))
+    weight_save_dir = os.path.join(dict_args["logdir"], os.path.join('models', 'state_dict', now+'_'+dict_args["tag"]))
+    
 
     os.makedirs(weight_save_dir, exist_ok=True)
 
@@ -216,7 +212,7 @@ if __name__ == "__main__":
     # Trainer: initialize training behaviour
     profiler = SimpleProfiler()
     lr_monitor = LearningRateMonitor(logging_interval='step')
-    logger = TensorBoardLogger(save_dir=dict_args['logdir'], version=now, name='lightning_logs', log_graph=True)
+    logger = TensorBoardLogger(save_dir=dict_args['logdir'], version=now+'_'+dict_args["tag"], name='lightning_logs', log_graph=True)
     if dict_args['gpus'] > 1:
         accelerator = 'dp'
     elif dict_args['gpus'] == 1:
