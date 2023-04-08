@@ -350,6 +350,7 @@ class MocapH36MSeqDataModule(pl.LightningDataModule):
         self.data_transform = transforms.Compose(
             [trsf.ImageTrsf(), trsf.ToTensor()]
         )
+
         
     def train_dataloader(self):
         data_train = MocapH36MTransformer(

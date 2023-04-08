@@ -62,6 +62,7 @@ from net.xRNetSeqHMDirectEDExp import xREgoPoseSeqHMDirectEDExp
 from net.xRNetSeqHMDirectRevPos import xREgoPoseSeqHMDirectRevPos
 from net.xRNetSeqHMDirectSlice import xREgoPoseSeqHMDirectSlice
 from net.xRNetUNet import xREgoPoseUNet
+from net.DCPoseBaseline import DCPose
 from utils.evaluate import create_results_csv
 
 # Deterministic
@@ -101,7 +102,8 @@ MODEL_DIRECTORY = {
     "HRNetBaseline": HRNetBaseline,
     "HRNetEgoSTAN": HRNetEgoSTAN,
     "h36m": H36MBaseline,
-    "h36m_seq_hm_direct": H36MSeqHMDirect
+    "h36m_seq_hm_direct": H36MSeqHMDirect,
+    'DCPoseBaseline': DCPose,
 
 
 }

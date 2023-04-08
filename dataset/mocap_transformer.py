@@ -25,7 +25,7 @@ class MocapTransformer(BaseDataset):
     ROOT_DIRS = ['rgba', 'json']
     CM_TO_M = 100
 
-    def __init__(self, *args, sequence_length=5, skip =0, heatmap_type='baseline', **kwargs):
+    def __init__(self, *args, sequence_length=5, skip =0, image_resolution=[368, 368], heatmap_resolution=[47, 47], heatmap_type='baseline', **kwargs):
         """Init class, to allow variable sequence length, inherits from Base
         Keyword Arguments:
             sequence_length -- length of image sequence (default: {5})
@@ -34,6 +34,9 @@ class MocapTransformer(BaseDataset):
         self.sequence_length = sequence_length
         self.skip = skip
         self.heatmap_type = heatmap_type
+        self.heatmap_resolution = heatmap_resolution
+        self.image_resolution = image_resolution
+
         super().__init__(*args, **kwargs)
 
     def index_db(self):
@@ -107,6 +110,7 @@ class MocapTransformer(BaseDataset):
                             encoded_json_sequence.append(json_frame_path.encode('utf8')) 
                 else:
                     self.logger.error('Frame idx length is other than 6 or 4')
+
                 if(
                     len(encoded_json_sequence) == len_seq and
                     len(encoded_rgba_sequence) == len_seq
@@ -182,7 +186,7 @@ class MocapTransformer(BaseDataset):
         imgs = [sio.imread(img_path).astype(np.float32) for img_path in img_paths]
         imgs = [img / 255.0 for img in imgs]
         imgs = [img[:, 180:1120, :] for img in imgs]
-        imgs = np.array([resize(img, (368, 368)) for img in imgs])
+        imgs = np.array([resize(img, (self.image_resolution[0], self.image_resolution[1])) for img in imgs])
 
         # read joint positions
         json_paths = [path.decode('utf8') for path in self.index['json'][index]]
@@ -223,7 +227,7 @@ class MocapTransformer(BaseDataset):
             p2d[:, 0] = p2d[:, 0]-180 # Translate p2d coordinates by 180 pixels to the left
             all_raw_p2d.append(p2d)
             if self.heatmap_type == 'baseline':
-                p2d_heatmap = generate_heatmap(p2d, 3) # exclude head
+                p2d_heatmap = generate_heatmap(p2d, 3, self.heatmap_resolution) # exclude head
             elif self.heatmap_type == 'distance':
                 distances = np.sqrt(np.sum(p3d**2, axis=1))
                 p2d_heatmap = generate_heatmap_distance(p2d, distances) # exclude head
@@ -261,6 +265,8 @@ class MocapSeqDataModule(pl.LightningDataModule):
         self.heatmap_type = kwargs.get('heatmap_type')
         self.seq_len = kwargs.get('seq_len')
         self.skip = kwargs.get('skip')
+        self.heatmap_resolution = kwargs.get('heatmap_resolution')
+        self.image_resolution = kwargs.get('image_resolution')
 
 
         # Data: data transformation strategy
@@ -273,6 +279,8 @@ class MocapSeqDataModule(pl.LightningDataModule):
             self.train_dir,
             SetType.TRAIN,
             transform=self.data_transform,
+            image_resolution=self.image_resolution,
+            heatmap_resolution=self.heatmap_resolution,
             sequence_length = self.seq_len,
             skip = self.skip,
             heatmap_type=self.heatmap_type)
@@ -286,6 +294,8 @@ class MocapSeqDataModule(pl.LightningDataModule):
             SetType.VAL,
             transform=self.data_transform,
             sequence_length = self.seq_len,
+            image_resolution=self.image_resolution,
+            heatmap_resolution=self.heatmap_resolution,
             skip = self.skip,
             heatmap_type=self.heatmap_type)
         return DataLoader(
@@ -298,6 +308,8 @@ class MocapSeqDataModule(pl.LightningDataModule):
             SetType.TEST,
             transform=self.data_transform,
             sequence_length = self.seq_len,
+            image_resolution=self.image_resolution,
+            heatmap_resolution=self.heatmap_resolution,
             skip = self.skip,
             heatmap_type=self.heatmap_type)
         return DataLoader(
