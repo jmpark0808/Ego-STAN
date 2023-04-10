@@ -286,7 +286,7 @@ class MocapSeqDataModule(pl.LightningDataModule):
             heatmap_type=self.heatmap_type)
         return DataLoader(
                 data_train, batch_size=self.batch_size, 
-                num_workers=self.num_workers, shuffle=True, pin_memory=True)
+                num_workers=self.num_workers, shuffle=True, pin_memory=False)
 
     def val_dataloader(self):
         data_val =  MocapTransformer(
@@ -300,7 +300,7 @@ class MocapSeqDataModule(pl.LightningDataModule):
             heatmap_type=self.heatmap_type)
         return DataLoader(
                 data_val, batch_size=self.batch_size, 
-                num_workers=self.num_workers, pin_memory=True)
+                num_workers=self.num_workers, pin_memory=False)
 
     def test_dataloader(self):
         data_test =  MocapTransformer(
@@ -314,6 +314,6 @@ class MocapSeqDataModule(pl.LightningDataModule):
             heatmap_type=self.heatmap_type)
         return DataLoader(
                 data_test, batch_size=self.batch_size, 
-                num_workers=self.num_workers, pin_memory=True)
+                num_workers=self.num_workers, pin_memory=False)
 
 

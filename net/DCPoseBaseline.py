@@ -182,6 +182,7 @@ class DCPose(pl.LightningModule):
         self.log("train_mpjpe_std", mpjpe_std)
         self.iteration += 1
         return loss
+        
 
     def validation_step(self, batch, batch_idx):
         """

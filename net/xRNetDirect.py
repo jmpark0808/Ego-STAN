@@ -56,6 +56,7 @@ class xREgoPoseDirect(pl.LightningModule):
         self.save_hyperparameters()
         self.test_results = {}
 
+
     def mse(self, pred, label):
         pred = pred.reshape(pred.size(0), -1)
         label = label.reshape(label.size(0), -1)
@@ -81,11 +82,11 @@ class xREgoPoseDirect(pl.LightningModule):
         Choose what optimizers and learning-rate schedulers to use in your optimization.
         """
         
-        optimizer = torch.optim.SGD(
-        self.parameters(), lr=self.lr, momentum=0.9, nesterov=True
+        optimizer_2d = torch.optim.AdamW(
+        self.parameters(), lr=self.lr
         )
-        
-        return optimizer
+
+        return optimizer_2d
       
 
     def forward(self, x):
@@ -113,7 +114,6 @@ class xREgoPoseDirect(pl.LightningModule):
         https://pytorch-lightning.readthedocs.io/en/latest/starter/introduction_guide.html
 
         """
-
         img, p2d, p3d, action, img_path = batch
         img = img.cuda()
         p2d = p2d.cuda()
@@ -129,8 +129,6 @@ class xREgoPoseDirect(pl.LightningModule):
             hm_2d_loss = self.mse(heatmap, p2d)
             loss = hm_2d_loss
             self.log('Total HM loss', hm_2d_loss.item())
-
-
         else:
             heatmap, pose = self.forward(img)
             heatmap = torch.sigmoid(heatmap)
@@ -177,7 +175,9 @@ class xREgoPoseDirect(pl.LightningModule):
         self.eval_body.eval(y_output, y_target, action)
         self.eval_upper.eval(y_output, y_target, action)
         self.eval_lower.eval(y_output, y_target, action)
-
+        mpjpe = torch.sum(torch.sqrt(torch.sum(torch.pow(p3d - pose, 2), dim=2)), dim=0)
+        self.val_dummy += mpjpe
+        self.samples += p3d.size(0)
         return val_loss_3d_pose
 
     def on_validation_start(self):
@@ -187,8 +187,10 @@ class xREgoPoseDirect(pl.LightningModule):
         self.eval_lower = evaluate.EvalLowerBody()
 
         # Initialize total validation pose loss
+        self.val_dummy = torch.empty([16], device=self.device)
         self.val_loss_3d_pose_total = torch.tensor(0., device=self.device)
         self.val_loss_2d_hm = torch.tensor(0., device=self.device)
+        self.samples = 0 
 
 
     def validation_epoch_end(self, validation_step_outputs):
@@ -202,6 +204,9 @@ class xREgoPoseDirect(pl.LightningModule):
             self.log("val_mpjpe_lower_body", val_mpjpe_lower["All"]["mpjpe"])
             self.log("val_loss_3D", self.val_loss_3d_pose_total)
             self.log("val_loss_2D", self.val_loss_2d_hm)
+            result = self.val_dummy / self.samples
+            self.log("val_mpjpe_recompute", torch.mean(result))
+
         else:
             self.log("val_mpjpe_full_body", 0.3-0.01*(self.iteration/self.hm_train_steps))
                     
