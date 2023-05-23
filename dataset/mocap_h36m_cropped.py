@@ -15,6 +15,7 @@ import matplotlib.pyplot as plt
 import torch
 import copy 
 from dataset.common import *
+from PIL import Image
 
 
 class MocapH36MCrop(BaseDataset):
@@ -53,6 +54,11 @@ class MocapH36MCrop(BaseDataset):
         self.w2c = w2c
         self.sigma = sigma
         self.sr = sr
+        self.aug_transform = trsf.Compose([
+            trsf.RandomAffineRotation(degrees=25, shear=10, translate=0.05, scale=1),
+            trsf._ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1),
+            trsf.GaussianBlur(high=0.1),
+            ])
         super().__init__(*args, **kwargs)
 
     def _load_index(self):
@@ -284,15 +290,25 @@ class MocapH36MCrop(BaseDataset):
         w_crop, h_crop, c = cropped_img.shape
 
         cropped_img = resize(cropped_img, (self.image_resolution[0], self.image_resolution[1]))
-        uv1 = np.concatenate([np.copy(p2d_crop), np.ones((17, 1))], axis=1)
-        uv1 = uv1 * Z_c
+        img_for_aug = Image.fromarray((255*cropped_img).astype(np.uint8))
+
         intrinsic_matrix = np.zeros((3,3))
         intrinsic_matrix[0, 0] = camera2int[data['camera']]['focal_length'][0]
         intrinsic_matrix[1, 1] = camera2int[data['camera']]['focal_length'][1]
         intrinsic_matrix[0, 2] = camera2int[data['camera']]['center'][0]
         intrinsic_matrix[1, 2] = camera2int[data['camera']]['center'][1]
         intrinsic_matrix[2, 2] = 1
-        p3d = np.matmul(np.linalg.inv(intrinsic_matrix), uv1.T).T
+
+        aug_img, aug_data = self.aug_transform(img_for_aug, keypoint2d=p2d_crop, intrinsic_matrix=intrinsic_matrix)
+        p2d_crop = aug_data['keypoint2d']
+        intrinsic_matrix_aug = aug_data['intrinsic_matrix']
+        #aug_param = aug_data['aug_param']
+        aug_img = np.array(aug_img)/255.0
+
+        uv1 = np.concatenate([np.copy(p2d_crop), np.ones((17, 1))], axis=1)
+        uv1 = uv1 * Z_c
+
+        p3d = np.matmul(np.linalg.inv(intrinsic_matrix_aug), uv1.T).T
         p3d  = (p3d - p3d[14:15, :])/1000.
         # p3d[[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15, 16], :] -= p3d[14, :]
 
@@ -315,11 +331,12 @@ class MocapH36MCrop(BaseDataset):
             random_dice = np.random.uniform(0, 1, [1])
             img = self.transform({'image': img, 'random_dice': random_dice})['image']
             cropped_img = self.transform({'image': cropped_img, 'random_dice': random_dice})['image']
+            aug_img = self.transform({'image': aug_img, 'random_dice': random_dice})['image']
             p3d = self.transform({'joints3D': p3d, 'random_dice': random_dice})['joints3D']
             p2d_heatmap = self.transform({'joints2D_heatmap': p2d_heatmap, 'random_dice': random_dice})['joints2D_heatmap']
             p2d_heatmap_crop = self.transform({'joints2D_heatmap': p2d_hm_crop, 'random_dice': random_dice})['joints2D_heatmap']
 
-        return cropped_img, p2d_heatmap_crop, p3d, action
+        return aug_img, p2d_heatmap_crop, p3d, action
 
     def __len__(self):
 
