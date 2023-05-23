@@ -267,6 +267,7 @@ class DcPose_RSN(BaseModel):
                         nn.init.normal_(module.weight, std=0.001)
 
         if os.path.isfile(self.pretrained):
+            print('Loading pretrained')
             pretrained_state_dict = torch.load(self.pretrained)
             if 'state_dict' in pretrained_state_dict.keys():
                 pretrained_state_dict = pretrained_state_dict['state_dict']

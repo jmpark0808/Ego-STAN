@@ -136,7 +136,7 @@ class DCPose(pl.LightningModule):
         :return: 2D heatmap, 16x3 joint inferences, 2D reconstructed heatmap
         """
         # x = 3 x 368 x 368
-        pose_2d = self.model(x, margin=margin)
+        _, pose_2d = self.model(x, margin=margin)
         pose_2d_int = F.interpolate(pose_2d, (47, 47))
         pose_3d = self.regression(pose_2d_int)
         return pose_2d_int, pose_3d

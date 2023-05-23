@@ -15,12 +15,12 @@ DATASET:
   BBOX_ENLARGE_FACTOR: 1.25
 
 MODEL:
-  FREEZE_HRNET_WEIGHTS: true
-  EVALUATE: true
+  FREEZE_HRNET_WEIGHTS: false
+  EVALUATE: false
   INIT_WEIGHTS: true
 
   NUM_JOINTS: 16
-  # PRETRAINED: './DcPose_supp_files/pretrained_models/pretrained_.pth'
+  PRETRAINED: '/home/eddie/Downloads/PoseTrack17_DCPose.pth'
 #  PRETRAINED: './DcPose_supp_files/pretrained_models/pretrained_coco_model.pth'
   TARGET_TYPE: gaussian
   IMAGE_SIZE:

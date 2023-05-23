@@ -234,7 +234,8 @@ if __name__ == "__main__":
         log_every_n_steps=10,
         gradient_clip_val=dict_args['clip_grad_norm'],
         resume_from_checkpoint=dict_args['resume_from_checkpoint'],
-        accelerator=accelerator
+        accelerator=accelerator,
+        precision=16
     )
 
     # Trainer: train model
