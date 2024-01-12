@@ -1,6 +1,10 @@
+# ----------------------------------------------------------- #
+#  This is code confidential, for peer-review purposes only   #
+#  and protected under conference code of ethics              #
+# ----------------------------------------------------------- #
+
 """
-@author: Junguang Jiang
-@contact: JiangJunguang1123@outlook.com
+Adapted by work done by repository authored by Junguang Jiang ()
 """
 from typing import Optional, List
 

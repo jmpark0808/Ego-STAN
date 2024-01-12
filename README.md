@@ -15,7 +15,7 @@ pip install --no-index --upgrade pip
 2. Install required dependencies for the repo 
 ```
 # First cd into the xREgoPose directory 
-# For example, I will have to " cd ~/projects/def-pfieguth/j97park/xREgoPose/
+# Like " cd ~/path/to/xREgoPose/
 pip install -r requirements.txt
 ```
 <h1> Navigation </h1>
@@ -32,8 +32,6 @@ pip install -r requirements.txt
     * Folder that contains the visualizations included in the main paper. 
 * results/
     * Folder that contains the csv files of results.
-* Legacy/
-    * Folder that contains the codes before migrating to pytorch lightning.
 * dataset/
     * Folder that contains the codes for processing data. 
 * data/

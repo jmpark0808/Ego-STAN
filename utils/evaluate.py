@@ -1,5 +1,10 @@
-# Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
-# -*- coding: utf-8 -*-
+# ----------------------------------------------------------- #
+#  This is code confidential, for peer-review purposes only   #
+#  and protected under conference code of ethics              #
+# ----------------------------------------------------------- #
+
+# Code adapted from https://github.com/facebookresearch/xR-EgoPose authored by Denis Tome
+
 """
 Class for model evaluation
 
@@ -75,7 +80,7 @@ def get_p3ds_t(p3d_preds, p3d_gts):
         Rescaled Predicted 3D joints, 
         Rescaled Procrustes Aligned Ground Truth 3D joints 
     """
-    mean3D = scipy.io.loadmat(os.path.join(os.path.expanduser('~'), 'projects/def-pfieguth/mo2cap/code/util/mean3D.mat'))['mean3D'] # 3x15 shape
+    mean3D = scipy.io.loadmat(os.path.join(os.path.expanduser('~'), 'projects/<removed>/mo2cap/code/util/mean3D.mat'))['mean3D'] # 3x15 shape
     kinematic_parents = [ 0, 0, 1, 2, 0, 4, 5, 1, 7, 8, 9, 4, 11, 12, 13]
     bones_mean = mean3D - mean3D[:,kinematic_parents]
     bone_length = np.sqrt(np.sum(np.power(bones_mean, 2), axis=0)) # 15 shape
@@ -541,7 +546,7 @@ def compute_error(pred, gt, return_mean=True, mode='baseline', protocol=None):
         if gt.shape[0] != 3:
             gt = np.transpose(gt, [1, 0])
         assert pred.shape == gt.shape
-        mean3D = scipy.io.loadmat(os.path.join(os.path.expanduser('~'), 'projects/def-pfieguth/mo2cap/code/util/mean3D.mat'))['mean3D'] # 3x15 shape
+        mean3D = scipy.io.loadmat(os.path.join(os.path.expanduser('~'), 'projects/<removed>/mo2cap/code/util/mean3D.mat'))['mean3D'] # 3x15 shape
         kinematic_parents = [ 0, 0, 1, 2, 0, 4, 5, 1, 7, 8, 9, 4, 11, 12, 13]
         bones_mean = mean3D - mean3D[:,kinematic_parents]
         bone_length = np.sqrt(np.sum(np.power(bones_mean, 2), axis=0)) # 15 shape

@@ -1,8 +1,12 @@
-# Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
-# -*- coding: utf-8 -*-
+# ----------------------------------------------------------- #
+#  This is code confidential, for peer-review purposes only   #
+#  and protected under conference code of ethics              #
+# ----------------------------------------------------------- #
+
+# Code adapted from https://github.com/facebookresearch/xR-EgoPose authored by Denis Tome
+
 """
 IO utilities
-@author: Denis Tome'
 """
 import os
 import re

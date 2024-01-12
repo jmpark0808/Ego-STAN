@@ -1,4 +1,7 @@
-# Code based off of that of Dennis Tome's xREgoPose repo but with many changes to accomodate human3.6m
+# ----------------------------------------------------------- #
+#  This is code confidential, for peer-review purposes only   #
+#  and protected under conference code of ethics              #
+# ----------------------------------------------------------- #
 
 import os
 import pytorch_lightning as pl

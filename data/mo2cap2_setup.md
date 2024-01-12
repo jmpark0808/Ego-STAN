@@ -12,3 +12,5 @@ The use mo2cap2 would be almost identical to xREgoPose. The correct directory ne
 The correct relevant argument is the `--dataloader` argument where `mo2cap2` should be passed. <br>
 The folders where TrainSet, ValSet and TestSet were zipped/compressed to need to be unzipped to `$SLURM_TMPDIR`. <br>
 (TO DO: upload the bash scripts to do the appropriate operations)
+
+(File used from https://github.com/facebookresearch/xR-EgoPose authored by Denis Tome)

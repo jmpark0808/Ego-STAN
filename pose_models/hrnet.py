@@ -1,8 +1,10 @@
-# ------------------------------------------------------------------------------
-# Copyright (c) Microsoft
-# Licensed under the MIT License.
-# Written by Bin Xiao (Bin.Xiao@microsoft.com)
-# ------------------------------------------------------------------------------
+# ----------------------------------------------------------- #
+#  This is code confidential, for peer-review purposes only   #
+#  and protected under conference code of ethics              #
+# ----------------------------------------------------------- #
+
+# Code adapted from https://github.com/HRNet/HRNet-Human-Pose-Estimation written by Bin Xiao (Bin.Xiao@microsoft.com)
+
 
 from __future__ import absolute_import
 from __future__ import division

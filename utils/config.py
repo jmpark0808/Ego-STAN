@@ -1,8 +1,14 @@
-# Copyright (c) Facebook, Inc. and its affiliates. All Rights Reserved
-# -*- coding: utf-8 -*-
+# ----------------------------------------------------------- #
+#  This is code confidential, for peer-review purposes only   #
+#  and protected under conference code of ethics              #
+# ----------------------------------------------------------- #
+
+# Code adapted from https://github.com/facebookresearch/xR-EgoPose authored by Denis Tome
+
 """
 Load data configuration
-@author: Denis Tome'
+Adapted from original
+
 """
 import yaml
 from easydict import EasyDict as edict
@@ -99,7 +105,7 @@ def set_action():
 def load_config():
     """Load config"""
 
-    with open(os.path.join(os.path.expanduser('~'), 'projects/def-pfieguth/xREgoPose/xR-EgoPose/config.yml')) as fin:
+    with open(os.path.join(os.path.expanduser('~'), 'projects/<removed>/xREgoPose/xR-EgoPose/config.yml')) as fin:
         conf = edict(yaml.safe_load(fin))
 
     j = set_skeleton()
